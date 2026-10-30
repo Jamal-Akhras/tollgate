@@ -2,6 +2,9 @@ package io.github.jamalakhras.tollgate.server.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
@@ -40,5 +43,13 @@ class BudgetTest extends GatewayTestSupport {
                         "\"code\":\"budget_exceeded\"",
                         "which this tenant's total budget of 0.01 USD cannot cover");
         assertThat(PROVIDER.received()).hasSize(callsSoFar);
+        assertThat(auditRecordsOf(refused))
+                .singleElement()
+                .isInstanceOfSatisfying(
+                        Intent.class,
+                        intent -> assertThat(intent.decision())
+                                .isInstanceOfSatisfying(
+                                        Decision.Deny.class,
+                                        deny -> assertThat(deny.refusal()).isEqualTo(Refusal.BUDGET_EXCEEDED)));
     }
 }

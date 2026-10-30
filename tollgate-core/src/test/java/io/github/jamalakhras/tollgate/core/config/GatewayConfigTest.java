@@ -55,7 +55,8 @@ class GatewayConfigTest {
                 MODELS,
                 tenants,
                 List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "open", Policy.NONE));
+                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "open", Policy.NONE),
+                AuditSettings.DISABLED);
     }
 
     private Admission admit(String tenant, String model, @Nullable String requestedDataClass, long size) {
@@ -154,7 +155,8 @@ class GatewayConfigTest {
                 Map.of("qwen3", QWEN),
                 Map.of("support-bot", new Tenant(List.of("qwen3"), null, null, null)),
                 List.of(),
-                Map.of());
+                Map.of(),
+                AuditSettings.DISABLED);
         var route = open.route("support-bot", "qwen3").orElseThrow();
 
         Admission admission = open.admit("support-bot", route, null, Long.MAX_VALUE);
@@ -182,13 +184,16 @@ class GatewayConfigTest {
     void checksTheDataClassesAGuardNames() {
         var guard = new DataClassGuard(Map.of("secret", List.of("local")));
         var policies = Map.of("p", new Policy(List.of(guard)));
-        assertThatThrownBy(() -> new GatewayConfig(DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies))
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies, AuditSettings.DISABLED))
                 .hasMessage("policies.p: the data-class guard names an unknown data class 'secret'");
         var badName = List.of("top secret");
-        assertThatThrownBy(() -> new GatewayConfig(badName, Map.of(), Map.of(), Map.of(), List.of(), Map.of()))
+        assertThatThrownBy(() -> new GatewayConfig(
+                        badName, Map.of(), Map.of(), Map.of(), List.of(), Map.of(), AuditSettings.DISABLED))
                 .hasMessageStartingWith("data class 'top secret' must start with a letter or digit");
         var repeated = List.of("public", "public");
-        assertThatThrownBy(() -> new GatewayConfig(repeated, Map.of(), Map.of(), Map.of(), List.of(), Map.of()))
+        assertThatThrownBy(() -> new GatewayConfig(
+                        repeated, Map.of(), Map.of(), Map.of(), List.of(), Map.of(), AuditSettings.DISABLED))
                 .hasMessage("dataClasses must not repeat a data class");
     }
 

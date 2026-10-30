@@ -27,3 +27,12 @@ versions may change the extension interfaces.
   and each class goes only to the regions it allows.
 - Per-tenant budgets: the worst case is reserved before the call, settled from
   reported usage, and over-budget requests are refused with `429`.
+- A signed, batch-chained audit trail. Records are hashed from a fixed binary
+  encoding into RFC 6962 Merkle trees. Each root is chained to the one before
+  and signed with Ed25519, and prompts are kept only as HMACs. Writes are
+  synchronous with group commit, or asynchronous. A request whose intent
+  cannot be recorded is refused.
+- `audit keys create` and `audit verify`.
+- `POST /admin/v1/config/reload`, which validates the file and swaps it in
+  atomically.
+- A container image on a distroless Java 25 base, built with Jib.

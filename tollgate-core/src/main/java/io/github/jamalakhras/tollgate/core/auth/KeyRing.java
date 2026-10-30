@@ -16,10 +16,9 @@ public final class KeyRing {
         this.keysById = keys.stream().collect(Collectors.toUnmodifiableMap(TenantKey::id, Function.identity()));
     }
 
-    public Optional<String> tenantOf(String presentedKey) {
+    public Optional<TenantKey> authenticate(String presentedKey) {
         return ApiKey.parse(presentedKey)
                 .flatMap(key -> Optional.ofNullable(keysById.get(key.id()))
-                        .filter(stored -> MessageDigest.isEqual(stored.digest(), key.digest()))
-                        .map(TenantKey::tenant));
+                        .filter(stored -> MessageDigest.isEqual(stored.digest(), key.digest())));
     }
 }

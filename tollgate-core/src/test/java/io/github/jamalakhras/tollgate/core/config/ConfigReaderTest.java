@@ -35,6 +35,13 @@ class ConfigReaderTest {
             "regions",
             Map.of("public", List.of("us", "local"), "confidential", List.of("local")));
 
+    private static final Map<String, Object> AUDIT = Map.of(
+            "mode", "sync",
+            "directory", "audit",
+            "publicKey", "MCowBQYDK2VwAyEA",
+            "signingKey", "${env:TOLLGATE_AUDIT_SIGNING_KEY}",
+            "hmacKey", "${env:TOLLGATE_AUDIT_HMAC_KEY}");
+
     private static Map<String, Object> document() {
         Map<String, Object> document = new LinkedHashMap<>();
         document.put("dataClasses", List.of("public", "confidential"));
@@ -71,6 +78,7 @@ class ConfigReaderTest {
                         Map.of("models", List.of("qwen3", "claude-sonnet"), "dataClass", "confidential")));
         document.put("keys", List.of(Map.of("id", "k7Qm2xPa9bCd", "tenant", "support-bot", "sha256", KEY_HASH)));
         document.put("policies", Map.of("default", Map.of("guards", List.of(SIZE_GUARD, DATA_CLASS_GUARD))));
+        document.put("audit", AUDIT);
         return document;
     }
 
@@ -244,9 +252,41 @@ class ConfigReaderTest {
 
     @Test
     void treatsMissingSectionsAsEmpty() {
-        GatewayConfig config = ConfigReader.read(Map.of());
+        GatewayConfig config = ConfigReader.read(Map.of("audit", Map.of("mode", "off")));
         assertThat(config.providers()).isEmpty();
         assertThat(config.keys()).isEmpty();
+        assertThat(config.audit()).isEqualTo(AuditSettings.DISABLED);
+    }
+
+    @Test
+    void readsTheAuditSettings() {
+        assertThat(ConfigReader.read(document()).audit())
+                .isEqualTo(new AuditSettings.Enabled(
+                        true,
+                        "audit",
+                        "MCowBQYDK2VwAyEA",
+                        new SecretRef("TOLLGATE_AUDIT_SIGNING_KEY"),
+                        new SecretRef("TOLLGATE_AUDIT_HMAC_KEY")));
+        assertThat(ConfigReader.read(with("audit.mode", "async")).audit())
+                .isInstanceOfSatisfying(
+                        AuditSettings.Enabled.class,
+                        audit -> assertThat(audit.synchronous()).isFalse());
+    }
+
+    @Test
+    void requiresTheAuditToBeConfiguredOrTurnedOffExplicitly() {
+        assertThatThrownBy(() -> ConfigReader.read(without("audit"))).hasMessage("audit is required");
+        assertThatThrownBy(() -> ConfigReader.read(without("audit.mode"))).hasMessage("audit.mode is required");
+        assertThatThrownBy(() -> ConfigReader.read(with("audit.mode", "never")))
+                .hasMessage("audit.mode must be one of sync, async, off, was never");
+        assertThatThrownBy(() -> ConfigReader.read(with("audit.mode", "off")))
+                .hasMessageStartingWith("audit.")
+                .hasMessageEndingWith(" is not a recognised setting");
+        assertThatThrownBy(() -> ConfigReader.read(without("audit.hmacKey"))).hasMessage("audit.hmacKey is required");
+        assertThatThrownBy(() -> ConfigReader.read(with("audit.path", "audit")))
+                .hasMessage("audit.path is not a recognised setting");
+        assertThatThrownBy(() -> ConfigReader.read(with("audit.signingKey", "MC4CAQAwBQYDK2VwBCIEI")))
+                .hasMessage("audit: secrets must be references such as ${env:PROVIDER_API_KEY}, never values");
     }
 
     @ParameterizedTest

@@ -21,7 +21,7 @@ public final class ConfigReader {
 
     public static GatewayConfig read(Map<String, ?> document) {
         Section root = Section.root(document);
-        root.requireOnly("currency", "dataClasses", "providers", "models", "tenants", "keys", "policies");
+        root.requireOnly("currency", "dataClasses", "providers", "models", "tenants", "keys", "policies", "audit");
         Currency currency = root.currency("currency", DEFAULT_CURRENCY);
         var dataClasses = root.texts("dataClasses");
         var providers = root.sections("providers", ConfigReader::provider);
@@ -29,7 +29,28 @@ public final class ConfigReader {
         var tenants = root.sections("tenants", section -> tenant(section, currency));
         var keys = root.sectionList("keys", ConfigReader::key);
         var policies = root.sections("policies", ConfigReader::policy);
-        return root.build(() -> new GatewayConfig(dataClasses, providers, models, tenants, keys, policies));
+        var audit = root.child("audit", ConfigReader::audit);
+        return root.build(() -> new GatewayConfig(dataClasses, providers, models, tenants, keys, policies, audit));
+    }
+
+    private static AuditSettings audit(Section section) {
+        String mode = section.text("mode");
+        return switch (mode) {
+            case "off" -> {
+                section.requireOnly("mode");
+                yield AuditSettings.DISABLED;
+            }
+            case "sync", "async" -> {
+                section.requireOnly("mode", "directory", "publicKey", "signingKey", "hmacKey");
+                yield section.build(() -> new AuditSettings.Enabled(
+                        mode.equals("sync"),
+                        section.text("directory"),
+                        section.text("publicKey"),
+                        SecretRef.parse(section.text("signingKey")),
+                        SecretRef.parse(section.text("hmacKey"))));
+            }
+            default -> throw section.invalid("mode", "must be one of sync, async, off, was " + mode);
+        };
     }
 
     private static Provider provider(Section section) {

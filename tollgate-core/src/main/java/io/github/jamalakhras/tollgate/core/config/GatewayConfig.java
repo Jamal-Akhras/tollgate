@@ -9,6 +9,7 @@ import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
@@ -19,7 +20,8 @@ public record GatewayConfig(
         Map<String, Model> models,
         Map<String, Tenant> tenants,
         List<TenantKey> keys,
-        Map<String, Policy> policies) {
+        Map<String, Policy> policies,
+        AuditSettings audit) {
 
     public static final String DEFAULT_POLICY = "default";
 
@@ -30,6 +32,7 @@ public record GatewayConfig(
         tenants = Map.copyOf(tenants);
         keys = List.copyOf(keys);
         policies = Map.copyOf(policies);
+        Objects.requireNonNull(audit, "audit");
 
         dataClasses.forEach(name -> Names.check("data class", name));
         providers.keySet().forEach(name -> Names.check("provider", name));

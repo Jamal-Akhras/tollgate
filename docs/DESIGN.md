@@ -48,8 +48,8 @@ Modules are added when they gain code. Today the build has `tollgate-core`,
 `tollgate-providers` and `tollgate-server`.
 
 Commands ship inside the server jar, so the one download does both:
-`java -jar tollgate.jar keys create --tenant support-bot` and, later,
-`audit verify`, `validate` and `simulate`.
+`java -jar tollgate.jar keys create --tenant support-bot`,
+`audit keys create` and `audit verify`, and later `validate` and `simulate`.
 
 ### Ports
 
@@ -146,6 +146,13 @@ policies:
         restoreInResponse: true
         mode: enforce              # enforce | monitor (shadow)
         failure: closed            # closed | open
+
+audit:                             # required; 'mode: off' must be written out
+  mode: sync                       # sync | async | off
+  directory: audit
+  publicKey: MCowBQYDK2VwAyEA…
+  signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
+  hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
 ```
 
 - **Tenants** may call only the models they list; any other model is reported as

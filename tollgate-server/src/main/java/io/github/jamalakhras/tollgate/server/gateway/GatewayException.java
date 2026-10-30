@@ -1,15 +1,14 @@
 package io.github.jamalakhras.tollgate.server.gateway;
 
-import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
-import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 
 final class GatewayException extends RuntimeException {
 
-    static final String BUDGET_EXCEEDED = "budget_exceeded";
+    static final String BUDGET_EXCEEDED = Refusal.BUDGET_EXCEEDED.code();
 
     private static final long serialVersionUID = 1L;
 
@@ -48,15 +47,16 @@ final class GatewayException extends RuntimeException {
             case POLICY_DENIED -> new GatewayException(HttpStatus.FORBIDDEN, "policy_denied", denial.message(), null);
             case TOO_LARGE ->
                 new GatewayException(HttpStatus.CONTENT_TOO_LARGE, "request_too_large", denial.message(), null);
+            case BUDGET_EXCEEDED ->
+                new GatewayException(HttpStatus.TOO_MANY_REQUESTS, BUDGET_EXCEEDED, denial.message(), null);
         };
     }
 
-    static GatewayException budgetExceeded(Budget budget, Money mostItCanCost) {
+    static GatewayException auditUnavailable() {
         return new GatewayException(
-                HttpStatus.TOO_MANY_REQUESTS,
-                BUDGET_EXCEEDED,
-                "This request could cost up to " + mostItCanCost + ", which this tenant's "
-                        + budget.period().configName() + " budget of " + budget.limit() + " cannot cover",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "audit_unavailable",
+                "Tollgate cannot record this request in its audit trail, so it was not sent",
                 null);
     }
 

@@ -16,6 +16,7 @@ class ArchitectureTest {
             .resideInAPackage("io.github.jamalakhras.tollgate.core..")
             .should()
             .onlyDependOnClassesThat()
-            .resideInAnyPackage("io.github.jamalakhras.tollgate.core..", "java..", "org.jspecify.annotations..")
+            .resideInAnyPackage(
+                    "io.github.jamalakhras.tollgate.core..", "java..", "javax.crypto..", "org.jspecify.annotations..")
             .because("core must stay framework-free so it can be embedded anywhere");
 }

@@ -1,0 +1,11 @@
+package io.github.jamalakhras.tollgate.server.gateway;
+
+import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
+import java.nio.file.Path;
+
+record LoadedConfig(Path path, GatewayConfig config, String version) {
+
+    Path resolve(String relativePath) {
+        return path.toAbsolutePath().resolveSibling(relativePath).normalize();
+    }
+}

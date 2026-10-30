@@ -1,8 +1,12 @@
 package io.github.jamalakhras.tollgate.server.gateway;
 
+import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
+import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import io.github.jamalakhras.tollgate.server.TestPorts;
+import io.github.jamalakhras.tollgate.server.audit.AuditDirectory;
+import io.github.jamalakhras.tollgate.server.audit.AuditJson;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -12,6 +16,8 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -27,6 +33,10 @@ abstract class GatewayTestSupport {
     static final FakeProvider PROVIDER = new FakeProvider();
     static final ApiKey KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey METERED_KEY = ApiKey.generate(new SecureRandom());
+    static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
+    static final Path AUDIT_DIRECTORY = temporaryDirectory();
+    static final int ADMIN_PORT = TestPorts.free();
+    static final Path CONFIG = writeConfig();
 
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
 
@@ -35,12 +45,24 @@ abstract class GatewayTestSupport {
 
     @DynamicPropertySource
     static void gateway(DynamicPropertyRegistry registry) {
-        registry.add("tollgate.config", GatewayTestSupport::writeConfig);
-        registry.add("tollgate.admin.port", TestPorts::free);
+        registry.add("tollgate.config", CONFIG::toString);
+        registry.add("tollgate.admin.port", () -> ADMIN_PORT);
         registry.add("PROVIDER_KEY", () -> "sk-provider");
+        registry.add("TOLLGATE_AUDIT_SIGNING_KEY", AUDIT_KEYS::signingKey);
+        registry.add("TOLLGATE_AUDIT_HMAC_KEY", AUDIT_KEYS::hmacKey);
     }
 
-    private static String writeConfig() {
+    private static Path temporaryDirectory() {
+        try {
+            Path directory = Files.createTempDirectory("tollgate-audit");
+            directory.toFile().deleteOnExit();
+            return directory;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Path writeConfig() {
         String config = """
                 dataClasses: [public, internal, confidential]
                 providers:
@@ -84,6 +106,12 @@ abstract class GatewayTestSupport {
                       - { type: request-size, maxBytes: 900 }
                       - type: data-class
                         regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                audit:
+                  mode: sync
+                  directory: '%8$s'
+                  publicKey: %9$s
+                  signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
+                  hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
                 """.formatted(
                         PROVIDER.baseUrl(),
                         TestPorts.free(),
@@ -91,11 +119,13 @@ abstract class GatewayTestSupport {
                         KEY.sha256(),
                         "{ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }",
                         METERED_KEY.id(),
-                        METERED_KEY.sha256());
+                        METERED_KEY.sha256(),
+                        AUDIT_DIRECTORY,
+                        AUDIT_KEYS.publicKey());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();
-            return Files.writeString(file, config).toString();
+            return Files.writeString(file, config);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -104,6 +134,20 @@ abstract class GatewayTestSupport {
     @BeforeEach
     void resetProvider() {
         PROVIDER.reset();
+    }
+
+    static List<AuditRecord> auditRecordsOf(HttpResponse<String> response) throws IOException {
+        String traceId = response.headers().firstValue(TraceIdFilter.HEADER).orElseThrow();
+        List<AuditRecord> records = new ArrayList<>();
+        for (Path file : AuditDirectory.files(AUDIT_DIRECTORY)) {
+            for (String line : Files.readAllLines(file)) {
+                if (AuditJson.read(line) instanceof AuditRecord record
+                        && record.id().equals(traceId)) {
+                    records.add(record);
+                }
+            }
+        }
+        return records;
     }
 
     HttpResponse<String> post(String path, String body, String... headers) throws IOException, InterruptedException {

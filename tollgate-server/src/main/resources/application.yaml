@@ -22,6 +22,9 @@ management:
     health:
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,audit
 
 springdoc:
   writer-with-order-by-keys: true

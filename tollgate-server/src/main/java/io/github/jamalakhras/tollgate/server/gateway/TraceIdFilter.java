@@ -13,11 +13,13 @@ final class TraceIdFilter extends OncePerRequestFilter {
 
     static final String HEADER = "X-Tollgate-Trace-Id";
     static final String LOG_KEY = "traceId";
+    static final String ATTRIBUTE = "tollgate.traceId";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String traceId = UUID.randomUUID().toString();
+        request.setAttribute(ATTRIBUTE, traceId);
         response.setHeader(HEADER, traceId);
         MDC.put(LOG_KEY, traceId);
         try {

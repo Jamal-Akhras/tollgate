@@ -5,6 +5,7 @@ import java.io.InputStream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,8 +19,11 @@ class MessagesController {
     }
 
     @PostMapping(Endpoints.ANTHROPIC_MESSAGES)
-    ResponseEntity<byte[]> create(@RequestHeader HttpHeaders headers, InputStream body) {
+    ResponseEntity<byte[]> create(
+            @RequestAttribute(TraceIdFilter.ATTRIBUTE) String traceId,
+            @RequestHeader HttpHeaders headers,
+            InputStream body) {
         return Relay.response(
-                gateway.complete(WireFormat.ANTHROPIC, Relay.credential(headers), body, headers::getFirst));
+                gateway.complete(traceId, WireFormat.ANTHROPIC, Relay.credential(headers), body, headers::getFirst));
     }
 }

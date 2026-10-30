@@ -14,10 +14,53 @@
     "description" : "The admin port of this instance"
   } ],
   "tags" : [ {
+    "description" : "The configuration this instance runs",
+    "name" : "Configuration"
+  }, {
     "description" : "About this running instance",
     "name" : "Instance"
   } ],
   "paths" : {
+    "/admin/v1/config/reload" : {
+      "post" : {
+        "description" : "Reads tollgate.yaml again, validates it and swaps it in atomically. Requests already running finish under the configuration they started with. An invalid file never replaces the running configuration.",
+        "operationId" : "reload",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReloadResult"
+                }
+              }
+            },
+            "description" : "The file was read; changed says whether it differed"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit settings changed, which needs a restart"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The file is not a valid configuration"
+          }
+        },
+        "summary" : "Reload the configuration file",
+        "tags" : [ "Configuration" ]
+      }
+    },
     "/admin/v1/info" : {
       "get" : {
         "operationId" : "info",
@@ -40,6 +83,19 @@
   },
   "components" : {
     "schemas" : {
+      "AdminError" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "example" : "invalid_config"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "message" ]
+      },
       "AdminInfo" : {
         "type" : "object",
         "properties" : {
@@ -53,6 +109,21 @@
           }
         },
         "required" : [ "service", "version" ]
+      },
+      "ReloadResult" : {
+        "type" : "object",
+        "properties" : {
+          "changed" : {
+            "type" : "boolean",
+            "description" : "Whether the file differed from the configuration that was running"
+          },
+          "version" : {
+            "type" : "string",
+            "description" : "SHA-256 of the configuration file now in use",
+            "example" : "7f6d9cc74d1a0e3b5b8f3c2f1e4a6d9b0c8e7f6a5d4c3b2a1908f7e6d5c4b3a2"
+          }
+        },
+        "required" : [ "changed", "version" ]
       }
     }
   }

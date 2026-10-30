@@ -16,6 +16,8 @@
 
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
+    <image>ghcr.io/jamal-akhras/tollgate</image>
+    <base.image>gcr.io/distroless/java25-debian13:nonroot@sha256:5d3177252775d4b01603470fe21c015393019089904f68724bd37242e4bc6e6d</base.image>
     <coverage.line.minimum>0.85</coverage.line.minimum>
     <coverage.branch.minimum>0.80</coverage.branch.minimum>
   </properties>
@@ -73,6 +75,50 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId>
+        <artifactId>jib-maven-plugin</artifactId>
+        <configuration>
+          <from>
+            <image>${base.image}</image>
+            <platforms>
+              <platform>
+                <architecture>amd64</architecture>
+                <os>linux</os>
+              </platform>
+              <platform>
+                <architecture>arm64</architecture>
+                <os>linux</os>
+              </platform>
+            </platforms>
+          </from>
+          <to>
+            <image>${image}:${project.version}</image>
+          </to>
+          <container>
+            <mainClass>io.github.jamalakhras.tollgate.server.TollgateServerApplication</mainClass>
+            <jvmFlags>
+              <jvmFlag>-XX:+ExitOnOutOfMemoryError</jvmFlag>
+            </jvmFlags>
+            <environment>
+              <TOLLGATE_CONFIG>/etc/tollgate/tollgate.yaml</TOLLGATE_CONFIG>
+            </environment>
+            <ports>
+              <port>8080</port>
+              <port>8081</port>
+              <port>9090</port>
+            </ports>
+            <workingDirectory>/home/nonroot</workingDirectory>
+            <labels>
+              <org.opencontainers.image.title>Tollgate</org.opencontainers.image.title>
+              <org.opencontainers.image.description>${project.description}</org.opencontainers.image.description>
+              <org.opencontainers.image.source>https://github.com/Jamal-Akhras/tollgate</org.opencontainers.image.source>
+              <org.opencontainers.image.licenses>Apache-2.0</org.opencontainers.image.licenses>
+              <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+            </labels>
+          </container>
+        </configuration>
       </plugin>
     </plugins>
   </build>

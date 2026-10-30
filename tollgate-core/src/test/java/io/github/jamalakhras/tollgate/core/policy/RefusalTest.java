@@ -17,7 +17,7 @@ class RefusalTest {
 
     @Test
     void writesCodesInLowerCase() {
-        assertThat(Refusal.TOO_LARGE.code()).isEqualTo("too_large");
-        assertThatThrownBy(() -> Refusal.fromCode("TOO_LARGE")).hasMessage("Unknown refusal: TOO_LARGE");
+        assertThat(Refusal.BUDGET_EXCEEDED.code()).isEqualTo("budget_exceeded");
+        assertThatThrownBy(() -> Refusal.fromCode("BUDGET_EXCEEDED")).hasMessage("Unknown refusal: BUDGET_EXCEEDED");
     }
 }

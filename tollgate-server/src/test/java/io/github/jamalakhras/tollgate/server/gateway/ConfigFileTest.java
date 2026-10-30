@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,15 +31,24 @@ class ConfigFileTest {
                     price: { input: 0.10, output: 0.40, cacheRead: 0.10, cacheWrite: 0.10 }
                 tenants:
                   support-bot: { models: [qwen3] }
+                audit: { mode: off }
                 """);
 
-        var route = ConfigFile.read(file).route("support-bot", "qwen3").orElseThrow();
+        var route = ConfigFile.read(file).config().route("support-bot", "qwen3").orElseThrow();
         assertThat(route.definition().price().output().perMillionTokens()).hasToString("0.4 USD");
     }
 
     @Test
-    void treatsAnEmptyFileAsAnEmptyConfig() throws IOException {
-        assertThat(ConfigFile.read(write("")).tenants()).isEmpty();
+    void asksAnEmptyFileForTheAuditSettings() throws IOException {
+        Path file = write("");
+
+        assertThatThrownBy(() -> ConfigFile.read(file)).hasMessage(file + ": audit is required");
+    }
+
+    @Test
+    void readsOffAsAWordRatherThanFalse() throws IOException {
+        assertThat(ConfigFile.read(write("audit: { mode: off }")).config().audit())
+                .isEqualTo(AuditSettings.DISABLED);
     }
 
     @Test

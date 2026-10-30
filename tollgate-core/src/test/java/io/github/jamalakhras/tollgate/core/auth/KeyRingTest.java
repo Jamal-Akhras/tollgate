@@ -13,19 +13,20 @@ class KeyRingTest {
     private final KeyRing ring = new KeyRing(List.of(new TenantKey(key.id(), "support-bot", key.sha256())));
 
     @Test
-    void findsTheTenantOfAValidKey() {
-        assertThat(ring.tenantOf(key.value())).contains("support-bot");
+    void findsTheStoredKeyAndItsTenant() {
+        assertThat(ring.authenticate(key.value())).contains(new TenantKey(key.id(), "support-bot", key.sha256()));
     }
 
     @Test
     void rejectsAKnownIdWithTheWrongSecret() {
         ApiKey forged = new ApiKey(key.id(), "Z".repeat(43));
-        assertThat(ring.tenantOf(forged.value())).isEmpty();
+        assertThat(ring.authenticate(forged.value())).isEmpty();
     }
 
     @Test
     void rejectsUnknownAndMalformedKeys() {
-        assertThat(ring.tenantOf(ApiKey.generate(new SecureRandom()).value())).isEmpty();
-        assertThat(ring.tenantOf("Bearer " + key.value())).isEmpty();
+        assertThat(ring.authenticate(ApiKey.generate(new SecureRandom()).value()))
+                .isEmpty();
+        assertThat(ring.authenticate("Bearer " + key.value())).isEmpty();
     }
 }
