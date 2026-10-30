@@ -1,0 +1,2 @@
+tollgate:
+  config: src/test/resources/tollgate.yaml

@@ -1,0 +1,59 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "Manage tenants, policies and keys. Served only on the admin port.",
+    "license" : {
+      "name" : "Apache-2.0",
+      "url" : "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "title" : "Tollgate Admin API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/",
+    "description" : "The admin port of this instance"
+  } ],
+  "tags" : [ {
+    "description" : "About this running instance",
+    "name" : "Instance"
+  } ],
+  "paths" : {
+    "/admin/v1/info" : {
+      "get" : {
+        "operationId" : "info",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Identify this Tollgate instance",
+        "tags" : [ "Instance" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "AdminInfo" : {
+        "type" : "object",
+        "properties" : {
+          "service" : {
+            "type" : "string",
+            "example" : "tollgate"
+          },
+          "version" : {
+            "type" : "string",
+            "example" : "0.1.0"
+          }
+        },
+        "required" : [ "service", "version" ]
+      }
+    }
+  }
+}

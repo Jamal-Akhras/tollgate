@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      spring:
+        patterns: ["org.springframework*", "org.springdoc*"]
+      build-plugins:
+        patterns: ["org.apache.maven.plugins*", "org.jacoco*", "org.pitest*", "com.diffplug.spotless*", "org.cyclonedx*"]
+      static-analysis:
+        patterns: ["com.google.errorprone*", "com.uber.nullaway*", "com.palantir.javaformat*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

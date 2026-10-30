@@ -1,0 +1,11 @@
+package io.github.jamalakhras.tollgate.core.budget;
+
+import io.github.jamalakhras.tollgate.core.money.Money;
+import java.util.Optional;
+
+public interface BudgetStore {
+
+    Optional<Reservation> reserve(String tenant, Budget budget, Money amount);
+
+    void settle(Reservation reservation, Money cost);
+}

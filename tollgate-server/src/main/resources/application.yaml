@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: tollgate
+  main:
+    banner-mode: off
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  writer-with-order-by-keys: true
+  writer-with-default-pretty-printer: true

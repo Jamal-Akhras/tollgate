@@ -1,0 +1,15 @@
+target/
+*.class
+*.log
+.jqwik-database
+
+# IDEs and OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+*.local.yaml
