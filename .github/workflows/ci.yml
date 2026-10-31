@@ -26,7 +26,7 @@ jobs:
           java-version: 25
           cache: maven
       - name: Verify (formatting, Error Prone, NullAway, tests, coverage, API contract, SBOM)
-        run: ./mvnw -B -ntp -Psbom verify
+        run: ./mvnw -B -ntp -Psbom install
       - name: Run the embeddable modules' tests on the Java 21 baseline
         run: ./mvnw -B -ntp -pl tollgate-core,tollgate-providers test -Djvm="$JAVA_HOME_21_X64/bin/java"
       - name: Build the container image and run a command in it
