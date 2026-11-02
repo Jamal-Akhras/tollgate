@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import java.io.IOException;
@@ -137,6 +138,31 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
         assertThat(response.statusCode()).isEqualTo(504);
         assertThat(response.body()).contains("\"code\":\"provider_timeout\"");
+    }
+
+    @Test
+    void timesOutAResponseBodyThatArrivesTooSlowly() throws Exception {
+        PROVIDER.respond(200, "{\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}");
+        PROVIDER.drip(Duration.ofMillis(50));
+
+        HttpResponse<String> response = chatWithKey("{\"model\":\"slow-model\",\"messages\":[]}");
+
+        assertThat(response.statusCode()).isEqualTo(504);
+        assertThat(response.body()).contains("\"code\":\"provider_timeout\"");
+    }
+
+    @Test
+    void refusesAProviderResponseOverTheLimitAndRecordsIt() throws Exception {
+        PROVIDER.respond(200, "{\"pad\":\"" + "x".repeat(17_000) + "\"}");
+
+        HttpResponse<String> response = chatWithKey("{\"model\":\"qwen3\",\"messages\":[]}");
+
+        assertThat(response.statusCode()).isEqualTo(502);
+        assertThat(response.body())
+                .contains("\"code\":\"provider_invalid_response\"")
+                .contains("larger than 16384 bytes");
+        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        assertThat(outcome.result()).isEqualTo(Outcome.Result.INVALID_RESPONSE);
     }
 
     @Test

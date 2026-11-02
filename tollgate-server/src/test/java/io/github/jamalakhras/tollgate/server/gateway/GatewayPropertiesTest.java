@@ -13,14 +13,19 @@ class GatewayPropertiesTest {
 
     @Test
     void convertsTheLimitToBytes() {
-        assertThat(new GatewayProperties(Path.of("tollgate.yaml"), DataSize.parse("16MB")).maxRequestBytes())
+        assertThat(new GatewayProperties(Path.of("tollgate.yaml"), DataSize.parse("16MB"), DataSize.parse("32MB"))
+                        .maxRequestBytes())
                 .isEqualTo(16 * 1024 * 1024);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"0B", "513MB"})
     void keepsTheLimitWithinBounds(String size) {
-        assertThatThrownBy(() -> new GatewayProperties(Path.of("tollgate.yaml"), DataSize.parse(size)))
+        assertThatThrownBy(() ->
+                        new GatewayProperties(Path.of("tollgate.yaml"), DataSize.parse(size), DataSize.parse("32MB")))
                 .hasMessageStartingWith("tollgate.max-request-size must be between 1B and 512MB");
+        assertThatThrownBy(() ->
+                        new GatewayProperties(Path.of("tollgate.yaml"), DataSize.parse("16MB"), DataSize.parse(size)))
+                .hasMessageStartingWith("tollgate.max-response-size must be between 1B and 512MB");
     }
 }

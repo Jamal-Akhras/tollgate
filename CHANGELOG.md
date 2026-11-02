@@ -71,3 +71,10 @@ versions may change the extension interfaces.
   `X-Tollgate-Output-Limited` says so. The cap never goes below
   `maxOutputTokens.floor`, 256 by default. Below the floor the call is
   refused with `429`.
+- Provider responses are bounded.
+  - **Size:** a body larger than `tollgate.max-response-size` (32 MB by
+    default) is cut off and reported as `502 provider_invalid_response`.
+  - **Time:** a provider's `timeout` now covers the whole response, so a body
+    sent slowly cannot hold a call open.
+  - **Audit and billing:** such calls are audited with the result
+    `invalid_response` and charged their full reservation.

@@ -23,7 +23,7 @@ class ProviderClientTest {
 
     private final FakeProvider fake = new FakeProvider();
     private final HttpClient http = ProviderClient.newHttpClient();
-    private final ProviderClient client = new ProviderClient(http);
+    private final ProviderClient client = new ProviderClient(http, 1_024);
 
     @AfterEach
     void close() {
@@ -134,6 +134,47 @@ class ProviderClientTest {
                         ProviderUnavailableException.class,
                         e -> assertThat(e.timedOut()).isTrue())
                 .hasMessage("The provider did not answer within PT0.2S");
+    }
+
+    @Test
+    void timesOutABodyThatArrivesTooSlowly() {
+        fake.respond(200, "{\"choices\":[],\"usage\":{}}");
+        fake.drip(Duration.ofMillis(50));
+        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(300));
+        long started = System.nanoTime();
+
+        assertThatThrownBy(() -> client.send(slow, null, BODY, ProviderClientTest::noClientHeader))
+                .isInstanceOfSatisfying(
+                        ProviderUnavailableException.class,
+                        e -> assertThat(e.timedOut()).isTrue())
+                .hasMessage("The provider did not answer within PT0.3S");
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(1));
+    }
+
+    @Test
+    void refusesAResponseLargerThanTheLimit() {
+        fake.respond(200, "x".repeat(1_025));
+
+        assertThatThrownBy(() -> client.send(
+                        provider(WireFormat.OPENAI, fake.baseUrl(), null),
+                        null,
+                        BODY,
+                        ProviderClientTest::noClientHeader))
+                .isInstanceOf(InvalidProviderResponseException.class)
+                .hasMessage("The provider's response was larger than 1024 bytes");
+    }
+
+    @Test
+    void acceptsAResponseExactlyAtTheLimit() {
+        fake.respond(200, "x".repeat(1_024));
+
+        assertThat(client.send(
+                                provider(WireFormat.OPENAI, fake.baseUrl(), null),
+                                null,
+                                BODY,
+                                ProviderClientTest::noClientHeader)
+                        .body())
+                .hasSize(1_024);
     }
 
     @Test

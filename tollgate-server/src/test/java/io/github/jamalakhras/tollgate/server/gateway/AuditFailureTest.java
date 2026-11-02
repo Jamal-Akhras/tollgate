@@ -76,7 +76,7 @@ class AuditFailureTest {
         return new Gateway(
                 ConfigFile.read(config),
                 name -> null,
-                new ProviderClient(httpClient),
+                new ProviderClient(httpClient, 1_024 * 1_024),
                 budgets,
                 AuditLog.start(sink, keys, Clock.systemUTC(), true),
                 Clock.systemUTC(),

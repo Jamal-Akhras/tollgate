@@ -23,6 +23,7 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.providers.ChatRequest;
+import io.github.jamalakhras.tollgate.providers.InvalidProviderResponseException;
 import io.github.jamalakhras.tollgate.providers.InvalidRequestException;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
 import io.github.jamalakhras.tollgate.providers.ProviderResponse;
@@ -205,6 +206,10 @@ final class Gateway implements AutoCloseable {
                 throw GatewayException.providerRejectedCredentials();
             }
             return response;
+        } catch (InvalidProviderResponseException e) {
+            result = Outcome.Result.INVALID_RESPONSE;
+            log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
+            throw GatewayException.providerInvalidResponse(String.valueOf(e.getMessage()));
         } catch (ProviderUnavailableException e) {
             result = e.timedOut() ? Outcome.Result.TIMED_OUT : Outcome.Result.UNREACHABLE;
             if (!e.timedOut()) {

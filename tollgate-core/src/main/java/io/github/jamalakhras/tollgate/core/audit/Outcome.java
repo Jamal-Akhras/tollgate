@@ -36,7 +36,8 @@ public record Outcome(
     public enum Result {
         RESPONDED,
         UNREACHABLE,
-        TIMED_OUT;
+        TIMED_OUT,
+        INVALID_RESPONSE;
 
         public String code() {
             return name().toLowerCase(Locale.ROOT);

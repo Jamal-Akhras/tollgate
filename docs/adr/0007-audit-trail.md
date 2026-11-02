@@ -28,7 +28,9 @@ one global hash chain.
   request body as received, each guard step with its verdict and duration, the
   decision, and the reservation.
 - **Outcome**, written after settlement, for allowed requests only: trace ID,
-  time, result (`responded`, `unreachable` or `timed_out`), the provider's HTTP
+  time, result (`responded`, `unreachable`, `timed_out`, or `invalid_response`
+  for a response Tollgate would not pass on; see
+  [ADR 0008](0008-harden-the-request-path.md)), the provider's HTTP
   status, token usage, the settled cost, the call's duration, and an HMAC of
   the response body.
 - **Prompts and responses are stored only as HMAC-SHA256 values** under a

@@ -40,7 +40,8 @@ class GatewayConfiguration {
         return new Gateway(
                 loaded,
                 environment::getProperty,
-                new ProviderClient(providerHttpClient),
+                new ProviderClient(
+                        providerHttpClient, properties.maxResponseSize().toBytes()),
                 new InMemoryBudgetStore(clock),
                 startAudit(loaded, environment::getProperty, clock),
                 clock,

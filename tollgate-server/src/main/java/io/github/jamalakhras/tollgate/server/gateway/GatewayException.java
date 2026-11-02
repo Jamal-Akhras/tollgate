@@ -90,6 +90,10 @@ final class GatewayException extends RuntimeException {
                 : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null);
     }
 
+    static GatewayException providerInvalidResponse(String message) {
+        return new GatewayException(HttpStatus.BAD_GATEWAY, "provider_invalid_response", message, null);
+    }
+
     static GatewayException providerRejectedCredentials() {
         return new GatewayException(
                 HttpStatus.BAD_GATEWAY,

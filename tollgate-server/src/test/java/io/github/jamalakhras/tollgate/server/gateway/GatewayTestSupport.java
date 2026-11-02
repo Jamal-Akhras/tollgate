@@ -27,7 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(
         webEnvironment = WebEnvironment.RANDOM_PORT,
-        properties = {"management.server.port=0", "tollgate.max-request-size=1KB"})
+        properties = {"management.server.port=0", "tollgate.max-request-size=1KB", "tollgate.max-response-size=16KB"})
 abstract class GatewayTestSupport {
 
     static final FakeProvider PROVIDER = new FakeProvider();

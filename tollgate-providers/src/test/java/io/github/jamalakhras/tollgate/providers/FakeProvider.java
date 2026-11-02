@@ -22,6 +22,7 @@ public final class FakeProvider implements AutoCloseable {
     private volatile int status = 200;
     private volatile String responseBody = "{}";
     private volatile Duration delay = Duration.ZERO;
+    private volatile Duration drip = Duration.ZERO;
 
     public FakeProvider() {
         try {
@@ -47,10 +48,15 @@ public final class FakeProvider implements AutoCloseable {
         this.delay = delay;
     }
 
+    public void drip(Duration perByte) {
+        this.drip = perByte;
+    }
+
     public void reset() {
         received.clear();
         respond(200, "{}");
         delay(Duration.ZERO);
+        drip(Duration.ZERO);
     }
 
     public List<Received> received() {
@@ -73,8 +79,26 @@ public final class FakeProvider implements AutoCloseable {
         exchange.getResponseHeaders().add("Content-Type", "application/json");
         exchange.getResponseHeaders().add("Retry-After", "7");
         exchange.sendResponseHeaders(status, bytes.length);
-        exchange.getResponseBody().write(bytes);
+        if (drip.isZero()) {
+            exchange.getResponseBody().write(bytes);
+        } else {
+            dripped(exchange, bytes);
+        }
         exchange.close();
+    }
+
+    private void dripped(HttpExchange exchange, byte[] bytes) {
+        try {
+            for (byte b : bytes) {
+                exchange.getResponseBody().write(b);
+                exchange.getResponseBody().flush();
+                Thread.sleep(drip);
+            }
+        } catch (IOException e) {
+            return;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
