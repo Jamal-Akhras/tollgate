@@ -40,7 +40,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
 - **Budgets with exact money.** The most a call can cost is reserved before
   the provider is called, and the reservation is settled from the provider's
   reported token usage. Near the limit, the answer is shortened to fit rather
-  than refused, and the `X-Tollgate-Output-Limited` header says so. Amounts
+  than refused, and the `X-Tollgate-Output-Limited` header says so. Spending
+  is rebuilt from the audit trail when Tollgate starts, so a restart never
+  resets a budget. Amounts
   are integer nano-units, never floating point
   ([ADR 0003](docs/adr/0003-money-representation.md),
   [ADR 0006](docs/adr/0006-budget-reservations.md)).

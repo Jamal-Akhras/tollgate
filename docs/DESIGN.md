@@ -233,7 +233,7 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
 
 | Tier | Policy and ledger | Limits and reservations | Audit |
 |---|---|---|---|
-| Try it (`docker run`) | In memory; spend resets on restart | In memory | JSON lines file |
+| Try it (`docker run`) | In memory, rebuilt from the audit trail at startup | In memory | JSON lines file |
 | Production | Postgres | Redis (atomic Lua scripts) | Postgres, Kafka, or S3 with Object Lock |
 
 The production tier arrives in M2.

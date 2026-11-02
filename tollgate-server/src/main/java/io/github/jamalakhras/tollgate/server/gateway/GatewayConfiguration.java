@@ -11,6 +11,7 @@ import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -35,18 +36,49 @@ class GatewayConfiguration {
 
     @Bean(destroyMethod = "close")
     Gateway gateway(GatewayProperties properties, HttpClient providerHttpClient, Environment environment) {
-        Clock clock = Clock.systemUTC();
-        LoadedConfig loaded = ConfigFile.read(properties.config());
-        return new Gateway(
-                loaded,
+        return start(
+                ConfigFile.read(properties.config()),
                 environment::getProperty,
                 new ProviderClient(
                         providerHttpClient, properties.maxResponseSize().toBytes()),
-                new InMemoryBudgetStore(clock),
-                startAudit(loaded, environment::getProperty, clock),
-                clock,
+                Clock.systemUTC(),
                 properties.maxRequestBytes(),
                 properties.maxStreamDuration());
+    }
+
+    static Gateway start(
+            LoadedConfig loaded,
+            Function<String, @Nullable String> environment,
+            ProviderClient client,
+            Clock clock,
+            int maxRequestBytes,
+            Duration maxStreamDuration) {
+        InMemoryBudgetStore budgets = new InMemoryBudgetStore(clock);
+        AuditLog audit = startAudit(loaded, environment, clock);
+        restoreBudgets(loaded, budgets);
+        return new Gateway(loaded, environment, client, budgets, audit, clock, maxRequestBytes, maxStreamDuration);
+    }
+
+    private static void restoreBudgets(LoadedConfig loaded, InMemoryBudgetStore budgets) {
+        boolean budgeted = loaded.config().tenants().values().stream().anyMatch(tenant -> tenant.budget() != null);
+        if (!budgeted) {
+            return;
+        }
+        if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
+            log.warn("Budgets start from zero on every restart because the audit trail is off");
+            return;
+        }
+        Path directory = loaded.resolve(audit.directory());
+        try {
+            BudgetReplay.Replayed replayed = BudgetReplay.replay(directory, loaded.config(), budgets);
+            log.info(
+                    "Restored budgets from {} settled calls and {} unfinished calls in {}",
+                    replayed.settled(),
+                    replayed.unfinished(),
+                    directory);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read the audit trail in " + directory, e);
+        }
     }
 
     @Bean

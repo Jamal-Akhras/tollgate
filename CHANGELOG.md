@@ -88,6 +88,13 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- Budgets survive restarts. At startup, Tollgate replays the current period
+  from the audit trail.
+  - **Finished calls:** each is charged its settled cost.
+  - **Calls with no outcome:** these were cut off by a crash, and are charged
+    their full reservation.
+  - **A damaged trail:** a line torn by a crash is skipped. Any other
+    unreadable line stops startup and points to `audit verify`.
 - Streaming on both the OpenAI chat completions and Anthropic messages
   endpoints.
   - **Relaying:** events are relayed as they arrive, with your model's name.

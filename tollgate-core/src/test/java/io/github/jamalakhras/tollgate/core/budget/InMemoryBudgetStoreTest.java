@@ -98,6 +98,25 @@ class InMemoryBudgetStoreTest {
     }
 
     @Test
+    void restoresOnlyWhatWasSpentInTheCurrentPeriod() {
+        store.restore("support-bot", TEN_DOLLARS_A_MONTH, Prices.usd("4"), Instant.parse("2026-10-02T09:00:00Z"));
+        store.restore("support-bot", TEN_DOLLARS_A_MONTH, Prices.usd("3"), Instant.parse("2026-09-30T23:59:59Z"));
+
+        assertThat(store.spent("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("4"));
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("6"));
+    }
+
+    @Test
+    void restoresEverythingIntoATotalBudget() {
+        var total = new Budget(Prices.usd("10"), Period.TOTAL);
+
+        store.restore("support-bot", total, Prices.usd("4"), Instant.parse("2020-01-01T00:00:00Z"));
+        store.restore("support-bot", total, Prices.usd("3"), Instant.parse("2026-10-29T11:00:00Z"));
+
+        assertThat(store.spent("support-bot", total)).isEqualTo(Prices.usd("7"));
+    }
+
+    @Test
     void startsAgainEachPeriod() {
         store.settle(reserve("9"), Prices.usd("9"));
 

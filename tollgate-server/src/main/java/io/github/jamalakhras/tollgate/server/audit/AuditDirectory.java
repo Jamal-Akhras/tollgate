@@ -1,5 +1,7 @@
 package io.github.jamalakhras.tollgate.server.audit;
 
+import io.github.jamalakhras.tollgate.core.audit.AuditEntry;
+import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import java.io.BufferedReader;
@@ -16,6 +18,7 @@ import java.security.PublicKey;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -53,6 +56,27 @@ public final class AuditDirectory {
             });
         }
         return verifier.finish();
+    }
+
+    public static void records(Path directory, Consumer<AuditRecord> each) throws IOException {
+        for (Path file : files(directory)) {
+            read(file, (number, text, torn) -> {
+                if (torn) {
+                    return;
+                }
+                AuditEntry entry;
+                try {
+                    entry = AuditJson.read(text);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalStateException(
+                            "Line " + number + " of " + file + " cannot be read; run audit verify to check the trail",
+                            e);
+                }
+                if (entry instanceof AuditRecord record) {
+                    each.accept(record);
+                }
+            });
+        }
     }
 
     static Optional<Seal> lastSeal(Path directory) throws IOException {
