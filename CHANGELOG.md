@@ -62,3 +62,6 @@ versions may change the extension interfaces.
     provider reports.
   - **Pricing is checked at startup:** a policy that allows web search makes
     that price a required setting.
+- A provider can list `extraFields`, its own request settings such as Ollama's
+  `top_k` or `num_ctx`, which Tollgate then forwards. Fields Tollgate refuses
+  for where they send data or how they are billed cannot be listed.

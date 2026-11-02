@@ -256,6 +256,27 @@ class ConfigReaderTest {
     }
 
     @Test
+    void readsAProvidersExtraFields() {
+        Map<String, Object> local = Map.of(
+                "format", "openai", "baseUrl", "http://gpu-box:11434/v1", "extraFields", List.of("top_k", "num_ctx"));
+
+        GatewayConfig config = ConfigReader.read(with("providers.ollama", local));
+
+        assertThat(entry(config.providers(), "ollama").extraFields()).containsExactly("top_k", "num_ctx");
+        assertThatThrownBy(() -> ConfigReader.read(with(
+                        "providers.ollama",
+                        Map.of(
+                                "format",
+                                "openai",
+                                "baseUrl",
+                                "http://gpu-box:11434/v1",
+                                "extraFields",
+                                List.of("store")))))
+                .hasMessage("providers.ollama: extraFields must not include 'store': it keeps the conversation at the"
+                        + " provider");
+    }
+
+    @Test
     void readsPolicyFeatures() {
         Map<String, Object> features = Map.of("remote-images", List.of("public"), "unreviewed-fields", List.of());
         GatewayConfig config = ConfigReader.read(

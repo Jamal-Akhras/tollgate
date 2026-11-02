@@ -67,7 +67,12 @@ abstract class GatewayTestSupport {
         String config = """
                 dataClasses: [public, internal, confidential]
                 providers:
-                  ollama: { format: openai, baseUrl: "%1$s/v1", apiKey: "${env:PROVIDER_KEY}", region: local }
+                  ollama:
+                    format: openai
+                    baseUrl: "%1$s/v1"
+                    apiKey: "${env:PROVIDER_KEY}"
+                    region: local
+                    extraFields: [top_k]
                   anthropic: { format: anthropic, baseUrl: "%1$s", apiKey: "${env:PROVIDER_KEY}", region: us }
                   slow: { format: openai, baseUrl: "%1$s/v1", timeout: 300ms, region: local }
                   offline: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }

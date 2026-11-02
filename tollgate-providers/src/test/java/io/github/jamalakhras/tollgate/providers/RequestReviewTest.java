@@ -6,6 +6,7 @@ import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,7 +32,7 @@ class RequestReviewTest {
     }
 
     private static RequestFeatures review(WireFormat format, String json, @Nullable String betas) {
-        return ChatRequest.parse(json.getBytes(StandardCharsets.UTF_8)).review(format, betas);
+        return ChatRequest.parse(json.getBytes(StandardCharsets.UTF_8)).review(format, betas, List.of());
     }
 
     @Test
@@ -61,6 +62,15 @@ class RequestReviewTest {
                   {"type":"text_editor_20250728"},{"type":"computer_20250124"},{"type":"memory_20250818"}]""", null);
 
         assertThat(features).isEqualTo(RequestFeatures.NONE);
+    }
+
+    @Test
+    void acceptsTheProvidersExtraFields() {
+        RequestFeatures features = ChatRequest.parse(
+                        "{\"model\":\"m\",\"top_k\":5,\"min_p\":0.1}".getBytes(StandardCharsets.UTF_8))
+                .review(WireFormat.OPENAI, null, List.of("top_k"));
+
+        assertThat(features.unreviewed()).containsExactly("The field 'min_p' is not one Tollgate has reviewed");
     }
 
     @Test

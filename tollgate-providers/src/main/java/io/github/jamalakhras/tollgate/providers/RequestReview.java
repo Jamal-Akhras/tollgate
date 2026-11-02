@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.providers;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
+import io.github.jamalakhras.tollgate.core.policy.RefusedFields;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -54,15 +55,6 @@ final class RequestReview {
             "thinking",
             "metadata",
             "stream");
-    private static final Map<String, String> REFUSED_FIELDS = Map.of(
-            "mcp_servers", "it makes the provider connect to other servers",
-            "container", "it runs code in a provider sandbox",
-            "web_search_options", "it sends searches to a search engine",
-            "store", "it keeps the conversation at the provider",
-            "metadata", "it keeps the conversation at the provider",
-            "service_tier", "it changes the price Tollgate budgets for",
-            "modalities", "audio is priced differently from text",
-            "audio", "audio is priced differently from text");
     private static final Set<String> OPENAI_TOOLS = Set.of("function", "custom");
     private static final List<String> ANTHROPIC_CLIENT_TOOLS =
             List.of("custom", "bash_", "text_editor_", "computer_", "memory_");
@@ -74,10 +66,14 @@ final class RequestReview {
     private final List<String> unreviewed = new ArrayList<>();
     private final Set<Feature> used = EnumSet.noneOf(Feature.class);
 
-    private RequestReview() {}
+    private final List<String> extraFields;
 
-    static RequestFeatures of(WireFormat format, ObjectNode body, @Nullable String betas) {
-        RequestReview review = new RequestReview();
+    private RequestReview(List<String> extraFields) {
+        this.extraFields = extraFields;
+    }
+
+    static RequestFeatures of(WireFormat format, ObjectNode body, @Nullable String betas, List<String> extraFields) {
+        RequestReview review = new RequestReview(extraFields);
         switch (format) {
             case OPENAI -> review.openAi(body);
             case ANTHROPIC -> review.anthropic(body, betas);
@@ -201,10 +197,10 @@ final class RequestReview {
     private void fields(ObjectNode body, Set<String> allowed) {
         for (Map.Entry<String, JsonNode> field : body.properties()) {
             String name = field.getKey();
-            if (allowed.contains(name)) {
+            if (allowed.contains(name) || extraFields.contains(name)) {
                 continue;
             }
-            if (REFUSED_FIELDS.containsKey(name)) {
+            if (RefusedFields.reason(name).isPresent()) {
                 refuseField(name);
             } else {
                 unreviewed.add("The field '" + name + "' is not one Tollgate has reviewed");
@@ -213,7 +209,8 @@ final class RequestReview {
     }
 
     private void refuseField(String name) {
-        refused.add("The field '" + name + "' is not allowed: " + REFUSED_FIELDS.get(name));
+        refused.add("The field '" + name + "' is not allowed: "
+                + RefusedFields.reason(name).orElse(""));
     }
 
     private void refuseTool(String type) {

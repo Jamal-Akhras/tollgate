@@ -59,14 +59,15 @@ public final class ConfigReader {
     }
 
     private static Provider provider(Section section) {
-        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout");
+        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout", "extraFields");
         String apiKey = section.optionalText("apiKey");
         return section.build(() -> new Provider(
                 WireFormat.fromConfigName(section.text("format")),
                 section.uri("baseUrl"),
                 apiKey == null ? null : SecretRef.parse(apiKey),
                 section.optionalText("region"),
-                section.duration("timeout", DEFAULT_TIMEOUT)));
+                section.duration("timeout", DEFAULT_TIMEOUT),
+                section.texts("extraFields")));
     }
 
     private static Model model(Section section, Currency currency) {

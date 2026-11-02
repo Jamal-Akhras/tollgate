@@ -1,7 +1,9 @@
 package io.github.jamalakhras.tollgate.core.config;
 
+import io.github.jamalakhras.tollgate.core.policy.RefusedFields;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
@@ -11,7 +13,8 @@ public record Provider(
         URI baseUrl,
         @Nullable SecretRef apiKey,
         @Nullable String region,
-        Duration timeout) {
+        Duration timeout,
+        List<String> extraFields) {
 
     private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]");
 
@@ -33,6 +36,17 @@ public record Provider(
             throw new IllegalArgumentException("timeout must be positive");
         }
         baseUrl = URI.create(baseUrl.toString().replaceAll("/+$", ""));
+        extraFields = List.copyOf(extraFields);
+        for (String field : extraFields) {
+            RefusedFields.reason(field).ifPresent(reason -> {
+                throw new IllegalArgumentException("extraFields must not include '" + field + "': " + reason);
+            });
+        }
+    }
+
+    public Provider(
+            WireFormat format, URI baseUrl, @Nullable SecretRef apiKey, @Nullable String region, Duration timeout) {
+        this(format, baseUrl, apiKey, region, timeout, List.of());
     }
 
     public URI endpoint(String path) {

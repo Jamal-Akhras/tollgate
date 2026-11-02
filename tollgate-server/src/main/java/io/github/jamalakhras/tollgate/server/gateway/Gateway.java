@@ -99,7 +99,10 @@ final class Gateway implements AutoCloseable {
                 route,
                 clientHeaders.apply(DATA_CLASS_HEADER),
                 requestBody.length,
-                request.review(endpoint, clientHeaders.apply(ANTHROPIC_BETA_HEADER)));
+                request.review(
+                        endpoint,
+                        clientHeaders.apply(ANTHROPIC_BETA_HEADER),
+                        route.provider().extraFields()));
         Call call = new Call(traceId, snapshot, caller, endpoint, route, admission);
         if (admission.decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);

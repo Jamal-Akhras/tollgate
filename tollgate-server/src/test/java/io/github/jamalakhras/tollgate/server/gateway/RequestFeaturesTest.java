@@ -52,6 +52,19 @@ class RequestFeaturesTest extends GatewayTestSupport {
     }
 
     @Test
+    void forwardsTheExtraFieldsALocalProviderAccepts() throws Exception {
+        PROVIDER.respond(200, OK);
+
+        HttpResponse<String> listed = chat("\"messages\":[],\"top_k\":20");
+        HttpResponse<String> unlisted = chat("\"messages\":[],\"min_p\":0.05");
+
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat(PROVIDER.received().getFirst().body()).contains("\"top_k\":20");
+        assertThat(unlisted.statusCode()).isEqualTo(403);
+        assertThat(unlisted.body()).contains("The field 'min_p' is not one Tollgate has reviewed");
+    }
+
+    @Test
     void refusesImagesByUrlButForwardsInlineImages() throws Exception {
         PROVIDER.respond(200, OK);
 

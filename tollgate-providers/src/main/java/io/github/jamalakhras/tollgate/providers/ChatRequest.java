@@ -55,8 +55,8 @@ public final class ChatRequest {
         return model;
     }
 
-    public RequestFeatures review(WireFormat format, @Nullable String betas) {
-        return RequestReview.of(format, body, betas);
+    public RequestFeatures review(WireFormat format, @Nullable String betas, List<String> extraFields) {
+        return RequestReview.of(format, body, betas, extraFields);
     }
 
     public boolean isStreaming() {
