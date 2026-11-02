@@ -22,6 +22,7 @@ class PortSeparationFilterTest {
         "/admin,              8081, true",
         "/v3/api-docs/admin,  8081, true",
         "/v3/api-docs,        8081, true",
+        "/v3/api-docs.yaml,   8081, true",
         "/v1/chat/completions,8081, false",
         "/,                   8081, false",
         "/administrator,      8081, false",
@@ -30,7 +31,8 @@ class PortSeparationFilterTest {
         "/v3/api-docs/admin,  8080, false",
         "/v1/chat/completions,8080, true",
         "/administrator,      8080, true",
-        "/v3/api-docsx,       8080, true",
+        "/v3/api-docs.yaml,   8080, false",
+        "/v3/api-docsx,       8080, false",
     })
     void routesEachPathOnlyToItsPort(String path, int port, boolean passes) throws Exception {
         MockHttpServletResponse response = run(request(port, path, null));

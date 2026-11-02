@@ -36,3 +36,8 @@ versions may change the extension interfaces.
 - `POST /admin/v1/config/reload`, which validates the file and swaps it in
   atomically.
 - A container image on a distroless Java 25 base, built with Jib.
+
+### Security
+
+- Every `/v3/api-docs` path, including the YAML document, is served only on the
+  admin port.

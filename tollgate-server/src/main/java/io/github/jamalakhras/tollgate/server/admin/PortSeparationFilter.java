@@ -30,7 +30,7 @@ final class PortSeparationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isAdminPath(String path) {
-        return isWithin(path, ADMIN_PATH) || isWithin(path, API_DOCS_PATH);
+        return isWithin(path, ADMIN_PATH) || path.startsWith(API_DOCS_PATH);
     }
 
     private static boolean isWithin(String path, String root) {

@@ -58,7 +58,15 @@ class ServerPortsTest {
 
     @ParameterizedTest
     @ValueSource(
-            strings = {"/admin/v1/info", "/%61dmin/v1/info", "/admin;x=1/v1/info", "/./admin/v1/info", "/v3/api-docs"})
+            strings = {
+                "/admin/v1/info",
+                "/%61dmin/v1/info",
+                "/admin;x=1/v1/info",
+                "/./admin/v1/info",
+                "/v3/api-docs",
+                "/v3/api-docs.yaml",
+                "/v3/api-docs/admin.yaml"
+            })
     void hidesAdminRoutesOnTheGatewayPort(String path) throws Exception {
         assertThat(get(gatewayPort, path).statusCode()).isIn(400, 404);
     }
