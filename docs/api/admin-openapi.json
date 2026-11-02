@@ -13,6 +13,9 @@
     "url" : "/",
     "description" : "The admin port of this instance"
   } ],
+  "security" : [ {
+    "adminToken" : [ ]
+  } ],
   "tags" : [ {
     "description" : "The configuration this instance runs",
     "name" : "Configuration"
@@ -124,6 +127,13 @@
           }
         },
         "required" : [ "changed", "version" ]
+      }
+    },
+    "securitySchemes" : {
+      "adminToken" : {
+        "description" : "The value of TOLLGATE_ADMIN_TOKEN",
+        "scheme" : "bearer",
+        "type" : "http"
       }
     }
   }

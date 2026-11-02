@@ -34,6 +34,7 @@ class ServerPortsTest {
 
     private static final int ADMIN_PORT = TestPorts.free();
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
+    private static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0002";
 
     @LocalServerPort
     private int gatewayPort;
@@ -41,6 +42,7 @@ class ServerPortsTest {
     @DynamicPropertySource
     static void adminPort(DynamicPropertyRegistry registry) {
         registry.add("tollgate.admin.port", () -> ADMIN_PORT);
+        registry.add("tollgate.admin.token", () -> ADMIN_TOKEN);
     }
 
     @AfterAll
@@ -50,7 +52,7 @@ class ServerPortsTest {
 
     @Test
     void servesTheAdminApiOnTheAdminPort() throws Exception {
-        HttpResponse<String> response = get(ADMIN_PORT, "/admin/v1/info");
+        HttpResponse<String> response = get(ADMIN_PORT, "/admin/v1/info", "Authorization", "Bearer " + ADMIN_TOKEN);
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"service\":\"tollgate\"");
         assertThat(get(ADMIN_PORT, "/v3/api-docs/admin").statusCode()).isEqualTo(200);
@@ -69,6 +71,14 @@ class ServerPortsTest {
             })
     void hidesAdminRoutesOnTheGatewayPort(String path) throws Exception {
         assertThat(get(gatewayPort, path).statusCode()).isIn(400, 404);
+    }
+
+    @Test
+    void asksForTheAdminTokenOnTheAdminPort() throws Exception {
+        assertThat(get(ADMIN_PORT, "/admin/v1/info").statusCode()).isEqualTo(401);
+        assertThat(get(ADMIN_PORT, "/admin/v1/info", "Authorization", "Bearer wrong")
+                        .statusCode())
+                .isEqualTo(401);
     }
 
     @Test
@@ -100,10 +110,13 @@ class ServerPortsTest {
                 .findFirst();
     }
 
-    private static HttpResponse<String> get(int port, String path) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
-                .GET()
-                .build();
-        return CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+    private static HttpResponse<String> get(int port, String path, String... headers)
+            throws IOException, InterruptedException {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+                .GET();
+        if (headers.length > 0) {
+            request.headers(headers);
+        }
+        return CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 }

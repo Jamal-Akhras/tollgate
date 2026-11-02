@@ -119,10 +119,10 @@ audit:
   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
 ```
 
-**4. Start Tollgate** with the two secrets in its environment:
+**4. Start Tollgate** with the two audit secrets and an admin token in its environment:
 
 ```bash
-export TOLLGATE_AUDIT_SIGNING_KEY=… TOLLGATE_AUDIT_HMAC_KEY=…
+export TOLLGATE_AUDIT_SIGNING_KEY=… TOLLGATE_AUDIT_HMAC_KEY=… TOLLGATE_ADMIN_TOKEN=$(openssl rand -hex 32)
 tollgate
 ```
 
@@ -164,7 +164,7 @@ docker run --rm ghcr.io/jamal-akhras/tollgate:0.1.0-SNAPSHOT audit keys create
 docker run -d --name tollgate \
   -v "$PWD/tollgate.yaml:/etc/tollgate/tollgate.yaml:ro" \
   -v tollgate-data:/home/nonroot \
-  -e TOLLGATE_AUDIT_SIGNING_KEY -e TOLLGATE_AUDIT_HMAC_KEY \
+  -e TOLLGATE_AUDIT_SIGNING_KEY -e TOLLGATE_AUDIT_HMAC_KEY -e TOLLGATE_ADMIN_TOKEN \
   -e TOLLGATE_ADMIN_ADDRESS=0.0.0.0 \
   -p 8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
   ghcr.io/jamal-akhras/tollgate:0.1.0-SNAPSHOT
@@ -178,10 +178,16 @@ lands on the volume, and point the provider at `host.docker.internal`.
 | Port | Serves |
 |---|---|
 | 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` |
-| 8081 | The admin API and its [OpenAPI contract](docs/api/admin-openapi.json), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise |
+| 8081 | The admin API and its [OpenAPI contract](docs/api/admin-openapi.json), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every call needs the admin token |
 | 9090 | Health probes. Readiness reports down if the audit trail cannot be written |
 
-- **Reload the config:** `curl -X POST http://127.0.0.1:8081/admin/v1/config/reload`.
+- **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
+  least 32 characters, for example the output of `openssl rand -hex 32`.
+  - **Without it**, the admin API answers `503`.
+  - **Requests without the right token** get `401`. A web page cannot send it,
+    so a browser cannot be used to call the admin API behind your back.
+- **Reload the config:**
+  `curl -X POST -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" http://127.0.0.1:8081/admin/v1/config/reload`.
   A broken file returns `422` and leaves the running config in place. A
   change to the `audit` section returns `409`, because it needs a restart.
 - **Audit modes:**

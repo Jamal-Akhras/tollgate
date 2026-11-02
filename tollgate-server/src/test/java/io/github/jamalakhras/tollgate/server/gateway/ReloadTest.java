@@ -38,6 +38,7 @@ class ReloadTest extends GatewayTestSupport {
         try (HttpClient client = HttpClient.newHttpClient()) {
             return client.send(
                     HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1/config/reload"))
+                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
                             .POST(HttpRequest.BodyPublishers.noBody())
                             .build(),
                     HttpResponse.BodyHandlers.ofString());

@@ -1,8 +1,11 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
 import org.springdoc.core.models.GroupedOpenApi;
@@ -13,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 class AdminApiDocsConfiguration {
 
     static final String GROUP = "admin";
+    private static final String TOKEN_SCHEME = "adminToken";
 
     @Bean
     GroupedOpenApi adminApi() {
@@ -31,6 +35,14 @@ class AdminApiDocsConfiguration {
                 .description("Manage tenants, policies and keys. Served only on the admin port.")
                 .license(license);
         var adminPort = new Server().url("/").description("The admin port of this instance");
-        return new OpenAPI().info(info).servers(List.of(adminPort));
+        var token = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .description("The value of TOLLGATE_ADMIN_TOKEN");
+        return new OpenAPI()
+                .info(info)
+                .servers(List.of(adminPort))
+                .components(new Components().addSecuritySchemes(TOKEN_SCHEME, token))
+                .addSecurityItem(new SecurityRequirement().addList(TOKEN_SCHEME));
     }
 }

@@ -74,7 +74,8 @@ public final class Commands {
 
                 Then reload the configuration from the admin port:
 
-                    curl -X POST http://127.0.0.1:8081/admin/v1/config/reload
+                    curl -X POST -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" \\
+                        http://127.0.0.1:8081/admin/v1/config/reload
                 """, tenant, key.value(), key.id(), tenant, key.sha256());
         return 0;
     }

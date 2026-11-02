@@ -43,6 +43,7 @@ abstract class GatewayTestSupport {
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
+    static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0003";
     static final Path CONFIG = writeConfig();
 
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
@@ -54,6 +55,7 @@ abstract class GatewayTestSupport {
     static void gateway(DynamicPropertyRegistry registry) {
         registry.add("tollgate.config", CONFIG::toString);
         registry.add("tollgate.admin.port", () -> ADMIN_PORT);
+        registry.add("tollgate.admin.token", () -> ADMIN_TOKEN);
         registry.add("PROVIDER_KEY", () -> "sk-provider");
         registry.add("TOLLGATE_AUDIT_SIGNING_KEY", AUDIT_KEYS::signingKey);
         registry.add("TOLLGATE_AUDIT_HMAC_KEY", AUDIT_KEYS::hmacKey);

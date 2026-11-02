@@ -28,6 +28,14 @@ class AdminPortConfiguration {
     }
 
     @Bean
+    FilterRegistrationBean<AdminTokenFilter> adminTokenFilter(AdminProperties admin) {
+        var registration = new FilterRegistrationBean<>(new AdminTokenFilter(admin.token()));
+        registration.addUrlPatterns(PortSeparationFilter.ADMIN_PATH + "/*");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
+        return registration;
+    }
+
+    @Bean
     FilterRegistrationBean<PortSeparationFilter> portSeparationFilter(AdminProperties admin) {
         var registration = new FilterRegistrationBean<>(new PortSeparationFilter(admin.port()));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);

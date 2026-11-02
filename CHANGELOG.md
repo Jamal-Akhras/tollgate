@@ -88,6 +88,11 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- The admin API needs a token.
+  - **Requests:** every admin request must send `Authorization: Bearer` with
+    `TOLLGATE_ADMIN_TOKEN`, which must be at least 32 characters.
+  - **Without the token** the admin API is off and answers `503`.
+  - **Effect:** web pages can no longer reach it through the browser.
 - Budgets survive restarts. At startup, Tollgate replays the current period
   from the audit trail.
   - **Finished calls:** each is charged its settled cost.
