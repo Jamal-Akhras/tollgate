@@ -55,6 +55,10 @@ public final class AuditLog implements AutoCloseable {
         return keys.hmac(content);
     }
 
+    public Fingerprint fingerprint() {
+        return keys.fingerprint();
+    }
+
     public void append(AuditRecord record) {
         Exception failed = failure;
         if (failed != null) {

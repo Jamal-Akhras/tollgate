@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import io.github.jamalakhras.tollgate.core.audit.AuditLog;
 import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.audit.AuditUnavailableException;
+import io.github.jamalakhras.tollgate.core.audit.Fingerprint;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.KeyRing;
@@ -27,7 +28,9 @@ import io.github.jamalakhras.tollgate.providers.InvalidProviderResponseException
 import io.github.jamalakhras.tollgate.providers.InvalidRequestException;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
 import io.github.jamalakhras.tollgate.providers.ProviderResponse;
+import io.github.jamalakhras.tollgate.providers.ProviderStream;
 import io.github.jamalakhras.tollgate.providers.ProviderUnavailableException;
+import io.github.jamalakhras.tollgate.providers.StreamRewriter;
 import io.github.jamalakhras.tollgate.providers.UsageReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,6 +64,7 @@ final class Gateway implements AutoCloseable {
     private final @Nullable AuditLog audit;
     private final Clock clock;
     private final int maxRequestBytes;
+    private final Duration maxStreamDuration;
     private volatile Snapshot current;
 
     Gateway(
@@ -70,7 +74,8 @@ final class Gateway implements AutoCloseable {
             BudgetStore budgets,
             @Nullable AuditLog audit,
             Clock clock,
-            int maxRequestBytes) {
+            int maxRequestBytes,
+            Duration maxStreamDuration) {
         this.environment = environment;
         this.current = new Snapshot(loaded, environment);
         this.client = client;
@@ -78,19 +83,21 @@ final class Gateway implements AutoCloseable {
         this.audit = audit;
         this.clock = clock;
         this.maxRequestBytes = maxRequestBytes;
+        this.maxStreamDuration = maxStreamDuration;
     }
 
-    Result complete(
+    Optional<Result> complete(
             String traceId,
             WireFormat endpoint,
             Optional<String> credential,
             InputStream body,
-            Function<String, @Nullable String> clientHeaders) {
+            Function<String, @Nullable String> clientHeaders,
+            StreamTarget target) {
         Snapshot snapshot = current;
         TenantKey caller = snapshot.authenticate(credential);
         byte[] requestBody = read(body);
         ChatRequest request = parse(requestBody);
-        if (request.isStreaming()) {
+        if (request.isStreaming() && endpoint == WireFormat.ANTHROPIC) {
             throw GatewayException.streamingNotSupported();
         }
         GatewayConfig config = snapshot.config();
@@ -122,8 +129,12 @@ final class Gateway implements AutoCloseable {
             }
             throw e;
         }
+        if (request.isStreaming()) {
+            stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage());
+            return Optional.empty();
+        }
         ProviderResponse response = send(call, budgeted.forwarded(), reservation, clientHeaders);
-        return new Result(response, budgeted.outputLimitedTo());
+        return Optional.of(new Result(response, budgeted.outputLimitedTo()));
     }
 
     List<String> models(WireFormat endpoint, Optional<String> credential) {
@@ -198,21 +209,8 @@ final class Gateway implements AutoCloseable {
                 usage = UsageReader.read(call.endpoint(), response.body());
             }
             charge = costOf(route, response, usage, charge);
-            if (response.status() == 401 || response.status() == 403) {
-                log.error(
-                        "Provider {} rejected Tollgate's credentials with status {}",
-                        route.providerName(),
-                        response.status());
-                throw GatewayException.providerRejectedCredentials();
-            }
             if (!succeeded(response)) {
-                log.warn(
-                        "Provider {} answered with status {}: {}",
-                        route.providerName(),
-                        response.status(),
-                        response.errorMessage().orElse("no message"));
-                throw GatewayException.providerError(
-                        response.status(), response.errorMessage().orElse(null), response.retryAfter());
+                throw unsuccessful(route, response);
             }
             return response.withModel(route.model());
         } catch (InvalidProviderResponseException e) {
@@ -230,8 +228,136 @@ final class Gateway implements AutoCloseable {
             if (reservation != null) {
                 budgets.settle(reservation, charge);
             }
-            recordOutcome(call, result, response, usage, charge, Duration.between(started, clock.instant()));
+            ProviderResponse answered = response;
+            recordOutcome(
+                    call,
+                    result,
+                    answered == null ? null : answered.status(),
+                    usage,
+                    charge,
+                    Duration.between(started, clock.instant()),
+                    trail -> answered == null ? null : trail.hmac(answered.body()));
         }
+    }
+
+    private void stream(
+            Call call,
+            Budgeted budgeted,
+            Function<String, @Nullable String> clientHeaders,
+            StreamTarget target,
+            boolean relayUsage) {
+        Route route = call.route();
+        Reservation reservation = budgeted.reservation();
+        Money charge = reservation == null ? nothing(route) : reservation.amount();
+        Outcome.Result result = Outcome.Result.UNREACHABLE;
+        Integer status = null;
+        Optional<Usage> usage = Optional.empty();
+        Fingerprint fingerprint = audit == null ? null : audit.fingerprint();
+        Instant started = clock.instant();
+        long deadline = System.nanoTime() + maxStreamDuration.toNanos();
+        ProviderStream stream = null;
+        boolean opened = false;
+        try {
+            stream = client.stream(
+                    route.provider(),
+                    call.snapshot().providerKeys().get(route.providerName()),
+                    budgeted.forwarded().body(),
+                    clientHeaders);
+            status = stream.status();
+            result = Outcome.Result.RESPONDED;
+            if (!succeeded(stream.status())) {
+                charge = nothing(route);
+                throw unsuccessful(route, stream.whole());
+            }
+            StreamRewriter rewriter = new StreamRewriter(call.endpoint(), route.model(), relayUsage);
+            target.open(budgeted.outputLimitedTo());
+            opened = true;
+            List<String> event = stream.nextEvent(remaining(deadline));
+            while (event != null) {
+                Optional<byte[]> relayed = rewriter.rewrite(event);
+                if (relayed.isPresent()) {
+                    target.write(relayed.get());
+                    if (fingerprint != null) {
+                        fingerprint.add(relayed.get());
+                    }
+                }
+                event = stream.nextEvent(remaining(deadline));
+            }
+            usage = rewriter.usage();
+            if (usage.isPresent()) {
+                charge = route.definition().price().costOf(usage.get());
+            } else {
+                log.warn("Provider {} streamed no token usage; charging the full reservation", route.providerName());
+            }
+        } catch (IOException e) {
+            result = Outcome.Result.CLIENT_CLOSED;
+            log.info("The client of request {} closed the stream", call.traceId());
+        } catch (InvalidProviderResponseException e) {
+            if (!opened) {
+                result = Outcome.Result.INVALID_RESPONSE;
+                log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
+                throw GatewayException.providerInvalidResponse(String.valueOf(e.getMessage()));
+            }
+            result = Outcome.Result.INTERRUPTED;
+            endEarly(call, target, deadline, e);
+        } catch (ProviderUnavailableException e) {
+            if (!opened) {
+                result = e.timedOut() ? Outcome.Result.TIMED_OUT : Outcome.Result.UNREACHABLE;
+                if (!e.timedOut()) {
+                    charge = nothing(route);
+                }
+                log.warn("Provider {} is unavailable: {}", route.providerName(), e.getMessage());
+                throw GatewayException.providerUnavailable(String.valueOf(e.getMessage()), e.timedOut());
+            }
+            result = Outcome.Result.INTERRUPTED;
+            endEarly(call, target, deadline, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            result = Outcome.Result.INTERRUPTED;
+        } finally {
+            if (stream != null) {
+                stream.close();
+            }
+            if (reservation != null) {
+                budgets.settle(reservation, charge);
+            }
+            String streamed = opened && fingerprint != null ? fingerprint.hex() : null;
+            recordOutcome(
+                    call, result, status, usage, charge, Duration.between(started, clock.instant()), trail -> streamed);
+        }
+    }
+
+    private static Duration remaining(long deadline) {
+        return Duration.ofNanos(Math.max(1, deadline - System.nanoTime()));
+    }
+
+    private void endEarly(Call call, StreamTarget target, long deadline, RuntimeException cause) {
+        String message = System.nanoTime() >= deadline
+                ? "The stream lasted longer than " + maxStreamDuration
+                : String.valueOf(cause.getMessage());
+        log.warn("Stream from provider {} ended early: {}", call.route().providerName(), message);
+        try {
+            target.write(StreamErrors.event(call.endpoint(), message));
+        } catch (IOException e) {
+            log.debug("Could not tell the client that request {} ended early", call.traceId(), e);
+        }
+    }
+
+    private static GatewayException unsuccessful(Route route, ProviderResponse response) {
+        if (response.status() == 401 || response.status() == 403) {
+            log.error(
+                    "Provider {} rejected Tollgate's credentials with status {}",
+                    route.providerName(),
+                    response.status());
+            return GatewayException.providerRejectedCredentials();
+        }
+        log.warn(
+                "Provider {} answered with status {}: {}",
+                route.providerName(),
+                response.status(),
+                response.errorMessage().orElse("no message"));
+        return GatewayException.providerError(
+                response.status(), response.errorMessage().orElse(null), response.retryAfter());
     }
 
     private byte[] read(InputStream body) {
@@ -352,10 +478,11 @@ final class Gateway implements AutoCloseable {
     private void recordOutcome(
             Call call,
             Outcome.Result result,
-            @Nullable ProviderResponse response,
+            @Nullable Integer status,
             Optional<Usage> usage,
             Money cost,
-            Duration duration) {
+            Duration duration,
+            Function<AuditLog, @Nullable String> responseHmac) {
         AuditLog trail = audit;
         if (trail == null) {
             return;
@@ -364,11 +491,11 @@ final class Gateway implements AutoCloseable {
                 call.traceId(),
                 clock.instant(),
                 result,
-                response == null ? null : response.status(),
+                status,
                 usage.orElse(null),
                 cost,
                 duration,
-                response == null ? null : trail.hmac(response.body()));
+                responseHmac.apply(trail));
         try {
             trail.append(outcome);
         } catch (AuditUnavailableException e) {
@@ -377,7 +504,11 @@ final class Gateway implements AutoCloseable {
     }
 
     private static boolean succeeded(ProviderResponse response) {
-        return response.status() >= 200 && response.status() < 300;
+        return succeeded(response.status());
+    }
+
+    private static boolean succeeded(int status) {
+        return status >= 200 && status < 300;
     }
 
     private static Money costOf(Route route, ProviderResponse response, Optional<Usage> usage, Money worstCase) {

@@ -37,7 +37,9 @@ public record Outcome(
         RESPONDED,
         UNREACHABLE,
         TIMED_OUT,
-        INVALID_RESPONSE;
+        INVALID_RESPONSE,
+        INTERRUPTED,
+        CLIENT_CLOSED;
 
         public String code() {
             return name().toLowerCase(Locale.ROOT);

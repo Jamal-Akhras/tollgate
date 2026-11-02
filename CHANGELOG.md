@@ -88,3 +88,12 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- Streaming on the OpenAI chat completions endpoint.
+  - **Relaying:** events are relayed as they arrive, with your model's name.
+  - **Usage:** Tollgate asks the provider for usage, settles from it, and
+    hides the usage chunk from clients that did not ask for it.
+  - **Limits:** a gap limit, `tollgate.max-stream-duration` (10 minutes by
+    default) and the response size cap end a stream with a final error
+    event.
+  - **Clients that leave:** the provider is cancelled.
+  - **Audit:** streams record `interrupted` or `client_closed`.

@@ -40,7 +40,7 @@ public final class UsageReader {
         }
     }
 
-    private static Optional<Usage> openAi(JsonNode usage) {
+    static Optional<Usage> openAi(JsonNode usage) {
         OptionalLong prompt = count(usage.path("prompt_tokens"));
         OptionalLong completion = count(usage.path("completion_tokens"));
         OptionalLong cached = countOrZero(usage.path("prompt_tokens_details").path("cached_tokens"));

@@ -43,6 +43,16 @@ class AuditKeysTest {
     }
 
     @Test
+    void hmacsDependOnTheContentAndCanBeBuiltInPieces() {
+        Fingerprint pieces = TestKeys.KEYS.fingerprint();
+        pieces.add("bat".getBytes(StandardCharsets.UTF_8));
+        pieces.add("ch".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(TestKeys.KEYS.hmac(CONTENT)).isNotEqualTo(TestKeys.KEYS.hmac(new byte[0]));
+        assertThat(pieces.hex()).isEqualTo(TestKeys.KEYS.hmac(CONTENT));
+    }
+
+    @Test
     void hmacsDependOnTheKey() {
         AuditKeys.NewKeys other = AuditKeys.generate(new SecureRandom());
         AuditKeys otherKeys = AuditKeys.of(other.publicKey(), other.signingKey(), other.hmacKey());

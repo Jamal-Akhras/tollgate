@@ -25,9 +25,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -80,8 +82,21 @@ class AuditFailureTest {
                 budgets,
                 AuditLog.start(sink, keys, Clock.systemUTC(), true),
                 Clock.systemUTC(),
-                1_000_000);
+                1_000_000,
+                Duration.ofMinutes(1));
     }
+
+    private static final StreamTarget NOT_STREAMED = new StreamTarget() {
+        @Override
+        public void open(OptionalLong outputLimitedTo) {
+            throw new AssertionError("Not a streamed request");
+        }
+
+        @Override
+        public void write(byte[] event) {
+            throw new AssertionError("Not a streamed request");
+        }
+    };
 
     private static ByteArrayInputStream body() {
         return new ByteArrayInputStream(REQUEST.getBytes(StandardCharsets.UTF_8));
@@ -90,8 +105,8 @@ class AuditFailureTest {
     @Test
     void refusesARequestWhoseIntentCannotBeWrittenAndReleasesItsReservation() throws Exception {
         try (Gateway gateway = gateway(new FailingSink(0))) {
-            assertThatThrownBy(() ->
-                            gateway.complete("trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null))
+            assertThatThrownBy(() -> gateway.complete(
+                            "trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null, NOT_STREAMED))
                     .isInstanceOfSatisfying(GatewayException.class, e -> {
                         assertThat(e.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
                         assertThat(e.code()).isEqualTo("audit_unavailable");
@@ -107,7 +122,9 @@ class AuditFailureTest {
     void returnsTheResponseWhenOnlyTheOutcomeCannotBeWritten() throws Exception {
         provider.respond(200, "{\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5}}");
         try (Gateway gateway = gateway(new FailingSink(1))) {
-            var response = gateway.complete("trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null);
+            var response = gateway.complete(
+                            "trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null, NOT_STREAMED)
+                    .orElseThrow();
 
             assertThat(response.response().status()).isEqualTo(200);
             assertThat(provider.received()).hasSize(1);

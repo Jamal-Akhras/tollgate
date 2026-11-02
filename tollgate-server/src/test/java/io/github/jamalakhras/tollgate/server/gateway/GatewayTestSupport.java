@@ -27,7 +27,12 @@ import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(
         webEnvironment = WebEnvironment.RANDOM_PORT,
-        properties = {"management.server.port=0", "tollgate.max-request-size=1KB", "tollgate.max-response-size=16KB"})
+        properties = {
+            "management.server.port=0",
+            "tollgate.max-request-size=1KB",
+            "tollgate.max-response-size=16KB",
+            "tollgate.max-stream-duration=3s"
+        })
 abstract class GatewayTestSupport {
 
     static final FakeProvider PROVIDER = new FakeProvider();
@@ -172,7 +177,11 @@ abstract class GatewayTestSupport {
     }
 
     static List<AuditRecord> auditRecordsOf(HttpResponse<String> response) throws IOException {
-        String traceId = response.headers().firstValue(TraceIdFilter.HEADER).orElseThrow();
+        return auditRecordsOf(
+                response.headers().firstValue(TraceIdFilter.HEADER).orElseThrow());
+    }
+
+    static List<AuditRecord> auditRecordsOf(String traceId) throws IOException {
         List<AuditRecord> records = new ArrayList<>();
         for (Path file : AuditDirectory.files(AUDIT_DIRECTORY)) {
             for (String line : Files.readAllLines(file)) {
@@ -183,6 +192,10 @@ abstract class GatewayTestSupport {
             }
         }
         return records;
+    }
+
+    int port() {
+        return port;
     }
 
     HttpResponse<String> post(String path, String body, String... headers) throws IOException, InterruptedException {

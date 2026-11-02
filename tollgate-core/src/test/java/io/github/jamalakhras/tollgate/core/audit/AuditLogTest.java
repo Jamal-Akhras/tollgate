@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -28,6 +29,16 @@ class AuditLogTest {
 
     private AuditLog start(boolean synchronous, AuditLog.Limits limits) throws IOException {
         return AuditLog.start(sink, TestKeys.KEYS, CLOCK, synchronous, limits);
+    }
+
+    @Test
+    void fingerprintsWithTheTrailsKey() throws Exception {
+        try (AuditLog log = start(true, LIMITS)) {
+            Fingerprint fingerprint = log.fingerprint();
+            fingerprint.add("reply".getBytes(StandardCharsets.UTF_8));
+
+            assertThat(fingerprint.hex()).isEqualTo(log.hmac("reply".getBytes(StandardCharsets.UTF_8)));
+        }
     }
 
     @Test

@@ -1,6 +1,7 @@
 package io.github.jamalakhras.tollgate.server.gateway;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.util.unit.DataSize;
@@ -9,7 +10,8 @@ import org.springframework.util.unit.DataSize;
 public record GatewayProperties(
         @DefaultValue("tollgate.yaml") Path config,
         @DefaultValue("16MB") DataSize maxRequestSize,
-        @DefaultValue("32MB") DataSize maxResponseSize) {
+        @DefaultValue("32MB") DataSize maxResponseSize,
+        @DefaultValue("10m") Duration maxStreamDuration) {
 
     private static final DataSize LARGEST_BODY = DataSize.ofMegabytes(512);
 
@@ -21,6 +23,10 @@ public record GatewayProperties(
         if (maxResponseSize.toBytes() < 1 || maxResponseSize.compareTo(LARGEST_BODY) > 0) {
             throw new IllegalArgumentException(
                     "tollgate.max-response-size must be between 1B and 512MB, was " + maxResponseSize);
+        }
+        if (maxStreamDuration.isZero() || maxStreamDuration.isNegative()) {
+            throw new IllegalArgumentException(
+                    "tollgate.max-stream-duration must be positive, was " + maxStreamDuration);
         }
     }
 

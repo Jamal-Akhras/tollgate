@@ -40,7 +40,8 @@ final class RequestReview {
             "safety_identifier",
             "prompt_cache_key",
             "store",
-            "stream");
+            "stream",
+            "stream_options");
     private static final Set<String> ANTHROPIC_FIELDS = Set.of(
             "model",
             "messages",

@@ -178,6 +178,73 @@ class ProviderClientTest {
     }
 
     @Test
+    void streamsEventsOneAtATime() throws Exception {
+        fake.respond(200, "data: {\"n\":1}\r\n\r\n: comment\n\ndata: {\"n\":2}\nextra: x\n\ndata: [DONE]");
+
+        try (ProviderStream stream = client.stream(
+                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+            assertThat(stream.status()).isEqualTo(200);
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly("data: {\"n\":1}");
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly(": comment");
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly("data: {\"n\":2}", "extra: x");
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly("data: [DONE]");
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).isNull();
+            assertThat(stream.nextEvent(Duration.ofSeconds(5))).isNull();
+        }
+    }
+
+    @Test
+    void readsAnErrorBodyInWhole() throws Exception {
+        fake.respond(429, "{\"error\":{\"message\":\"slow down\"}}");
+
+        try (ProviderStream stream = client.stream(
+                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+            ProviderResponse whole = stream.whole();
+
+            assertThat(whole.status()).isEqualTo(429);
+            assertThat(whole.errorMessage()).contains("slow down");
+            assertThat(whole.retryAfter()).isEqualTo("7");
+        }
+    }
+
+    @Test
+    void stopsAStreamThatGoesQuietForTooLong() throws Exception {
+        fake.respond(200, "data: {\"n\":1}\n\n");
+        fake.drip(Duration.ofMillis(400));
+        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(200));
+
+        try (ProviderStream stream = client.stream(slow, null, BODY, ProviderClientTest::noClientHeader)) {
+            assertThatThrownBy(() -> stream.nextEvent(Duration.ofSeconds(5)))
+                    .isInstanceOfSatisfying(
+                            ProviderUnavailableException.class,
+                            e -> assertThat(e.timedOut()).isTrue());
+        }
+    }
+
+    @Test
+    void stopsAStreamLargerThanTheLimit() throws Exception {
+        fake.respond(200, "data: " + "x".repeat(2_000) + "\n\n");
+
+        try (ProviderStream stream = client.stream(
+                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+            assertThatThrownBy(() -> stream.nextEvent(Duration.ofSeconds(5)))
+                    .isInstanceOf(InvalidProviderResponseException.class)
+                    .hasMessage("The provider's response was larger than 1024 bytes");
+        }
+    }
+
+    @Test
+    void reportsATimeoutBeforeTheStreamStarts() {
+        fake.delay(Duration.ofSeconds(2));
+        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(200));
+
+        assertThatThrownBy(() -> client.stream(slow, null, BODY, ProviderClientTest::noClientHeader))
+                .isInstanceOfSatisfying(
+                        ProviderUnavailableException.class,
+                        e -> assertThat(e.timedOut()).isTrue());
+    }
+
+    @Test
     void reportsAnUnreachableProvider() throws IOException {
         int closedPort;
         try (ServerSocket socket = new ServerSocket(0)) {

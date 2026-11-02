@@ -45,7 +45,8 @@ class GatewayConfiguration {
                 new InMemoryBudgetStore(clock),
                 startAudit(loaded, environment::getProperty, clock),
                 clock,
-                properties.maxRequestBytes());
+                properties.maxRequestBytes(),
+                properties.maxStreamDuration());
     }
 
     @Bean

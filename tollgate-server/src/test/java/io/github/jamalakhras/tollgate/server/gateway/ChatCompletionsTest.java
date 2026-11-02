@@ -93,11 +93,12 @@ class ChatCompletionsTest extends GatewayTestSupport {
     }
 
     @Test
-    void rejectsStreamingForNow() throws Exception {
-        HttpResponse<String> response = chatWithKey("{\"model\":\"qwen3\",\"stream\":true,\"messages\":[]}");
+    void rejectsAStreamFlagThatIsNotABoolean() throws Exception {
+        HttpResponse<String> response = chatWithKey("{\"model\":\"qwen3\",\"stream\":\"yes\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(400);
-        assertThat(response.body()).contains("\"code\":\"unsupported_parameter\"", "\"param\":\"stream\"");
+        assertThat(response.body()).contains("'stream' must be true or false", "\"param\":\"stream\"");
+        assertThat(PROVIDER.received()).isEmpty();
     }
 
     @Test

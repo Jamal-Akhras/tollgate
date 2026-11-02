@@ -87,10 +87,16 @@ public final class AuditKeys {
     }
 
     public String hmac(byte[] content) {
+        Fingerprint fingerprint = fingerprint();
+        fingerprint.add(content);
+        return fingerprint.hex();
+    }
+
+    public Fingerprint fingerprint() {
         try {
             Mac mac = Mac.getInstance(HMAC_SHA256);
             mac.init(hmacKey);
-            return Digests.HEX.formatHex(mac.doFinal(content));
+            return new Fingerprint(mac);
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("Every Java runtime provides HMAC-SHA256", e);
         }

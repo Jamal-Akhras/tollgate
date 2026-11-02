@@ -264,11 +264,17 @@ class ChatRequestTest {
                 .hasMessage("'model' is required and must be a string");
     }
 
+    @Test
+    void streamsWhenStreamIsTrue() {
+        assertThat(parse("{\"model\":\"qwen3\",\"stream\":true}").isStreaming()).isTrue();
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"true", "\"true\"", "1", "{}"})
-    void treatsAnyStreamValueButFalseAsStreaming(String stream) {
-        assertThat(parse("{\"model\":\"qwen3\",\"stream\":" + stream + "}").isStreaming())
-                .isTrue();
+    @ValueSource(strings = {"\"true\"", "1", "{}"})
+    void refusesAStreamFlagThatIsNotABoolean(String stream) {
+        assertThatThrownBy(() -> parse("{\"model\":\"qwen3\",\"stream\":" + stream + "}"))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("'stream' must be true or false");
     }
 
     @ParameterizedTest

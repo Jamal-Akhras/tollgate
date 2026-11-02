@@ -1,7 +1,9 @@
 package io.github.jamalakhras.tollgate.server.gateway;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.InputStream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,11 +21,20 @@ class ChatCompletionsController {
     }
 
     @PostMapping(Endpoints.OPENAI_CHAT)
+    @Nullable
     ResponseEntity<byte[]> complete(
             @RequestAttribute(TraceIdFilter.ATTRIBUTE) String traceId,
             @RequestHeader HttpHeaders headers,
-            InputStream body) {
-        return Relay.response(
-                gateway.complete(traceId, WireFormat.OPENAI, Relay.credential(headers), body, headers::getFirst));
+            InputStream body,
+            HttpServletResponse response) {
+        return gateway.complete(
+                        traceId,
+                        WireFormat.OPENAI,
+                        Relay.credential(headers),
+                        body,
+                        headers::getFirst,
+                        new ServletStream(response))
+                .map(Relay::response)
+                .orElse(null);
     }
 }

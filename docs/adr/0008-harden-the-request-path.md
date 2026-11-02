@@ -1,6 +1,6 @@
 # ADR 0008: Harden the request path
 
-Date: 2026-11-02 · Status: Accepted
+Date: 2026-11-02 · Status: Accepted, amended by [ADR 0010](0010-streaming.md)
 
 ## Context
 

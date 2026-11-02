@@ -29,6 +29,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
   `internal` or `confidential`. A request may make its class stricter, never
   looser, and each class may go only to providers in the regions you allow.
   Guards fail closed.
+- **Streaming.** Streamed answers are relayed event by event as they arrive,
+  with the same policies, budgets and audit as other calls
+  ([ADR 0010](docs/adr/0010-streaming.md)).
 - **Only reviewed requests leave.** Fields, tools and content are checked
   against an allowlist, so a request cannot ask the provider to fetch URLs,
   call other servers or keep the conversation. A policy can allow a reviewed

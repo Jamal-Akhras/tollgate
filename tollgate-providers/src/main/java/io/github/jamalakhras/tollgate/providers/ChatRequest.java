@@ -49,6 +49,10 @@ public final class ChatRequest {
         if (!model.isString() || model.stringValue().isBlank()) {
             throw new InvalidRequestException("'model' is required and must be a string", "model");
         }
+        JsonNode stream = object.path("stream");
+        if (!stream.isMissingNode() && !stream.isNull() && !stream.isBoolean()) {
+            throw new InvalidRequestException("'stream' must be true or false", "stream");
+        }
         return new ChatRequest(object, model.stringValue());
     }
 
@@ -61,9 +65,12 @@ public final class ChatRequest {
     }
 
     public boolean isStreaming() {
-        JsonNode stream = body.path("stream");
-        boolean off = stream.isMissingNode() || stream.isNull() || (stream.isBoolean() && !stream.booleanValue());
-        return !off;
+        return body.path("stream").asBoolean(false);
+    }
+
+    public boolean wantsStreamUsage() {
+        JsonNode include = body.path("stream_options").path("include_usage");
+        return include.isBoolean() && include.booleanValue();
     }
 
     public Forwarded forward(
@@ -75,6 +82,11 @@ public final class ChatRequest {
         Map<String, Long> outputFields = limitedOutputFields(format, limit, fillOutputCap);
         ObjectNode forwarded = body.objectNode().setAll(body).put("model", upstreamModel);
         outputFields.forEach(forwarded::put);
+        if (format == WireFormat.OPENAI && isStreaming()) {
+            ObjectNode options =
+                    body.path("stream_options") instanceof ObjectNode given ? given.deepCopy() : forwarded.objectNode();
+            forwarded.set("stream_options", options.put("include_usage", true));
+        }
         long webSearches = format == WireFormat.ANTHROPIC ? limitWebSearches(forwarded, maxWebSearches) : 0;
         OptionalLong maxOutputTokens =
                 outputFields.values().stream().mapToLong(Long::longValue).max();

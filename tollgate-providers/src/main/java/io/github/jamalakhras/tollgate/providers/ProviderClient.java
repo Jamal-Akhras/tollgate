@@ -35,6 +35,52 @@ public final class ProviderClient {
 
     public ProviderResponse send(
             Provider provider, @Nullable String apiKey, byte[] body, Function<String, @Nullable String> clientHeaders) {
+        HttpResponse<byte[]> response = exchange(
+                provider, request(provider, apiKey, body, clientHeaders), LimitedBody.handler(maxResponseBytes));
+        return new ProviderResponse(
+                response.statusCode(),
+                response.body(),
+                response.headers().firstValue("Content-Type").orElse(null),
+                response.headers().firstValue("Retry-After").orElse(null));
+    }
+
+    public ProviderStream stream(
+            Provider provider, @Nullable String apiKey, byte[] body, Function<String, @Nullable String> clientHeaders) {
+        Lines lines = new Lines(maxResponseBytes);
+        HttpResponse<Lines> response =
+                exchange(provider, request(provider, apiKey, body, clientHeaders), info -> lines);
+        return new ProviderStream(
+                response.statusCode(),
+                response.headers().firstValue("Retry-After").orElse(null),
+                lines,
+                provider.timeout());
+    }
+
+    private <T> HttpResponse<T> exchange(Provider provider, HttpRequest request, HttpResponse.BodyHandler<T> handler) {
+        CompletableFuture<HttpResponse<T>> exchange = http.sendAsync(request, handler);
+        try {
+            return exchange.get(provider.timeout().toNanos(), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            exchange.cancel(true);
+            throw timedOut(provider.timeout(), e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof InvalidProviderResponseException invalid) {
+                throw invalid;
+            }
+            if (cause instanceof HttpTimeoutException) {
+                throw timedOut(provider.timeout(), cause);
+            }
+            throw new ProviderUnavailableException("The provider could not be reached", false, e);
+        } catch (InterruptedException e) {
+            exchange.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new ProviderUnavailableException("Interrupted while waiting for the provider", false, e);
+        }
+    }
+
+    private static HttpRequest request(
+            Provider provider, @Nullable String apiKey, byte[] body, Function<String, @Nullable String> clientHeaders) {
         HttpRequest.Builder request = HttpRequest.newBuilder(provider.endpoint(path(provider)))
                 .timeout(provider.timeout())
                 .header("Content-Type", "application/json")
@@ -60,37 +106,11 @@ public final class ProviderClient {
                 }
             }
         }
-        CompletableFuture<HttpResponse<byte[]>> exchange =
-                http.sendAsync(request.build(), LimitedBody.handler(maxResponseBytes));
-        try {
-            HttpResponse<byte[]> response = exchange.get(provider.timeout().toNanos(), TimeUnit.NANOSECONDS);
-            return new ProviderResponse(
-                    response.statusCode(),
-                    response.body(),
-                    response.headers().firstValue("Content-Type").orElse(null),
-                    response.headers().firstValue("Retry-After").orElse(null));
-        } catch (TimeoutException e) {
-            exchange.cancel(true);
-            throw timedOut(provider, e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof InvalidProviderResponseException invalid) {
-                throw invalid;
-            }
-            if (cause instanceof HttpTimeoutException) {
-                throw timedOut(provider, cause);
-            }
-            throw new ProviderUnavailableException("The provider could not be reached", false, e);
-        } catch (InterruptedException e) {
-            exchange.cancel(true);
-            Thread.currentThread().interrupt();
-            throw new ProviderUnavailableException("Interrupted while waiting for the provider", false, e);
-        }
+        return request.build();
     }
 
-    private static ProviderUnavailableException timedOut(Provider provider, Throwable cause) {
-        return new ProviderUnavailableException(
-                "The provider did not answer within " + provider.timeout(), true, cause);
+    static ProviderUnavailableException timedOut(Duration timeout, Throwable cause) {
+        return new ProviderUnavailableException("The provider did not answer within " + timeout, true, cause);
     }
 
     private static String path(Provider provider) {
