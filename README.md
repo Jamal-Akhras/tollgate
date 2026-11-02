@@ -184,8 +184,8 @@ lands on the volume, and point the provider at `host.docker.internal`.
 
 | Milestone | Scope |
 |---|---|
-| **M1** (in progress) | Everything above, a Docker image, and a published performance report |
-| **M2** | Streaming, PII redaction and restore, CEL rules, webhook guards, Postgres and Redis storage, rate limits, provider fallback, OpenTelemetry, a Spring Boot starter, and a first release to Maven Central |
+| **M1** (in progress) | Everything above, the security hardening in [ADR 0008](docs/adr/0008-harden-the-request-path.md), streaming, and a published performance report |
+| **M2** | PII redaction and restore, including on streams, CEL rules, webhook guards, Postgres and Redis storage, rate limits, provider fallback, OpenTelemetry, a Spring Boot starter, and a first release to Maven Central |
 | **M3** | Policy Studio: a simulator, a guard editor, shadow mode and maker-checker approval |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).

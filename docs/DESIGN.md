@@ -312,15 +312,16 @@ with hardware details for every audit mode.
 | Milestone | Scope |
 |---|---|
 | **M0** (done) | Build, quality gates, CI, money types, server skeleton with port separation, admin API contract |
-| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; first performance report |
-| **M2** | Streaming with usage and the hold-back window; PII redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
+| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); streaming with usage; first performance report |
+| **M2** | The hold-back window for output guards on streams; PII redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
 | **M3** | Studio (simulator, guard editor, shadow mode, maker-checker); cluster config sync; Helm chart; Terraform example |
 | Later | Translation between formats, Responses API, Azure OpenAI and Bedrock, gRPC guards, policy for MCP tool calls, semantic caching, a Python helper package |
 
 ## 14. Risks
 
 - **Scope.** The non-goals and milestone boundaries are the defence.
-- **Provider API churn.** Recorded fixtures catch changes in tests; native
-  passthrough avoids dropping fields Tollgate does not yet know about.
+- **Provider API churn.** Recorded fixtures catch changes in tests. A field
+  Tollgate does not know is refused with a message that names it, never
+  dropped silently ([ADR 0008](adr/0008-harden-the-request-path.md)).
 - **Streaming with redaction** is the hardest part technically and is
   documented as a trade-off.

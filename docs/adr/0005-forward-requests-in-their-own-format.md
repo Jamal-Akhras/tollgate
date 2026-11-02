@@ -1,6 +1,6 @@
 # ADR 0005: Forward requests in their own format
 
-Date: 2026-10-29 · Status: Accepted
+Date: 2026-10-29 · Status: Accepted, amended by [ADR 0008](0008-harden-the-request-path.md)
 
 ## Context
 
