@@ -178,6 +178,19 @@ These amend [ADR 0006](0006-budget-reservations.md).
 
 - **`n` multiplies the output reservation.** `n` must be a whole number from 1
   to 128, and the reservation covers `n` times the output cap.
+- **Near the limit, the answer shrinks instead of the call being refused.**
+  - **When:** the worst case of a call does not fit in what is left of a
+    tenant's budget.
+  - **What happens:** Tollgate lowers the output cap (`max_tokens`, or
+    `max_completion_tokens`) to the largest value whose worst case fits, and
+    sends the call. The response carries `X-Tollgate-Output-Limited` with the
+    lowered cap, so the application knows its answer may be cut short.
+  - **The floor:** the cap is never lowered below the model's
+    `maxOutputTokens.floor`, 256 tokens by default. A call that cannot fit
+    even at the floor is refused with `429`, as before. The floor keeps
+    structured output from being cut off into something unusable.
+  - **The guarantee is unchanged:** spend plus open reservations never
+    exceeds the limit.
 - **Inline images get an input allowance.** Each one adds a fixed number of
   tokens to the input bound, set above the largest per-image cost the
   supported providers document.
@@ -260,8 +273,18 @@ These amend [ADR 0006](0006-budget-reservations.md).
   Tollgate at all. Five switches, each tied to data classes, keep the strict
   default without leaving teams stuck.
 - **Allowing every server tool behind a switch.** Web fetch, the MCP
-  connector and code execution cannot be made safe by data class, because the risk is where the data goes
-  after the provider receives it.
+  connector and code execution cannot be made safe by data class, because the
+  risk is where the data goes after the provider receives it.
+- **Refusing every call whose worst case does not fit.** This is the original
+  rule. It also never overspends, but it refuses calls near the limit that
+  would almost certainly have cost far less. Shrinking the answer keeps the
+  same guarantee and serves the call.
+- **An overdraft above the limit.** Checking the worst case against the limit
+  plus an allowance would bound the overspend, not prevent it. It can be
+  added as a setting if a team prefers it to shorter answers.
+- **Reserving a typical cost, not the worst.** Under concurrent calls this is
+  not a cap at all. The red-team review spent 38 times a limit this way, and
+  other gateways have shipped the same failure.
 - **Dropping disallowed fields silently.** The call would succeed but behave
   differently from what the client asked for, with nothing to say why.
   Refusing names the field.

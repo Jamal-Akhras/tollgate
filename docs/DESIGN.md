@@ -242,9 +242,10 @@ per-instance limits (the shared limit divided by the instance count).
 Amounts are `long` nano-units of one currency, with `BigDecimal` only at the
 edges ([ADR 0003](adr/0003-money-representation.md)). Token costs round up to
 the next nano-unit, so a reservation never under-reserves. How reservations
-are sized and settled is in [ADR 0006](adr/0006-budget-reservations.md); a
-request that its tenant's budget cannot cover is refused with a `429`, as
-OpenAI does for an exhausted quota. Settled costs use the
+are sized and settled is in [ADR 0006](adr/0006-budget-reservations.md). Near
+the limit, the output cap is lowered so the worst case fits
+([ADR 0008](adr/0008-harden-the-request-path.md)). A request that cannot fit
+even then is refused with a `429`, as OpenAI does for an exhausted quota. Settled costs use the
 provider's reported token counts. For streamed responses, the gateway asks
 the provider to include usage, so streamed calls settle exactly too.
 
@@ -319,8 +320,8 @@ with hardware details for every audit mode.
 | Milestone | Scope |
 |---|---|
 | **M0** (done) | Build, quality gates, CI, money types, server skeleton with port separation, admin API contract |
-| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); streaming with usage; first performance report |
-| **M2** | The hold-back window for output guards on streams; PII redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
+| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned PII (emails, phone and card numbers, IBANs, secrets) on non-streaming calls; streaming with usage; first performance report |
+| **M2** | The hold-back window for output guards on streams; name detection and redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
 | **M3** | Studio (simulator, guard editor, shadow mode, maker-checker); cluster config sync; Helm chart; Terraform example |
 | Later | Translation between formats, Responses API, Azure OpenAI and Bedrock, gRPC guards, policy for MCP tool calls, semantic caching, a Python helper package |
 
