@@ -19,6 +19,11 @@ public final class StreamRewriter {
     private final String model;
     private final boolean relayUsage;
     private @Nullable Usage usage;
+    private long input = -1;
+    private long output = -1;
+    private long cacheRead;
+    private long cacheWrite;
+    private long webSearches;
 
     public StreamRewriter(WireFormat format, String model, boolean relayUsage) {
         this.format = format;
@@ -56,7 +61,14 @@ public final class StreamRewriter {
     }
 
     public Optional<Usage> usage() {
+        if (format == WireFormat.ANTHROPIC && input >= 0 && output >= 0) {
+            return Optional.of(new Usage(input, output, cacheRead, cacheWrite));
+        }
         return Optional.ofNullable(usage);
+    }
+
+    public long webSearches() {
+        return webSearches;
     }
 
     private boolean read(ObjectNode data) {
@@ -70,8 +82,35 @@ public final class StreamRewriter {
                 JsonNode choices = data.path("choices");
                 yield relayUsage || !choices.isArray() || !choices.isEmpty();
             }
-            case ANTHROPIC -> true;
+            case ANTHROPIC -> {
+                String type = data.path("type").asString("");
+                if (type.equals("message_start") && data.path("message") instanceof ObjectNode message) {
+                    if (message.has("model")) {
+                        message.put("model", model);
+                    }
+                    anthropic(message.path("usage"));
+                } else if (type.equals("message_delta")) {
+                    anthropic(data.path("usage"));
+                }
+                yield true;
+            }
         };
+    }
+
+    private void anthropic(JsonNode reported) {
+        input = Math.max(input, count(reported.path("input_tokens")));
+        long reportedOutput = count(reported.path("output_tokens"));
+        if (reportedOutput >= 0) {
+            output = reportedOutput;
+        }
+        cacheRead = Math.max(cacheRead, count(reported.path("cache_read_input_tokens")));
+        cacheWrite = Math.max(cacheWrite, count(reported.path("cache_creation_input_tokens")));
+        webSearches =
+                Math.max(webSearches, count(reported.path("server_tool_use").path("web_search_requests")));
+    }
+
+    private static long count(JsonNode value) {
+        return value.isIntegralNumber() && value.canConvertToLong() && value.longValue() >= 0 ? value.longValue() : -1;
     }
 
     private static ObjectNode object(String payload) {

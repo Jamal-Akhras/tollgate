@@ -70,14 +70,6 @@ final class GatewayException extends RuntimeException {
                 null);
     }
 
-    static GatewayException streamingNotSupported() {
-        return new GatewayException(
-                HttpStatus.BAD_REQUEST,
-                "unsupported_parameter",
-                "Streaming is not supported yet; send the request with \"stream\": false",
-                "stream");
-    }
-
     static GatewayException modelNotFound(String model) {
         return new GatewayException(
                 HttpStatus.NOT_FOUND,

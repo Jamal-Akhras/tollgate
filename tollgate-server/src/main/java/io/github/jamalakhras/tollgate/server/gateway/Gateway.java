@@ -97,9 +97,6 @@ final class Gateway implements AutoCloseable {
         TenantKey caller = snapshot.authenticate(credential);
         byte[] requestBody = read(body);
         ChatRequest request = parse(requestBody);
-        if (request.isStreaming() && endpoint == WireFormat.ANTHROPIC) {
-            throw GatewayException.streamingNotSupported();
-        }
         GatewayConfig config = snapshot.config();
         Route route = config.route(caller.tenant(), request.model())
                 .orElseThrow(() -> GatewayException.modelNotFound(request.model()));
@@ -285,7 +282,8 @@ final class Gateway implements AutoCloseable {
             }
             usage = rewriter.usage();
             if (usage.isPresent()) {
-                charge = route.definition().price().costOf(usage.get());
+                long webSearches = route.definition().offersWebSearch() ? rewriter.webSearches() : 0;
+                charge = route.definition().price().costOf(usage.get(), webSearches);
             } else {
                 log.warn("Provider {} streamed no token usage; charging the full reservation", route.providerName());
             }

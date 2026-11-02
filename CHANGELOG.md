@@ -88,7 +88,8 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
-- Streaming on the OpenAI chat completions endpoint.
+- Streaming on both the OpenAI chat completions and Anthropic messages
+  endpoints.
   - **Relaying:** events are relayed as they arrive, with your model's name.
   - **Usage:** Tollgate asks the provider for usage, settles from it, and
     hides the usage chunk from clients that did not ask for it.

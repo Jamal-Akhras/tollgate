@@ -74,6 +74,40 @@ class StreamRewriterTest {
         assertThat(rewriter.usage()).contains(new Usage(1, 2, 0, 0));
     }
 
+    @Test
+    void namesYourModelInAnthropicsMessageStartAndAddsUpItsUsage() {
+        var rewriter = new StreamRewriter(WireFormat.ANTHROPIC, "claude", false);
+
+        assertThat(text(rewriter.rewrite(List.of(
+                        "event: message_start",
+                        "data: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-sonnet-4-5\",\"usage\":"
+                                + "{\"input_tokens\":25,\"output_tokens\":1,\"cache_read_input_tokens\":10}}}"))))
+                .isEqualTo("event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude\","
+                        + "\"usage\":{\"input_tokens\":25,\"output_tokens\":1,\"cache_read_input_tokens\":10}}}\n\n");
+        assertThat(rewriter.usage()).contains(new Usage(25, 1, 10, 0));
+
+        rewriter.rewrite(List.of(
+                "event: message_delta",
+                "data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":15,\"cache_creation_input_tokens\":4,"
+                        + "\"server_tool_use\":{\"web_search_requests\":2}}}"));
+        rewriter.rewrite(List.of("event: message_delta", "data: {\"type\":\"message_delta\",\"usage\":{}}"));
+
+        assertThat(rewriter.usage()).contains(new Usage(25, 15, 10, 4));
+        assertThat(rewriter.webSearches()).isEqualTo(2);
+    }
+
+    @Test
+    void reportsNoAnthropicUsageUntilBothCountsArrive() {
+        var rewriter = new StreamRewriter(WireFormat.ANTHROPIC, "claude", false);
+
+        rewriter.rewrite(List.of("data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":15}}"));
+        assertThat(rewriter.usage()).isEmpty();
+        rewriter.rewrite(List.of("data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":-3}}}"));
+        assertThat(rewriter.usage()).isEmpty();
+        rewriter.rewrite(List.of("data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hi\"}}"));
+        assertThat(rewriter.webSearches()).isZero();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"data: not json", "data: [1,2]", "data: {\"error\":{\"message\":\"overloaded\"}}"})
     void stopsAtAnEventItCannotRelay(String line) {
