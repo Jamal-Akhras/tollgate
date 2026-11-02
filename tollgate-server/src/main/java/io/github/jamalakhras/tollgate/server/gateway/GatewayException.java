@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 
@@ -10,17 +11,26 @@ final class GatewayException extends RuntimeException {
 
     static final String BUDGET_EXCEEDED = Refusal.BUDGET_EXCEEDED.code();
 
+    private static final Set<Integer> PASSED_ON = Set.of(400, 404, 413, 422);
+
     private static final long serialVersionUID = 1L;
 
     private final HttpStatus status;
     private final String code;
     private final @Nullable String param;
+    private final @Nullable String retryAfter;
 
     private GatewayException(HttpStatus status, String code, String message, @Nullable String param) {
+        this(status, code, message, param, null);
+    }
+
+    private GatewayException(
+            HttpStatus status, String code, String message, @Nullable String param, @Nullable String retryAfter) {
         super(message);
         this.status = status;
         this.code = code;
         this.param = param;
+        this.retryAfter = retryAfter;
     }
 
     static GatewayException invalidApiKey() {
@@ -90,6 +100,30 @@ final class GatewayException extends RuntimeException {
                 : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null);
     }
 
+    static GatewayException providerError(
+            int providerStatus, @Nullable String providerMessage, @Nullable String retryAfter) {
+        if (providerStatus >= 500) {
+            return new GatewayException(
+                    HttpStatus.BAD_GATEWAY, "provider_error", "The provider could not complete the request", null);
+        }
+        HttpStatus status = HttpStatus.resolve(providerStatus);
+        if (status == null) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+        if (status == HttpStatus.TOO_MANY_REQUESTS) {
+            return new GatewayException(
+                    status,
+                    "provider_rate_limited",
+                    "The provider is limiting requests; try again later",
+                    null,
+                    retryAfter);
+        }
+        String message = providerMessage != null && PASSED_ON.contains(providerStatus)
+                ? providerMessage
+                : "The provider refused the request";
+        return new GatewayException(status, "provider_error", message, null);
+    }
+
     static GatewayException providerInvalidResponse(String message) {
         return new GatewayException(HttpStatus.BAD_GATEWAY, "provider_invalid_response", message, null);
     }
@@ -113,5 +147,10 @@ final class GatewayException extends RuntimeException {
     @Nullable
     String param() {
         return param;
+    }
+
+    @Nullable
+    String retryAfter() {
+        return retryAfter;
     }
 }

@@ -1,6 +1,10 @@
 package io.github.jamalakhras.tollgate.providers;
 
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 public final class ProviderResponse {
 
@@ -30,5 +34,37 @@ public final class ProviderResponse {
 
     public @Nullable String retryAfter() {
         return retryAfter;
+    }
+
+    public ProviderResponse withModel(String model) {
+        ObjectNode object = object();
+        if (object.has("model")) {
+            object.put("model", model);
+        }
+        return new ProviderResponse(status, ChatRequest.JSON.writeValueAsBytes(object), contentType, retryAfter);
+    }
+
+    public Optional<String> errorMessage() {
+        try {
+            JsonNode message = ChatRequest.JSON.readTree(body).path("error").path("message");
+            return message.isString() && !message.stringValue().isBlank()
+                    ? Optional.of(message.stringValue())
+                    : Optional.empty();
+        } catch (JacksonException e) {
+            return Optional.empty();
+        }
+    }
+
+    private ObjectNode object() {
+        JsonNode root;
+        try {
+            root = ChatRequest.JSON.readTree(body);
+        } catch (JacksonException e) {
+            throw new InvalidProviderResponseException("The provider's response was not JSON");
+        }
+        if (!(root instanceof ObjectNode object)) {
+            throw new InvalidProviderResponseException("The provider's response was not a JSON object");
+        }
+        return object;
     }
 }

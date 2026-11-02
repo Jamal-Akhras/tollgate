@@ -21,6 +21,7 @@ final class TraceIdFilter extends OncePerRequestFilter {
         String traceId = UUID.randomUUID().toString();
         request.setAttribute(ATTRIBUTE, traceId);
         response.setHeader(HEADER, traceId);
+        response.setHeader("X-Content-Type-Options", "nosniff");
         MDC.put(LOG_KEY, traceId);
         try {
             chain.doFilter(request, response);

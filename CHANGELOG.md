@@ -78,3 +78,13 @@ versions may change the extension interfaces.
     sent slowly cannot hold a call open.
   - **Audit and billing:** such calls are audited with the result
     `invalid_response` and charged their full reservation.
+- Provider responses are rebuilt.
+  - **Successful bodies** must be JSON objects, and their `model` is your
+    model's name, not the provider's.
+  - **Provider errors** keep the provider's message only for `400`, `404`,
+    `413` and `422`. A `429` keeps its `Retry-After` but says no more, and
+    provider failures become `502`.
+  - **Every response** is `application/json` with
+    `X-Content-Type-Options: nosniff`.
+- `max_tokens` is filled in only for tenants with a budget, so other requests
+  keep the provider's own default and thinking models are not cut short.

@@ -25,13 +25,14 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void forwardsTheRequestWithTheUpstreamModelAndTheProviderKey() throws Exception {
-        PROVIDER.respond(200, "{\"id\":\"chatcmpl-1\",\"choices\":[]}");
+        PROVIDER.respond(200, "{\"id\":\"chatcmpl-1\",\"model\":\"qwen3:32b\",\"choices\":[]}");
 
         HttpResponse<String> response = chatWithKey(QWEN);
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).isEqualTo("{\"id\":\"chatcmpl-1\",\"choices\":[]}");
+        assertThat(response.body()).isEqualTo("{\"id\":\"chatcmpl-1\",\"model\":\"qwen3\",\"choices\":[]}");
         assertThat(response.headers().firstValue("Content-Type")).contains("application/json");
+        assertThat(response.headers().firstValue("X-Content-Type-Options")).contains("nosniff");
         assertThat(response.headers().firstValue(TraceIdFilter.HEADER))
                 .hasValueSatisfying(id -> assertThat(id).hasSize(36));
 
@@ -39,8 +40,16 @@ class ChatCompletionsTest extends GatewayTestSupport {
         assertThat(forwarded.path()).isEqualTo("/v1/chat/completions");
         assertThat(forwarded.headers().get("Authorization")).containsExactly("Bearer sk-provider");
         assertThat(forwarded.body())
-                .isEqualTo("{\"model\":\"qwen3:32b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}],"
-                        + "\"max_tokens\":256}");
+                .isEqualTo("{\"model\":\"qwen3:32b\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}");
+    }
+
+    @Test
+    void stillLowersAnOutputCapAboveTheModelsCapWithoutABudget() throws Exception {
+        PROVIDER.respond(200, "{\"choices\":[]}");
+
+        chatWithKey("{\"model\":\"qwen3\",\"max_tokens\":5000,\"messages\":[]}");
+
+        assertThat(PROVIDER.received().getFirst().body()).contains("\"max_tokens\":1024");
     }
 
     @Test
@@ -100,14 +109,54 @@ class ChatCompletionsTest extends GatewayTestSupport {
     }
 
     @Test
-    void relaysProviderErrorsUnchanged() throws Exception {
-        PROVIDER.respond(429, "{\"error\":{\"message\":\"Rate limit reached\"}}");
+    void rebuildsProviderRateLimitsWithoutTheProvidersDetails() throws Exception {
+        PROVIDER.respond(429, "{\"error\":{\"message\":\"Rate limit reached in organization org-secret\"}}");
 
         HttpResponse<String> response = chatWithKey(QWEN);
 
         assertThat(response.statusCode()).isEqualTo(429);
-        assertThat(response.body()).isEqualTo("{\"error\":{\"message\":\"Rate limit reached\"}}");
+        assertThat(response.body())
+                .contains("\"code\":\"provider_rate_limited\"")
+                .contains("The provider is limiting requests; try again later")
+                .doesNotContain("org-secret");
         assertThat(response.headers().firstValue("Retry-After")).contains("7");
+        assertThat(response.headers().firstValue("X-Content-Type-Options")).contains("nosniff");
+    }
+
+    @Test
+    void passesOnTheProvidersMessageForAMalformedRequest() throws Exception {
+        PROVIDER.respond(400, "{\"error\":{\"message\":\"'temperature' must be at most 2\"}}");
+
+        HttpResponse<String> response = chatWithKey(QWEN);
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.body()).contains("'temperature' must be at most 2").contains("\"code\":\"provider_error\"");
+        assertThat(response.headers().firstValue("Retry-After")).isEmpty();
+    }
+
+    @Test
+    void reportsProviderFailuresAsABadGateway() throws Exception {
+        PROVIDER.respond(503, "{\"error\":{\"message\":\"overloaded on cluster eu-west-7\"}}");
+
+        HttpResponse<String> response = chatWithKey(QWEN);
+
+        assertThat(response.statusCode()).isEqualTo(502);
+        assertThat(response.body())
+                .contains("The provider could not complete the request")
+                .doesNotContain("eu-west-7");
+    }
+
+    @Test
+    void refusesASuccessfulResponseThatIsNotJson() throws Exception {
+        PROVIDER.respond(200, "<html><script>alert(1)</script></html>");
+
+        HttpResponse<String> response = chatWithKey(QWEN);
+
+        assertThat(response.statusCode()).isEqualTo(502);
+        assertThat(response.headers().firstValue("Content-Type")).contains("application/json");
+        assertThat(response.body())
+                .contains("\"code\":\"provider_invalid_response\"")
+                .doesNotContain("<script>");
     }
 
     @Test

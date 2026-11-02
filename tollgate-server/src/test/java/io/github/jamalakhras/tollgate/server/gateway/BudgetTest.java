@@ -51,7 +51,7 @@ class BudgetTest extends GatewayTestSupport {
                 .isEqualTo("{\"model\":\"qwen3:32b\",\"messages\":[],\"max_tokens\":1000}");
 
         PROVIDER.respond(500, "{\"error\":{\"message\":\"overloaded\"}}");
-        assertThat(chat().statusCode()).isEqualTo(500);
+        assertThat(chat().statusCode()).isEqualTo(502);
 
         PROVIDER.respond(200, "{\"choices\":[]}");
         for (int call = 0; call < 3; call++) {

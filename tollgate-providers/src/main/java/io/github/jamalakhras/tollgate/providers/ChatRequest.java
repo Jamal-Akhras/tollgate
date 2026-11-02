@@ -67,8 +67,12 @@ public final class ChatRequest {
     }
 
     public Forwarded forward(
-            String upstreamModel, WireFormat format, @Nullable OutputTokens limit, long maxWebSearches) {
-        Map<String, Long> outputFields = limitedOutputFields(format, limit);
+            String upstreamModel,
+            WireFormat format,
+            @Nullable OutputTokens limit,
+            long maxWebSearches,
+            boolean fillOutputCap) {
+        Map<String, Long> outputFields = limitedOutputFields(format, limit, fillOutputCap);
         ObjectNode forwarded = body.objectNode().setAll(body).put("model", upstreamModel);
         outputFields.forEach(forwarded::put);
         long webSearches = format == WireFormat.ANTHROPIC ? limitWebSearches(forwarded, maxWebSearches) : 0;
@@ -123,7 +127,8 @@ public final class ChatRequest {
         return webSearches;
     }
 
-    private Map<String, Long> limitedOutputFields(WireFormat format, @Nullable OutputTokens limit) {
+    private Map<String, Long> limitedOutputFields(
+            WireFormat format, @Nullable OutputTokens limit, boolean fillOutputCap) {
         List<String> fields = format == WireFormat.ANTHROPIC ? List.of(MAX_TOKENS) : OPENAI_OUTPUT_FIELDS;
         Map<String, Long> limited = new LinkedHashMap<>();
         for (String field : fields) {
@@ -136,7 +141,7 @@ public final class ChatRequest {
             }
             limited.put(field, limit == null ? value.longValue() : limit.limit(value.longValue()));
         }
-        if (limited.isEmpty() && limit != null) {
+        if (limited.isEmpty() && limit != null && fillOutputCap) {
             limited.put(MAX_TOKENS, limit.defaultTokens());
         }
         return limited;

@@ -205,7 +205,16 @@ final class Gateway implements AutoCloseable {
                         response.status());
                 throw GatewayException.providerRejectedCredentials();
             }
-            return response;
+            if (!succeeded(response)) {
+                log.warn(
+                        "Provider {} answered with status {}: {}",
+                        route.providerName(),
+                        response.status(),
+                        response.errorMessage().orElse("no message"));
+                throw GatewayException.providerError(
+                        response.status(), response.errorMessage().orElse(null), response.retryAfter());
+            }
+            return response.withModel(route.model());
         } catch (InvalidProviderResponseException e) {
             result = Outcome.Result.INVALID_RESPONSE;
             log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
@@ -246,10 +255,10 @@ final class Gateway implements AutoCloseable {
     }
 
     private static ChatRequest.Forwarded forward(
-            ChatRequest request, Route route, WireFormat endpoint, @Nullable OutputTokens limits) {
+            ChatRequest request, Route route, WireFormat endpoint, @Nullable OutputTokens limits, boolean budgeted) {
         try {
             return request.forward(
-                    route.upstream(), endpoint, limits, route.definition().maxWebSearches());
+                    route.upstream(), endpoint, limits, route.definition().maxWebSearches(), budgeted);
         } catch (InvalidRequestException e) {
             throw GatewayException.invalidRequest(String.valueOf(e.getMessage()), e.param());
         }
@@ -258,10 +267,10 @@ final class Gateway implements AutoCloseable {
     private Budgeted reserve(Call call, byte[] requestBody, ChatRequest request) {
         Route route = call.route();
         OutputTokens limits = route.definition().maxOutputTokens();
-        ChatRequest.Forwarded forwarded = forward(request, route, call.endpoint(), limits);
         String tenantName = call.caller().tenant();
         Tenant tenant = call.snapshot().config().tenants().get(tenantName);
         Budget budget = tenant == null ? null : tenant.budget();
+        ChatRequest.Forwarded forwarded = forward(request, route, call.endpoint(), limits, budget != null);
         if (budget == null) {
             return new Budgeted(forwarded, null, OptionalLong.empty());
         }
@@ -281,7 +290,7 @@ final class Gateway implements AutoCloseable {
         long lowest = Math.max(limits.floor(), request.thinkingBudget() + 1);
         long asked = forwarded.maxOutputTokens().orElse(limits.cap());
         if (fits >= lowest && fits < asked) {
-            ChatRequest.Forwarded smaller = forward(request, route, call.endpoint(), limits.loweredTo(fits));
+            ChatRequest.Forwarded smaller = forward(request, route, call.endpoint(), limits.loweredTo(fits), true);
             Optional<Reservation> lowered = budgets.reserve(tenantName, budget, mostItCanCost(route, smaller));
             if (lowered.isPresent()) {
                 return new Budgeted(smaller, lowered.get(), OptionalLong.of(fits));

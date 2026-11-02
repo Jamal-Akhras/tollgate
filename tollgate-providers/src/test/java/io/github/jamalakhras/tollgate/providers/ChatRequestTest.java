@@ -28,14 +28,14 @@ class ChatRequestTest {
                 + "{\"type\":\"web_search_20250305\",\"max_uses\":9},{\"type\":\"web_search_20250305\",\"max_uses\":1},"
                 + "{\"name\":\"emit\"},\"odd\"]}");
 
-        ChatRequest.Forwarded forwarded = request.forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, null, 3);
+        ChatRequest.Forwarded forwarded = request.forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, null, 3, true);
 
         assertThat(forwarded.webSearches()).isEqualTo(7);
         assertThat(text(forwarded))
                 .contains("{\"type\":\"web_search_20250305\",\"max_uses\":3},"
                         + "{\"type\":\"web_search_20250305\",\"max_uses\":3},"
                         + "{\"type\":\"web_search_20250305\",\"max_uses\":1},{\"name\":\"emit\"},\"odd\"]");
-        assertThat(request.forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, null, 3)
+        assertThat(request.forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, null, 3, true)
                         .webSearches())
                 .isEqualTo(7);
     }
@@ -45,38 +45,38 @@ class ChatRequestTest {
         String tools = "\"tools\":[{\"type\":\"web_search_20250305\"}]";
 
         assertThat(parse("{\"model\":\"m\"," + tools + "}")
-                        .forward("m", WireFormat.OPENAI, null, 3)
+                        .forward("m", WireFormat.OPENAI, null, 3, true)
                         .webSearches())
                 .isZero();
         assertThat(parse("{\"model\":\"m\"}")
-                        .forward("m", WireFormat.ANTHROPIC, null, 3)
+                        .forward("m", WireFormat.ANTHROPIC, null, 3, true)
                         .webSearches())
                 .isZero();
         assertThat(text(parse("{\"model\":\"m\",\"tools\":[{\"type\":\"web_search_20250305\",\"max_uses\":\"2\"}]}")
-                        .forward("m", WireFormat.ANTHROPIC, null, 3)))
+                        .forward("m", WireFormat.ANTHROPIC, null, 3, true)))
                 .contains("\"max_uses\":3");
     }
 
     @Test
     void countsChoicesOnlyForOpenAi() {
         assertThat(parse("{\"model\":\"m\"}")
-                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .forward("m", WireFormat.OPENAI, null, 0, true)
                         .choices())
                 .isOne();
         assertThat(parse("{\"model\":\"m\",\"n\":5}")
-                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .forward("m", WireFormat.OPENAI, null, 0, true)
                         .choices())
                 .isEqualTo(5);
         assertThat(parse("{\"model\":\"m\",\"n\":128}")
-                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .forward("m", WireFormat.OPENAI, null, 0, true)
                         .choices())
                 .isEqualTo(128);
         assertThat(parse("{\"model\":\"m\",\"n\":null}")
-                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .forward("m", WireFormat.OPENAI, null, 0, true)
                         .choices())
                 .isOne();
         assertThat(parse("{\"model\":\"m\",\"n\":5}")
-                        .forward("m", WireFormat.ANTHROPIC, null, 0)
+                        .forward("m", WireFormat.ANTHROPIC, null, 0, true)
                         .choices())
                 .isOne();
     }
@@ -86,7 +86,7 @@ class ChatRequestTest {
     void refusesChoiceCountsOutsideOneTo128(String n) {
         ChatRequest request = parse("{\"model\":\"m\",\"n\":" + n + "}");
 
-        assertThatThrownBy(() -> request.forward("m", WireFormat.OPENAI, null, 0))
+        assertThatThrownBy(() -> request.forward("m", WireFormat.OPENAI, null, 0, true))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessage("'n' must be a whole number from 1 to 128");
     }
@@ -102,9 +102,11 @@ class ChatRequestTest {
                 + "{\"type\":\"image\",\"source\":{\"type\":\"url\"}},"
                 + "{\"type\":\"document\",\"source\":{\"type\":\"base64\"}}]}]}";
 
-        assertThat(parse(openAi).forward("m", WireFormat.OPENAI, null, 0).inlineImages())
+        assertThat(parse(openAi).forward("m", WireFormat.OPENAI, null, 0, true).inlineImages())
                 .isEqualTo(2);
-        assertThat(parse(anthropic).forward("m", WireFormat.ANTHROPIC, null, 0).inlineImages())
+        assertThat(parse(anthropic)
+                        .forward("m", WireFormat.ANTHROPIC, null, 0, true)
+                        .inlineImages())
                 .isOne();
     }
 
@@ -123,6 +125,21 @@ class ChatRequestTest {
     }
 
     @Test
+    void fillsTheOutputCapOnlyWhenAsked() {
+        ChatRequest request = parse("{\"model\":\"m\"}");
+
+        assertThat(text(request.forward("m", WireFormat.OPENAI, LIMIT, 0, false)))
+                .isEqualTo("{\"model\":\"m\"}");
+        assertThat(request.forward("m", WireFormat.OPENAI, LIMIT, 0, false).maxOutputTokens())
+                .isEmpty();
+        assertThat(text(request.forward("m", WireFormat.OPENAI, LIMIT, 0, true)))
+                .contains("\"max_tokens\":256");
+        assertThat(text(parse("{\"model\":\"m\",\"max_tokens\":5000}")
+                        .forward("m", WireFormat.OPENAI, LIMIT, 0, false)))
+                .contains("\"max_tokens\":1024");
+    }
+
+    @Test
     void readsTheModel() {
         assertThat(parse("{\"model\":\"qwen3\",\"messages\":[]}").model()).isEqualTo("qwen3");
     }
@@ -134,7 +151,7 @@ class ChatRequestTest {
                  "response_format":{"type":"json_schema","json_schema":{"name":"out","schema":{}}},
                  "messages":[{"role":"user","content":"Hi \\u00e9"}]}""");
 
-        ChatRequest.Forwarded forwarded = request.forward("qwen3:32b", WireFormat.OPENAI, null, 0);
+        ChatRequest.Forwarded forwarded = request.forward("qwen3:32b", WireFormat.OPENAI, null, 0, true);
 
         String expected = "{\"model\":\"qwen3:32b\",\"temperature\":0.70,\"seed\":12345678901234567890,"
                 + "\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"out\",\"schema\":{}}},"
@@ -148,7 +165,7 @@ class ChatRequestTest {
     @Test
     void setsTheDefaultOutputLimitWhenTheRequestHasNone() {
         ChatRequest.Forwarded forwarded =
-                parse("{\"model\":\"qwen3\"}").forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0);
+                parse("{\"model\":\"qwen3\"}").forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0, true);
 
         assertThat(text(forwarded)).isEqualTo("{\"model\":\"qwen3:32b\",\"max_tokens\":256}");
         assertThat(forwarded.maxOutputTokens()).hasValue(256);
@@ -157,7 +174,7 @@ class ChatRequestTest {
     @Test
     void capsTheRequestedOutputLimitInPlace() {
         ChatRequest.Forwarded forwarded = parse("{\"model\":\"claude\",\"max_tokens\":5000,\"messages\":[]}")
-                .forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, LIMIT, 0);
+                .forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, LIMIT, 0, true);
 
         assertThat(text(forwarded)).isEqualTo("{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":1024,\"messages\":[]}");
         assertThat(forwarded.maxOutputTokens()).hasValue(1_024);
@@ -165,8 +182,8 @@ class ChatRequestTest {
 
     @Test
     void keepsALowerRequestedLimit() {
-        ChatRequest.Forwarded forwarded =
-                parse("{\"model\":\"qwen3\",\"max_tokens\":64}").forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0);
+        ChatRequest.Forwarded forwarded = parse("{\"model\":\"qwen3\",\"max_tokens\":64}")
+                .forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0, true);
 
         assertThat(forwarded.maxOutputTokens()).hasValue(64);
     }
@@ -174,7 +191,7 @@ class ChatRequestTest {
     @Test
     void capsBothOpenAiOutputFields() {
         ChatRequest.Forwarded forwarded = parse("{\"model\":\"o3\",\"max_tokens\":100,\"max_completion_tokens\":9000}")
-                .forward("o3", WireFormat.OPENAI, LIMIT, 0);
+                .forward("o3", WireFormat.OPENAI, LIMIT, 0, true);
 
         assertThat(text(forwarded)).isEqualTo("{\"model\":\"o3\",\"max_tokens\":100,\"max_completion_tokens\":1024}");
         assertThat(forwarded.maxOutputTokens()).hasValue(1_024);
@@ -183,7 +200,7 @@ class ChatRequestTest {
     @Test
     void leavesTheNewerOpenAiFieldAloneOnAnthropicRequests() {
         ChatRequest.Forwarded forwarded = parse("{\"model\":\"claude\",\"max_completion_tokens\":9000}")
-                .forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, LIMIT, 0);
+                .forward("claude-sonnet-4-5", WireFormat.ANTHROPIC, LIMIT, 0, true);
 
         assertThat(text(forwarded))
                 .isEqualTo("{\"model\":\"claude-sonnet-4-5\",\"max_completion_tokens\":9000,\"max_tokens\":256}");
@@ -191,8 +208,8 @@ class ChatRequestTest {
 
     @Test
     void reportsTheRequestedLimitWhenThereIsNoCap() {
-        ChatRequest.Forwarded forwarded =
-                parse("{\"model\":\"qwen3\",\"max_tokens\":5000}").forward("qwen3:32b", WireFormat.OPENAI, null, 0);
+        ChatRequest.Forwarded forwarded = parse("{\"model\":\"qwen3\",\"max_tokens\":5000}")
+                .forward("qwen3:32b", WireFormat.OPENAI, null, 0, true);
 
         assertThat(forwarded.maxOutputTokens()).hasValue(5_000);
         assertThat(text(forwarded)).contains("\"max_tokens\":5000");
@@ -203,7 +220,7 @@ class ChatRequestTest {
     void rejectsOutputLimitsThatAreNotPositiveWholeNumbers(String value) {
         ChatRequest request = parse("{\"model\":\"qwen3\",\"max_tokens\":" + value + "}");
 
-        assertThatThrownBy(() -> request.forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0))
+        assertThatThrownBy(() -> request.forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0, true))
                 .isInstanceOfSatisfying(
                         InvalidRequestException.class,
                         e -> assertThat(e.param()).isEqualTo("max_tokens"))
@@ -213,7 +230,7 @@ class ChatRequestTest {
     @Test
     void acceptsAnExplicitNullOutputLimit() {
         assertThat(parse("{\"model\":\"qwen3\",\"max_tokens\":null}")
-                        .forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0)
+                        .forward("qwen3:32b", WireFormat.OPENAI, LIMIT, 0, true)
                         .maxOutputTokens())
                 .hasValue(256);
     }

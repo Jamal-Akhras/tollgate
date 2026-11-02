@@ -22,16 +22,9 @@ final class Relay {
 
     static ResponseEntity<byte[]> response(Gateway.Result result) {
         ProviderResponse response = result.response();
-        String contentType = response.contentType();
-        String retryAfter = response.retryAfter();
         return ResponseEntity.status(response.status())
                 .headers(headers -> {
-                    headers.set(
-                            HttpHeaders.CONTENT_TYPE,
-                            contentType == null ? MediaType.APPLICATION_JSON_VALUE : contentType);
-                    if (retryAfter != null) {
-                        headers.set(HttpHeaders.RETRY_AFTER, retryAfter);
-                    }
+                    headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
                     result.outputLimitedTo()
                             .ifPresent(tokens -> headers.set(Gateway.OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
                 })

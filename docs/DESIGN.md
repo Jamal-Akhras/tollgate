@@ -85,8 +85,10 @@ an admin handler from the gateway port.
 
    The tenant's model list was already checked in step 2.
 5. **Rate limit and reserve budget.** Reserve the most the call can cost. The
-   request's size in bytes bounds its input tokens, and the gateway sets or
-   lowers `max_tokens` to the model's cap, so the output is bounded too.
+   request's size in bytes bounds its input tokens. The gateway lowers
+   `max_tokens` to the model's cap, and fills it in only when the tenant has a
+   budget, so a budgeted call's output is bounded too. Without a budget, a
+   request that sends no `max_tokens` reaches the provider without one.
 6. **Audit intent.** Record the decision before any provider is called.
 7. **Call the provider,** with a timeout, a per-provider concurrency limit and
    a circuit breaker. Fall back to another provider only before the first byte

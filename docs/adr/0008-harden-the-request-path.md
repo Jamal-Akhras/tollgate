@@ -236,6 +236,14 @@ These amend [ADR 0006](0006-budget-reservations.md).
   upstream model IDs. This narrows the pass-through rule in
   [ADR 0005](0005-forward-requests-in-their-own-format.md) by one field in
   each direction.
+- **`max_tokens` is filled in only when a budget needs it.**
+  - **Without a budget:** a request that sends no output cap reaches the
+    provider without one, so the provider's own default applies. A cap above
+    the model's `maxOutputTokens.cap` is still lowered.
+  - **Why:** filling in a default for every request cut answers short. On
+    thinking models it was worse: reasoning and answer share the cap, and one
+    model server ended the model's reasoning after a single token.
+  - **Thinking models with a budget** need a generous `default`.
 
 ### The perimeter
 
