@@ -91,8 +91,10 @@ public final class ConfigReader {
     }
 
     private static OutputTokens outputTokens(Section section) {
-        section.requireOnly("default", "cap");
-        return section.build(() -> new OutputTokens(section.wholeNumber("default"), section.wholeNumber("cap")));
+        section.requireOnly("default", "cap", "floor");
+        long cap = section.wholeNumber("cap");
+        long floor = section.optionalWholeNumber("floor", Math.min(OutputTokens.DEFAULT_FLOOR, cap));
+        return section.build(() -> new OutputTokens(section.wholeNumber("default"), cap, floor));
     }
 
     private static Tenant tenant(Section section, Currency currency) {

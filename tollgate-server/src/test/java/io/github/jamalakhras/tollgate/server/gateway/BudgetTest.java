@@ -19,6 +19,31 @@ class BudgetTest extends GatewayTestSupport {
     }
 
     @Test
+    void shortensTheAnswerToFitWhatIsLeftThenRefusesBelowTheFloor() throws Exception {
+        PROVIDER.respond(200, "{\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":300}}");
+        String plain = "{\"model\":\"frugal-model\",\"messages\":[]}";
+
+        HttpResponse<String> twoAnswers = post(
+                Endpoints.OPENAI_CHAT,
+                "{\"model\":\"frugal-model\",\"n\":2,\"messages\":[]}",
+                "Authorization",
+                "Bearer " + FRUGAL_KEY.value());
+        HttpResponse<String> shortened =
+                post(Endpoints.OPENAI_CHAT, plain, "Authorization", "Bearer " + FRUGAL_KEY.value());
+        HttpResponse<String> belowFloor =
+                post(Endpoints.OPENAI_CHAT, plain, "Authorization", "Bearer " + FRUGAL_KEY.value());
+
+        assertThat(twoAnswers.statusCode()).isEqualTo(429);
+        assertThat(shortened.statusCode()).isEqualTo(200);
+        assertThat(shortened.headers().firstValue(Gateway.OUTPUT_LIMITED_HEADER))
+                .contains("500");
+        assertThat(PROVIDER.received()).hasSize(1);
+        assertThat(PROVIDER.received().getFirst().body()).contains("\"max_tokens\":500");
+        assertThat(belowFloor.statusCode()).isEqualTo(429);
+        assertThat(belowFloor.body()).contains("even with a shorter answer");
+    }
+
+    @Test
     void chargesWhatWasUsedAndStopsWhenTheBudgetCannotCoverTheNextCall() throws Exception {
         PROVIDER.respond(200, USAGE);
         assertThat(chat().statusCode()).isEqualTo(200);

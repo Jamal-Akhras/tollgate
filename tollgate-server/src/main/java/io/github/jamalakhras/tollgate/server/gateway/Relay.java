@@ -20,7 +20,8 @@ final class Relay {
         return Optional.ofNullable(headers.getFirst("x-api-key"));
     }
 
-    static ResponseEntity<byte[]> response(ProviderResponse response) {
+    static ResponseEntity<byte[]> response(Gateway.Result result) {
+        ProviderResponse response = result.response();
         String contentType = response.contentType();
         String retryAfter = response.retryAfter();
         return ResponseEntity.status(response.status())
@@ -31,6 +32,8 @@ final class Relay {
                     if (retryAfter != null) {
                         headers.set(HttpHeaders.RETRY_AFTER, retryAfter);
                     }
+                    result.outputLimitedTo()
+                            .ifPresent(tokens -> headers.set(Gateway.OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
                 })
                 .body(response.body());
     }

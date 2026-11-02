@@ -58,6 +58,71 @@ class ChatRequestTest {
     }
 
     @Test
+    void countsChoicesOnlyForOpenAi() {
+        assertThat(parse("{\"model\":\"m\"}")
+                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .choices())
+                .isOne();
+        assertThat(parse("{\"model\":\"m\",\"n\":5}")
+                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .choices())
+                .isEqualTo(5);
+        assertThat(parse("{\"model\":\"m\",\"n\":128}")
+                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .choices())
+                .isEqualTo(128);
+        assertThat(parse("{\"model\":\"m\",\"n\":null}")
+                        .forward("m", WireFormat.OPENAI, null, 0)
+                        .choices())
+                .isOne();
+        assertThat(parse("{\"model\":\"m\",\"n\":5}")
+                        .forward("m", WireFormat.ANTHROPIC, null, 0)
+                        .choices())
+                .isOne();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "129", "\"2\"", "1.5", "-1"})
+    void refusesChoiceCountsOutsideOneTo128(String n) {
+        ChatRequest request = parse("{\"model\":\"m\",\"n\":" + n + "}");
+
+        assertThatThrownBy(() -> request.forward("m", WireFormat.OPENAI, null, 0))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("'n' must be a whole number from 1 to 128");
+    }
+
+    @Test
+    void countsInlineImages() {
+        String openAi = "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":["
+                + "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,AA\"}},"
+                + "{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://x/y.png\"}},"
+                + "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,BB\"}}]}]}";
+        String anthropic = "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":["
+                + "{\"type\":\"image\",\"source\":{\"type\":\"base64\"}},"
+                + "{\"type\":\"image\",\"source\":{\"type\":\"url\"}},"
+                + "{\"type\":\"document\",\"source\":{\"type\":\"base64\"}}]}]}";
+
+        assertThat(parse(openAi).forward("m", WireFormat.OPENAI, null, 0).inlineImages())
+                .isEqualTo(2);
+        assertThat(parse(anthropic).forward("m", WireFormat.ANTHROPIC, null, 0).inlineImages())
+                .isOne();
+    }
+
+    @Test
+    void readsTheThinkingBudget() {
+        assertThat(parse("{\"model\":\"m\",\"thinking\":{\"type\":\"enabled\",\"budget_tokens\":2048}}")
+                        .thinkingBudget())
+                .isEqualTo(2_048);
+        assertThat(parse("{\"model\":\"m\"}").thinkingBudget()).isZero();
+        assertThat(parse("{\"model\":\"m\",\"thinking\":{\"budget_tokens\":-5}}")
+                        .thinkingBudget())
+                .isZero();
+        assertThat(parse("{\"model\":\"m\",\"thinking\":{\"budget_tokens\":\"9\"}}")
+                        .thinkingBudget())
+                .isZero();
+    }
+
+    @Test
     void readsTheModel() {
         assertThat(parse("{\"model\":\"qwen3\",\"messages\":[]}").model()).isEqualTo("qwen3");
     }

@@ -1,5 +1,6 @@
 package io.github.jamalakhras.tollgate.core.money;
 
+import java.math.BigInteger;
 import java.util.Objects;
 
 public record TokenPrice(Money perMillionTokens) {
@@ -11,6 +12,17 @@ public record TokenPrice(Money perMillionTokens) {
         if (perMillionTokens.isNegative()) {
             throw new IllegalArgumentException("Price must not be negative: " + perMillionTokens);
         }
+    }
+
+    public long tokensWithin(Money amount) {
+        if (perMillionTokens.nanos() == 0) {
+            return Long.MAX_VALUE;
+        }
+        return BigInteger.valueOf(amount.nanos())
+                .multiply(BigInteger.valueOf(MILLION))
+                .divide(BigInteger.valueOf(perMillionTokens.nanos()))
+                .min(BigInteger.valueOf(Long.MAX_VALUE))
+                .longValueExact();
     }
 
     public Money costOf(long tokens) {

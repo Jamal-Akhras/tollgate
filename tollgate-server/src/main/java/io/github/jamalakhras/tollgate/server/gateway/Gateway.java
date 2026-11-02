@@ -12,6 +12,7 @@ import io.github.jamalakhras.tollgate.core.budget.Reservation;
 import io.github.jamalakhras.tollgate.core.config.Admission;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig.Route;
+import io.github.jamalakhras.tollgate.core.config.OutputTokens;
 import io.github.jamalakhras.tollgate.core.config.Provider;
 import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.Tenant;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -47,6 +49,8 @@ final class Gateway implements AutoCloseable {
     static final String DATA_CLASS_HEADER = "X-Tollgate-Data-Class";
     static final String ANTHROPIC_BETA_HEADER = "anthropic-beta";
     static final long PROMPT_OVERHEAD_TOKENS = 1_024;
+    static final long IMAGE_TOKENS = 5_000;
+    static final String OUTPUT_LIMITED_HEADER = "X-Tollgate-Output-Limited";
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
 
@@ -75,7 +79,7 @@ final class Gateway implements AutoCloseable {
         this.maxRequestBytes = maxRequestBytes;
     }
 
-    ProviderResponse complete(
+    Result complete(
             String traceId,
             WireFormat endpoint,
             Optional<String> credential,
@@ -107,8 +111,8 @@ final class Gateway implements AutoCloseable {
         if (admission.decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);
         }
-        ChatRequest.Forwarded forwarded = forward(request, route, endpoint);
-        Reservation reservation = reserve(call, requestBody, forwarded);
+        Budgeted budgeted = reserve(call, requestBody, request);
+        Reservation reservation = budgeted.reservation();
         try {
             recordIntent(call, requestBody, Decision.ALLOW, reservation == null ? null : reservation.amount());
         } catch (GatewayException e) {
@@ -117,7 +121,8 @@ final class Gateway implements AutoCloseable {
             }
             throw e;
         }
-        return send(call, forwarded, reservation, clientHeaders);
+        ProviderResponse response = send(call, budgeted.forwarded(), reservation, clientHeaders);
+        return new Result(response, budgeted.outputLimitedTo());
     }
 
     List<String> models(WireFormat endpoint, Optional<String> credential) {
@@ -235,43 +240,65 @@ final class Gateway implements AutoCloseable {
         }
     }
 
-    private static ChatRequest.Forwarded forward(ChatRequest request, Route route, WireFormat endpoint) {
+    private static ChatRequest.Forwarded forward(
+            ChatRequest request, Route route, WireFormat endpoint, @Nullable OutputTokens limits) {
         try {
             return request.forward(
-                    route.upstream(),
-                    endpoint,
-                    route.definition().maxOutputTokens(),
-                    route.definition().maxWebSearches());
+                    route.upstream(), endpoint, limits, route.definition().maxWebSearches());
         } catch (InvalidRequestException e) {
             throw GatewayException.invalidRequest(String.valueOf(e.getMessage()), e.param());
         }
     }
 
-    private @Nullable Reservation reserve(Call call, byte[] requestBody, ChatRequest.Forwarded forwarded) {
+    private Budgeted reserve(Call call, byte[] requestBody, ChatRequest request) {
         Route route = call.route();
-        Tenant tenant = call.snapshot().config().tenants().get(call.caller().tenant());
+        OutputTokens limits = route.definition().maxOutputTokens();
+        ChatRequest.Forwarded forwarded = forward(request, route, call.endpoint(), limits);
+        String tenantName = call.caller().tenant();
+        Tenant tenant = call.snapshot().config().tenants().get(tenantName);
         Budget budget = tenant == null ? null : tenant.budget();
         if (budget == null) {
-            return null;
+            return new Budgeted(forwarded, null, OptionalLong.empty());
         }
-        long maxOutputTokens = forwarded
-                .maxOutputTokens()
-                .orElseThrow(() -> new IllegalStateException("Budgeted model " + route.model() + " has no output cap"));
-        Money mostItCanCost = route.definition()
-                .price()
-                .mostFor(forwarded.size() + PROMPT_OVERHEAD_TOKENS, maxOutputTokens, forwarded.webSearches());
-        Optional<Reservation> reservation = budgets.reserve(call.caller().tenant(), budget, mostItCanCost);
-        if (reservation.isEmpty()) {
-            throw refuse(
-                    call,
-                    requestBody,
-                    new Decision.Deny(
-                            Refusal.BUDGET_EXCEEDED,
-                            "This request could cost up to " + mostItCanCost + ", which this tenant's "
-                                    + budget.period().configName() + " budget of " + budget.limit()
-                                    + " cannot cover"));
+        if (limits == null) {
+            throw new IllegalStateException("Budgeted model " + route.model() + " has no output cap");
         }
-        return reservation.get();
+        Money mostItCanCost = mostItCanCost(route, forwarded);
+        Optional<Reservation> reservation = budgets.reserve(tenantName, budget, mostItCanCost);
+        if (reservation.isPresent()) {
+            return new Budgeted(forwarded, reservation.get(), OptionalLong.empty());
+        }
+        long fits = route.definition()
+                        .price()
+                        .outputTokensWithin(
+                                budgets.available(tenantName, budget), inputTokens(forwarded), forwarded.webSearches())
+                / forwarded.choices();
+        long lowest = Math.max(limits.floor(), request.thinkingBudget() + 1);
+        long asked = forwarded.maxOutputTokens().orElse(limits.cap());
+        if (fits >= lowest && fits < asked) {
+            ChatRequest.Forwarded smaller = forward(request, route, call.endpoint(), limits.loweredTo(fits));
+            Optional<Reservation> lowered = budgets.reserve(tenantName, budget, mostItCanCost(route, smaller));
+            if (lowered.isPresent()) {
+                return new Budgeted(smaller, lowered.get(), OptionalLong.of(fits));
+            }
+        }
+        throw refuse(
+                call,
+                requestBody,
+                new Decision.Deny(
+                        Refusal.BUDGET_EXCEEDED,
+                        "This request could cost up to " + mostItCanCost + ", which this tenant's "
+                                + budget.period().configName() + " budget of " + budget.limit()
+                                + " cannot cover, even with a shorter answer"));
+    }
+
+    private static long inputTokens(ChatRequest.Forwarded forwarded) {
+        return forwarded.size() + PROMPT_OVERHEAD_TOKENS + Math.multiplyExact(IMAGE_TOKENS, forwarded.inlineImages());
+    }
+
+    private static Money mostItCanCost(Route route, ChatRequest.Forwarded forwarded) {
+        long output = Math.multiplyExact(forwarded.maxOutputTokens().orElse(0), forwarded.choices());
+        return route.definition().price().mostFor(inputTokens(forwarded), output, forwarded.webSearches());
     }
 
     private GatewayException refuse(Call call, byte[] requestBody, Decision.Deny denial) {
@@ -371,6 +398,11 @@ final class Gateway implements AutoCloseable {
     }
 
     record Reload(String version, boolean changed) {}
+
+    record Result(ProviderResponse response, OptionalLong outputLimitedTo) {}
+
+    private record Budgeted(
+            ChatRequest.Forwarded forwarded, @Nullable Reservation reservation, OptionalLong outputLimitedTo) {}
 
     private record Call(
             String traceId,

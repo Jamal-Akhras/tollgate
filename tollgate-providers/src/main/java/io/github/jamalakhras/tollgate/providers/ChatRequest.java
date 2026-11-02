@@ -24,6 +24,7 @@ public final class ChatRequest {
             .build();
 
     private static final String MAX_TOKENS = "max_tokens";
+    private static final long MAX_CHOICES = 128;
     private static final List<String> OPENAI_OUTPUT_FIELDS = List.of(MAX_TOKENS, "max_completion_tokens");
 
     private final ObjectNode body;
@@ -73,7 +74,31 @@ public final class ChatRequest {
         long webSearches = format == WireFormat.ANTHROPIC ? limitWebSearches(forwarded, maxWebSearches) : 0;
         OptionalLong maxOutputTokens =
                 outputFields.values().stream().mapToLong(Long::longValue).max();
-        return new Forwarded(JSON.writeValueAsBytes(forwarded), maxOutputTokens, webSearches);
+        long choices = format == WireFormat.OPENAI ? choices() : 1;
+        return new Forwarded(
+                JSON.writeValueAsBytes(forwarded),
+                maxOutputTokens,
+                webSearches,
+                choices,
+                RequestReview.inlineImages(format, body));
+    }
+
+    public long thinkingBudget() {
+        JsonNode budget = body.path("thinking").path("budget_tokens");
+        return budget.isIntegralNumber() && budget.canConvertToLong() && budget.longValue() > 0
+                ? budget.longValue()
+                : 0;
+    }
+
+    private long choices() {
+        JsonNode n = body.path("n");
+        if (n.isMissingNode() || n.isNull()) {
+            return 1;
+        }
+        if (!n.isIntegralNumber() || !n.canConvertToLong() || n.longValue() < 1 || n.longValue() > MAX_CHOICES) {
+            throw new InvalidRequestException("'n' must be a whole number from 1 to " + MAX_CHOICES, "n");
+        }
+        return n.longValue();
     }
 
     private long limitWebSearches(ObjectNode forwarded, long maxWebSearches) {
@@ -122,11 +147,16 @@ public final class ChatRequest {
         private final byte[] body;
         private final OptionalLong maxOutputTokens;
         private final long webSearches;
+        private final long choices;
+        private final long inlineImages;
 
-        private Forwarded(byte[] body, OptionalLong maxOutputTokens, long webSearches) {
+        private Forwarded(
+                byte[] body, OptionalLong maxOutputTokens, long webSearches, long choices, long inlineImages) {
             this.body = body;
             this.maxOutputTokens = maxOutputTokens;
             this.webSearches = webSearches;
+            this.choices = choices;
+            this.inlineImages = inlineImages;
         }
 
         public byte[] body() {
@@ -143,6 +173,14 @@ public final class ChatRequest {
 
         public long webSearches() {
             return webSearches;
+        }
+
+        public long choices() {
+            return choices;
+        }
+
+        public long inlineImages() {
+            return inlineImages;
         }
     }
 }

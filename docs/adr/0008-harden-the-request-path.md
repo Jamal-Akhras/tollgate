@@ -191,9 +191,12 @@ These amend [ADR 0006](0006-budget-reservations.md).
     structured output from being cut off into something unusable.
   - **The guarantee is unchanged:** spend plus open reservations never
     exceeds the limit.
-- **Inline images get an input allowance.** Each one adds a fixed number of
-  tokens to the input bound, set above the largest per-image cost the
-  supported providers document.
+- **Inline images get an input allowance.** Each one adds 5,000 tokens to the
+  input bound.
+  - **Anthropic:** its documented maximum is 4,784 tokens per image.
+  - **OpenAI:** high detail stays near 4,000 tokens per image.
+  - **OpenAI's `original` detail** can cost more, and that overrun is charged
+    like the others below.
 - **Documents and allowed features can still overrun.**
   - **Inline PDFs:** a page costs its text plus an image of the page, so a
     dense PDF can cost more than its size suggests.

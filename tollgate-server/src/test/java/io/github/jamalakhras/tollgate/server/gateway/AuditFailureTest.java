@@ -109,7 +109,7 @@ class AuditFailureTest {
         try (Gateway gateway = gateway(new FailingSink(1))) {
             var response = gateway.complete("trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null);
 
-            assertThat(response.status()).isEqualTo(200);
+            assertThat(response.response().status()).isEqualTo(200);
             assertThat(provider.received()).hasSize(1);
         }
     }

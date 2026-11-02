@@ -62,6 +62,7 @@ final class RequestReview {
     private static final List<String> REFUSED_BETAS =
             List.of("mcp-client-", "code-execution-", "web-fetch-", "files-api-", "context-1m-");
 
+    private long inlineImages;
     private final List<String> refused = new ArrayList<>();
     private final List<String> unreviewed = new ArrayList<>();
     private final Set<Feature> used = EnumSet.noneOf(Feature.class);
@@ -79,6 +80,15 @@ final class RequestReview {
             case ANTHROPIC -> review.anthropic(body, betas);
         }
         return new RequestFeatures(review.refused, review.unreviewed, review.used);
+    }
+
+    static long inlineImages(WireFormat format, ObjectNode body) {
+        RequestReview review = new RequestReview(List.of());
+        switch (format) {
+            case OPENAI -> review.openAi(body);
+            case ANTHROPIC -> review.anthropic(body, null);
+        }
+        return review.inlineImages;
     }
 
     private void openAi(ObjectNode body) {
@@ -117,6 +127,7 @@ final class RequestReview {
 
     private void url(String url) {
         if (url.startsWith("data:")) {
+            inlineImages++;
             return;
         }
         if (url.startsWith("https://") || url.startsWith("http://")) {
@@ -165,7 +176,12 @@ final class RequestReview {
         switch (type) {
             case "text", "thinking", "redacted_thinking", "tool_use" -> {}
             case "tool_result" -> blocks(block.path("content"));
-            case "image" -> source(block.path("source"), Feature.REMOTE_IMAGES);
+            case "image" -> {
+                if (block.path("source").path("type").asString("").equals("base64")) {
+                    inlineImages++;
+                }
+                source(block.path("source"), Feature.REMOTE_IMAGES);
+            }
             case "document" -> source(block.path("source"), Feature.REMOTE_DOCUMENTS);
             default -> refused.add("The content type '" + type + "' is not allowed");
         }

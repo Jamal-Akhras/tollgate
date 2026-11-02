@@ -22,8 +22,23 @@ class OutputTokensTest {
 
     @Test
     void rejectsLimitsThatCannotBeHonoured() {
-        assertThatThrownBy(() -> new OutputTokens(0, 10)).hasMessage("default and cap must be positive");
-        assertThatThrownBy(() -> new OutputTokens(1, 0)).hasMessage("default and cap must be positive");
+        assertThatThrownBy(() -> new OutputTokens(0, 10)).hasMessage("default, cap and floor must be positive");
+        assertThatThrownBy(() -> new OutputTokens(1, 0)).hasMessage("default, cap and floor must be positive");
+        assertThatThrownBy(() -> new OutputTokens(1, 10, 0)).hasMessage("default, cap and floor must be positive");
         assertThatThrownBy(() -> new OutputTokens(11, 10)).hasMessage("default must not exceed cap");
+        assertThatThrownBy(() -> new OutputTokens(1, 10, 11)).hasMessage("floor must not exceed cap");
+    }
+
+    @Test
+    void defaultsTheFloorTo256OrTheCap() {
+        assertThat(new OutputTokens(1_024, 4_096).floor()).isEqualTo(256);
+        assertThat(new OutputTokens(100, 100).floor()).isEqualTo(100);
+        assertThat(new OutputTokens(1, 256).floor()).isEqualTo(256);
+    }
+
+    @Test
+    void lowersEveryLimitToFitASmallerCap() {
+        assertThat(new OutputTokens(1_024, 4_096, 300).loweredTo(500)).isEqualTo(new OutputTokens(500, 500, 300));
+        assertThat(new OutputTokens(200, 4_096, 300).loweredTo(250)).isEqualTo(new OutputTokens(200, 250, 250));
     }
 }

@@ -54,6 +54,11 @@ public record ModelPrice(
                 .plus(searches(webSearches));
     }
 
+    public long outputTokensWithin(Money available, long inputTokens, long webSearches) {
+        Money left = available.minus(mostFor(inputTokens, 0, webSearches));
+        return left.isNegative() ? 0 : output.tokensWithin(left);
+    }
+
     private Money searches(long count) {
         if (count == 0) {
             return new Money(0, input.perMillionTokens().currency());

@@ -8,4 +8,6 @@ public interface BudgetStore {
     Optional<Reservation> reserve(String tenant, Budget budget, Money amount);
 
     void settle(Reservation reservation, Money cost);
+
+    Money available(String tenant, Budget budget);
 }

@@ -34,6 +34,7 @@ abstract class GatewayTestSupport {
     static final ApiKey KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey METERED_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey CODER_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey FRUGAL_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -89,6 +90,11 @@ abstract class GatewayTestSupport {
                     price: { input: 3, output: 15, cacheRead: 0.30, cacheWrite: 3.75, webSearch: 10 }
                     maxOutputTokens: { default: 1024, cap: 4096 }
                     maxWebSearches: 3
+                  frugal-model:
+                    provider: ollama
+                    upstream: "qwen3:32b"
+                    price: { input: 0, output: 1000, cacheRead: 0, cacheWrite: 0 }
+                    maxOutputTokens: { default: 1000, cap: 1000 }
                   slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
                   metered-model:
@@ -104,6 +110,10 @@ abstract class GatewayTestSupport {
                     models: [metered-model]
                     dataClass: internal
                     budget: { limit: 0.01, period: total }
+                  frugal:
+                    models: [frugal-model]
+                    dataClass: internal
+                    budget: { limit: 0.50, period: total }
                   coder:
                     models: [qwen3, claude-sonnet]
                     dataClass: internal
@@ -112,6 +122,7 @@ abstract class GatewayTestSupport {
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
                   - { id: %10$s, tenant: coder, sha256: %11$s }
+                  - { id: %12$s, tenant: frugal, sha256: %13$s }
                 policies:
                   default:
                     guards:
@@ -143,7 +154,9 @@ abstract class GatewayTestSupport {
                         AUDIT_DIRECTORY,
                         AUDIT_KEYS.publicKey(),
                         CODER_KEY.id(),
-                        CODER_KEY.sha256());
+                        CODER_KEY.sha256(),
+                        FRUGAL_KEY.id(),
+                        FRUGAL_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

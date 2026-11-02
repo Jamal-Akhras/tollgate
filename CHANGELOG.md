@@ -65,3 +65,9 @@ versions may change the extension interfaces.
 - A provider can list `extraFields`, its own request settings such as Ollama's
   `top_k` or `num_ctx`, which Tollgate then forwards. Fields Tollgate refuses
   for where they send data or how they are billed cannot be listed.
+- Budget reservations count every answer that `n` asks for, and add 5,000
+  tokens for each inline image.
+- Near the limit, a call's output cap is lowered to fit what is left, and
+  `X-Tollgate-Output-Limited` says so. The cap never goes below
+  `maxOutputTokens.floor`, 256 by default. Below the floor the call is
+  refused with `429`.

@@ -202,9 +202,9 @@ class ConfigReaderTest {
         var price = Map.of("input", 0, "output", 0, "cacheRead", 0, "cacheWrite", 0, "batch", 0);
         assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.price", price)))
                 .hasMessage("models.qwen3.price.batch is not a recognised setting");
-        var output = Map.of("default", 1, "cap", 1, "floor", 1);
+        var output = Map.of("default", 1, "cap", 1, "minimum", 1);
         assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.maxOutputTokens", output)))
-                .hasMessage("models.qwen3.maxOutputTokens.floor is not a recognised setting");
+                .hasMessage("models.qwen3.maxOutputTokens.minimum is not a recognised setting");
         var budget = Map.of("limit", 5, "period", "daily", "onExceed", "block");
         assertThatThrownBy(() -> ConfigReader.read(with("tenants.support-bot.budget", budget)))
                 .hasMessage("tenants.support-bot.budget.onExceed is not a recognised setting");
@@ -274,6 +274,15 @@ class ConfigReaderTest {
                                 List.of("store")))))
                 .hasMessage("providers.ollama: extraFields must not include 'store': it keeps the conversation at the"
                         + " provider");
+    }
+
+    @Test
+    void readsAnOutputFloor() {
+        GatewayConfig config = ConfigReader.read(
+                with("models.claude-sonnet.maxOutputTokens", Map.of("default", 2_048, "cap", 8_192, "floor", 512)));
+
+        assertThat(entry(config.models(), "claude-sonnet").maxOutputTokens())
+                .isEqualTo(new OutputTokens(2_048, 8_192, 512));
     }
 
     @Test

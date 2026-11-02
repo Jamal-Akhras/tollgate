@@ -85,6 +85,19 @@ class InMemoryBudgetStoreTest {
     }
 
     @Test
+    void reportsWhatIsLeftAfterSpendAndReservations() {
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("10"));
+        Reservation reservation = reserve("3");
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("7"));
+
+        store.settle(reservation, Prices.usd("12"));
+
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("0"));
+        now.set(Instant.parse("2026-11-01T00:00:00Z"));
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_MONTH)).isEqualTo(Prices.usd("10"));
+    }
+
+    @Test
     void startsAgainEachPeriod() {
         store.settle(reserve("9"), Prices.usd("9"));
 

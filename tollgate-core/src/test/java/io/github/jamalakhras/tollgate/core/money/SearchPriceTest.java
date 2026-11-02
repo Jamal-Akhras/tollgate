@@ -49,6 +49,30 @@ class SearchPriceTest {
     }
 
     @Test
+    void findsTheMostTokensAnAmountCovers() {
+        TokenPrice price = perMillion("3");
+
+        assertThat(price.tokensWithin(usd("0.000003"))).isOne();
+        assertThat(price.tokensWithin(usd("0.0000059"))).isOne();
+        assertThat(price.tokensWithin(usd("3"))).isEqualTo(1_000_000);
+        assertThat(price.costOf(price.tokensWithin(usd("1.23456789")))).isLessThanOrEqualTo(usd("1.23456789"));
+        assertThat(price.costOf(price.tokensWithin(usd("1.23456789")) + 1)).isGreaterThan(usd("1.23456789"));
+        assertThat(perMillion("0").tokensWithin(usd("1"))).isEqualTo(Long.MAX_VALUE);
+        assertThat(new TokenPrice(new Money(1, USD)).tokensWithin(new Money(Long.MAX_VALUE, USD)))
+                .isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void leavesOutputTheRestOfAnAmountAfterInputAndSearches() {
+        var price = new ModelPrice(
+                perMillion("1"), perMillion("10"), perMillion("1"), perMillion("1"), new SearchPrice(usd("10")));
+
+        assertThat(price.outputTokensWithin(usd("1.02"), 1_000_000, 0)).isEqualTo(2_000);
+        assertThat(price.outputTokensWithin(usd("1.02"), 1_000_000, 2)).isZero();
+        assertThat(price.outputTokensWithin(usd("0.5"), 1_000_000, 0)).isZero();
+    }
+
+    @Test
     void refusesToPriceSearchesWithoutASearchPrice() {
         var price = new ModelPrice(perMillion("3"), perMillion("15"), perMillion("0.3"), perMillion("3.75"));
 

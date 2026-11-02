@@ -34,6 +34,13 @@ public final class InMemoryBudgetStore implements BudgetStore {
         ledger.settle(reservation, cost.nanos(), clock.instant());
     }
 
+    @Override
+    public Money available(String tenant, Budget budget) {
+        Ledger ledger = ledgers.get(tenant);
+        long nanos = ledger == null ? budget.limit().nanos() : ledger.available(budget, clock.instant());
+        return new Money(nanos, budget.limit().currency());
+    }
+
     public Money spent(String tenant, Budget budget) {
         Ledger ledger = ledgers.get(tenant);
         long nanos = ledger == null ? 0 : ledger.spent(budget, clock.instant());
@@ -60,6 +67,11 @@ public final class InMemoryBudgetStore implements BudgetStore {
             enterPeriod(reservation.budget(), now);
             reserved = Math.subtractExact(reserved, reservation.amount().nanos());
             spent = Math.addExact(spent, cost);
+        }
+
+        synchronized long available(Budget budget, Instant now) {
+            enterPeriod(budget, now);
+            return Math.max(0, budget.limit().nanos() - spent - reserved);
         }
 
         synchronized long spent(Budget budget, Instant now) {
