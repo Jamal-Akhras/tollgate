@@ -87,11 +87,13 @@ class ServerPortsTest {
     }
 
     @Test
-    void keepsTheAdminPortOffOtherNetworkInterfaces() throws Exception {
+    void keepsBothPortsOffOtherNetworkInterfaces() throws Exception {
         Optional<InetAddress> address = nonLoopbackAddress();
         assumeTrue(address.isPresent(), "no non-loopback IPv4 interface on this machine");
 
-        connect(address.get(), gatewayPort);
+        connect(InetAddress.getLoopbackAddress(), gatewayPort);
+        assertThatThrownBy(() -> connect(address.get(), gatewayPort))
+                .isInstanceOfAny(ConnectException.class, SocketTimeoutException.class);
         assertThatThrownBy(() -> connect(address.get(), ADMIN_PORT))
                 .isInstanceOfAny(ConnectException.class, SocketTimeoutException.class);
     }

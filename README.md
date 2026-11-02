@@ -57,7 +57,8 @@ what was sent, who sent it, what it cost, and why it was allowed.
 - **Reloads without restarts.** Change `tollgate.yaml` and call the admin API.
   An invalid file never replaces the running config, and every audit record
   names the config version that decided it.
-- **A small, non-root image** on a distroless Java 25 base.
+- **A minimal, non-root image** on a distroless Java 25 base, with no shell
+  and no package manager.
 
 ## Quickstart
 
@@ -68,7 +69,7 @@ uses [Ollama](https://ollama.com) on its default port.
 
 ```bash
 ./mvnw -DskipTests install
-alias tollgate='java -jar tollgate-server/target/tollgate-server-0.1.0-SNAPSHOT.jar'
+alias tollgate='java -XX:+ExitOnOutOfMemoryError -jar tollgate-server/target/tollgate-server-0.1.0-SNAPSHOT.jar'
 ```
 
 **2. Create the audit keys and a tenant key.** Each command prints its secrets
@@ -110,6 +111,9 @@ policies:
       - { type: request-size, maxBytes: 1048576 }
       - type: data-class
         regions: { public: [local], internal: [local], confidential: [local] }
+    features:                                 # confidential data stays strict
+      unreviewed-fields: [public, internal]
+      remote-images: [public, internal]
 
 audit:
   mode: sync
@@ -165,13 +169,15 @@ docker run -d --name tollgate \
   -v "$PWD/tollgate.yaml:/etc/tollgate/tollgate.yaml:ro" \
   -v tollgate-data:/home/nonroot \
   -e TOLLGATE_AUDIT_SIGNING_KEY -e TOLLGATE_AUDIT_HMAC_KEY -e TOLLGATE_ADMIN_TOKEN \
-  -e TOLLGATE_ADMIN_ADDRESS=0.0.0.0 \
-  -p 8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
+  --add-host=host.docker.internal:host-gateway \
+  -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
   ghcr.io/jamal-akhras/tollgate:0.1.0-SNAPSHOT
 ```
 
 In the container, set `audit.directory` to `/home/nonroot/audit` so the trail
-lands on the volume, and point the provider at `host.docker.internal`.
+lands on the volume, and point the provider at `host.docker.internal`. The
+`--add-host` line makes that name work on Linux too; Docker Desktop provides
+it already.
 
 ## Operating it
 
@@ -180,6 +186,14 @@ lands on the volume, and point the provider at `host.docker.internal`.
 | 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` |
 | 8081 | The admin API and its [OpenAPI contract](docs/api/admin-openapi.json), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every call needs the admin token |
 | 9090 | Health probes. Readiness reports down if the audit trail cannot be written |
+
+- **Who can connect:**
+  - The gateway and admin ports listen only on `127.0.0.1` unless
+    `TOLLGATE_ADDRESS` and `TOLLGATE_ADMIN_ADDRESS` say otherwise.
+  - The image listens on all of its own interfaces, and `docker run -p`
+    decides what the host exposes.
+  - Tollgate speaks plain HTTP. For clients on other machines, put a
+    TLS-terminating proxy in front of it.
 
 - **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
   least 32 characters, for example the output of `openssl rand -hex 32`.

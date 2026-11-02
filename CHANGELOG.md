@@ -88,6 +88,9 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- The gateway port listens only on `127.0.0.1` unless `TOLLGATE_ADDRESS` says
+  otherwise. The image listens on all of its own interfaces, and the README's
+  `docker run` publishes every port on the host's `127.0.0.1` only.
 - The admin API needs a token.
   - **Requests:** every admin request must send `Authorization: Bearer` with
     `TOLLGATE_ADMIN_TOKEN`, which must be at least 32 characters.

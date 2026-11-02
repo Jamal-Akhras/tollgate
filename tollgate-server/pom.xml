@@ -103,6 +103,8 @@
             </jvmFlags>
             <environment>
               <TOLLGATE_CONFIG>/etc/tollgate/tollgate.yaml</TOLLGATE_CONFIG>
+              <TOLLGATE_ADDRESS>0.0.0.0</TOLLGATE_ADDRESS>
+              <TOLLGATE_ADMIN_ADDRESS>0.0.0.0</TOLLGATE_ADMIN_ADDRESS>
             </environment>
             <ports>
               <port>8080</port>
