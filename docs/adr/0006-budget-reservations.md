@@ -1,6 +1,6 @@
 # ADR 0006: Reserve the most a call can cost, settle what it did cost
 
-Date: 2026-10-29 · Status: Accepted, amended by [ADR 0008](0008-harden-the-request-path.md)
+Date: 2026-10-29 · Status: Accepted, amended by [ADR 0008](0008-harden-the-request-path.md) and [ADR 0009](0009-price-catalog.md)
 
 ## Context
 

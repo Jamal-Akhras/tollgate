@@ -169,7 +169,9 @@ audit:                             # required; 'mode: off' must be written out
   provider with no region, is refused.
 - **Models** are the names applications ask for. Each maps to one provider,
   the provider's own model name, a price and an output-token cap. Every model
-  must have a price; there is no built-in price list to go out of date.
+  has a known price before its first request. The price comes from the config,
+  or from the reviewed catalog that ships with each release
+  ([ADR 0009](adr/0009-price-catalog.md)). Nothing is fetched at runtime.
 - **Rules** use CEL, the Common Expression Language: fast, side-effect free,
   guaranteed to terminate, and type-checked when the config loads.
 - **Secrets** are references, never values, and are never logged:
@@ -320,7 +322,7 @@ with hardware details for every audit mode.
 | Milestone | Scope |
 |---|---|
 | **M0** (done) | Build, quality gates, CI, money types, server skeleton with port separation, admin API contract |
-| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned PII (emails, phone and card numbers, IBANs, secrets) on non-streaming calls; streaming with usage; first performance report |
+| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); a reviewed price catalog ([ADR 0009](adr/0009-price-catalog.md)); redaction and restore of patterned PII (emails, phone and card numbers, IBANs, secrets) on non-streaming calls; streaming with usage; first performance report |
 | **M2** | The hold-back window for output guards on streams; name detection and redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
 | **M3** | Studio (simulator, guard editor, shadow mode, maker-checker); cluster config sync; Helm chart; Terraform example |
 | Later | Translation between formats, Responses API, Azure OpenAI and Bedrock, gRPC guards, policy for MCP tool calls, semantic caching, a Python helper package |
