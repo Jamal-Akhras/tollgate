@@ -156,6 +156,19 @@ public record GatewayConfig(
         if (policy != null && !policies.containsKey(policy)) {
             throw new IllegalArgumentException("tenants." + name + ".policy: no policy named '" + policy + "'");
         }
+        if (dataClass != null) {
+            String applied = policy == null ? DEFAULT_POLICY : policy;
+            Policy enforcing = policies.get(applied);
+            if (enforcing == null) {
+                throw new IllegalArgumentException(
+                        "tenants." + name + " has no policy to enforce its data class; set tenants." + name
+                                + ".policy or define a '" + DEFAULT_POLICY + "' policy");
+            }
+            if (enforcing.guards().stream().noneMatch(DataClassGuard.class::isInstance)) {
+                throw new IllegalArgumentException("tenants." + name + ": policy '" + applied
+                        + "' has no data-class guard, so data class '" + dataClass + "' would not be enforced");
+            }
+        }
         if (tenant.budget() != null) {
             for (String model : tenant.models()) {
                 Model definition = models.get(model);

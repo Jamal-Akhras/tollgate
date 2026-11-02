@@ -243,11 +243,13 @@ class ConfigReaderTest {
     @Test
     void readsLargeByteLimits() {
         GatewayConfig config = ConfigReader.read(withGuard(Map.of("type", "request-size", "maxBytes", 5_000_000_000L)));
-        assertThat(entry(config.policies(), "default").guards()).containsExactly(new RequestSizeGuard(5_000_000_000L));
+        assertThat(entry(config.policies(), "default").guards())
+                .first()
+                .isEqualTo(new RequestSizeGuard(5_000_000_000L));
     }
 
     private static Map<String, Object> withGuard(Map<String, Object> guard) {
-        return with("policies", Map.of("default", Map.of("guards", List.of(guard))));
+        return with("policies", Map.of("default", Map.of("guards", List.of(guard, DATA_CLASS_GUARD))));
     }
 
     @Test

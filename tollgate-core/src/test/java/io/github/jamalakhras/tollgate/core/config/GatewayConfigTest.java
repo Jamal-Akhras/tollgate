@@ -38,10 +38,12 @@ class GatewayConfigTest {
                     "public", List.of("us", "local"),
                     "internal", List.of("us", "local"),
                     "confidential", List.of("local")))));
+    private static final Policy ANY_SIZE =
+            new Policy(List.of(new DataClassGuard(Map.of("public", List.of("us", "local")))));
 
     private final GatewayConfig config = config(Map.of(
             "support-bot", new Tenant(List.of("qwen3", "claude-sonnet"), "internal", null, null),
-            "analytics", new Tenant(List.of("claude-sonnet"), "public", "open", null)));
+            "analytics", new Tenant(List.of("claude-sonnet"), "public", "any-size", null)));
 
     private static Provider provider(String region) {
         return new Provider(
@@ -55,7 +57,7 @@ class GatewayConfigTest {
                 MODELS,
                 tenants,
                 List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "open", Policy.NONE),
+                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "any-size", ANY_SIZE, "open", Policy.NONE),
                 AuditSettings.DISABLED);
     }
 
@@ -172,6 +174,23 @@ class GatewayConfigTest {
                 .hasMessage("tenants.support-bot.dataClass is required because dataClasses are defined");
         assertThatThrownBy(() -> config(Map.of("support-bot", new Tenant(List.of(), "secret", null, null))))
                 .hasMessage("tenants.support-bot.dataClass: no data class named 'secret'");
+    }
+
+    @Test
+    void refusesATenantWhosePolicyCannotEnforceItsDataClass() {
+        assertThatThrownBy(() -> config(Map.of("support-bot", new Tenant(List.of(), "internal", "open", null))))
+                .hasMessage("tenants.support-bot: policy 'open' has no data-class guard, so data class 'internal'"
+                        + " would not be enforced");
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES,
+                        Map.of(),
+                        Map.of(),
+                        Map.of("support-bot", new Tenant(List.of(), "internal", null, null)),
+                        List.of(),
+                        Map.of(),
+                        AuditSettings.DISABLED))
+                .hasMessage("tenants.support-bot has no policy to enforce its data class; set"
+                        + " tenants.support-bot.policy or define a 'default' policy");
     }
 
     @Test

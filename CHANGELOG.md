@@ -41,3 +41,5 @@ versions may change the extension interfaces.
 
 - Every `/v3/api-docs` path, including the YAML document, is served only on the
   admin port.
+- A config is rejected if any tenant's policy has no data-class guard, so a
+  tenant's data class can never go unenforced.
