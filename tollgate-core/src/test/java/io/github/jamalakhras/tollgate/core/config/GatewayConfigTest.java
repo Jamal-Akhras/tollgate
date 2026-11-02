@@ -12,11 +12,13 @@ import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +64,8 @@ class GatewayConfigTest {
     }
 
     private Admission admit(String tenant, String model, @Nullable String requestedDataClass, long size) {
-        return config.admit(tenant, config.route(tenant, model).orElseThrow(), requestedDataClass, size);
+        return config.admit(
+                tenant, config.route(tenant, model).orElseThrow(), requestedDataClass, size, RequestFeatures.NONE);
     }
 
     @Test
@@ -90,7 +93,9 @@ class GatewayConfigTest {
 
         assertThat(admission.admitted()).isTrue();
         assertThat(admission.dataClass()).isEqualTo("internal");
-        assertThat(admission.steps()).extracting(GuardStep::guard).containsExactly("request-size", "data-class");
+        assertThat(admission.steps())
+                .extracting(GuardStep::guard)
+                .containsExactly("request-features", "request-size", "data-class");
     }
 
     @Test
@@ -140,7 +145,19 @@ class GatewayConfigTest {
 
         assertThat(admission.decision())
                 .isEqualTo(Decision.deny(Refusal.TOO_LARGE, "The request is 1001 bytes; this policy allows 1000"));
-        assertThat(admission.steps()).hasSize(1);
+        assertThat(admission.steps()).hasSize(2);
+    }
+
+    @Test
+    void checksRequestFeaturesBeforeThePolicysGuards() {
+        var features = new RequestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of());
+
+        Admission admission =
+                config.admit("support-bot", config.route("support-bot", "qwen3").orElseThrow(), null, 1_001, features);
+
+        assertThat(admission.decision())
+                .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'mcp_servers' is not allowed"));
+        assertThat(admission.steps()).extracting(GuardStep::guard).containsExactly("request-features");
     }
 
     @Test
@@ -150,7 +167,7 @@ class GatewayConfigTest {
     }
 
     @Test
-    void admitsEverythingWhenThereIsNoDefaultPolicy() {
+    void checksOnlyRequestFeaturesWhenThereIsNoDefaultPolicy() {
         var open = new GatewayConfig(
                 List.of(),
                 Map.of("ollama", OLLAMA),
@@ -161,11 +178,11 @@ class GatewayConfigTest {
                 AuditSettings.DISABLED);
         var route = open.route("support-bot", "qwen3").orElseThrow();
 
-        Admission admission = open.admit("support-bot", route, null, Long.MAX_VALUE);
+        Admission admission = open.admit("support-bot", route, null, Long.MAX_VALUE, RequestFeatures.NONE);
 
         assertThat(admission.admitted()).isTrue();
         assertThat(admission.dataClass()).isNull();
-        assertThat(admission.steps()).isEmpty();
+        assertThat(admission.steps()).extracting(GuardStep::guard).containsExactly("request-features");
     }
 
     @Test

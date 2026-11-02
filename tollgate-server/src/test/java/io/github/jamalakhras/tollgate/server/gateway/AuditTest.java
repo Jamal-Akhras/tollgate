@@ -49,7 +49,9 @@ class AuditTest extends GatewayTestSupport {
         assertThat(intent.upstream()).isEqualTo("qwen3:32b");
         assertThat(intent.dataClass()).isEqualTo("internal");
         assertThat(intent.decision()).isEqualTo(Decision.ALLOW);
-        assertThat(intent.steps()).extracting(step -> step.guard()).containsExactly("request-size", "data-class");
+        assertThat(intent.steps())
+                .extracting(step -> step.guard())
+                .containsExactly("request-features", "request-size", "data-class");
         assertThat(intent.requestHmac()).isEqualTo(KEYS.hmac(QWEN.getBytes(StandardCharsets.UTF_8)));
         assertThat(intent.configVersion()).matches("[0-9a-f]{64}");
         Outcome outcome = (Outcome) records.get(1);

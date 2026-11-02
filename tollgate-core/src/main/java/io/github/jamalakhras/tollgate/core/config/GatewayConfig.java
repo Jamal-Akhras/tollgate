@@ -6,6 +6,9 @@ import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.GuardRequest;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
+import io.github.jamalakhras.tollgate.core.policy.RequestFeaturesGuard;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +97,8 @@ public record GatewayConfig(
                 .toList();
     }
 
-    public Admission admit(String tenant, Route route, @Nullable String requestedDataClass, long sizeBytes) {
+    public Admission admit(
+            String tenant, Route route, @Nullable String requestedDataClass, long sizeBytes, RequestFeatures features) {
         Tenant caller = tenants.get(tenant);
         if (caller == null) {
             throw new IllegalStateException("Unknown tenant " + tenant);
@@ -118,8 +122,11 @@ public record GatewayConfig(
             dataClass = requestedDataClass;
         }
         var request = new GuardRequest(
-                tenant, route.model(), route.providerName(), route.provider().region(), dataClass, sizeBytes);
-        Policy.Evaluation evaluation = policyOf(caller).evaluate(request);
+                tenant, route.model(), route.providerName(), route.provider().region(), dataClass, sizeBytes, features);
+        List<Guard> guards = new ArrayList<>();
+        guards.add(RequestFeaturesGuard.INSTANCE);
+        guards.addAll(policyOf(caller).guards());
+        Policy.Evaluation evaluation = new Policy(guards).evaluate(request);
         return new Admission(dataClass, evaluation.decision(), evaluation.steps());
     }
 

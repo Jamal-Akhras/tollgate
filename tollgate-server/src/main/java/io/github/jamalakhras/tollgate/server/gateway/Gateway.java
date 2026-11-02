@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 final class Gateway implements AutoCloseable {
 
     static final String DATA_CLASS_HEADER = "X-Tollgate-Data-Class";
+    static final String ANTHROPIC_BETA_HEADER = "anthropic-beta";
     static final long PROMPT_OVERHEAD_TOKENS = 1_024;
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
@@ -93,8 +94,12 @@ final class Gateway implements AutoCloseable {
         if (route.provider().format() != endpoint) {
             throw GatewayException.wrongEndpoint(route.model(), route.provider().format());
         }
-        Admission admission =
-                config.admit(caller.tenant(), route, clientHeaders.apply(DATA_CLASS_HEADER), requestBody.length);
+        Admission admission = config.admit(
+                caller.tenant(),
+                route,
+                clientHeaders.apply(DATA_CLASS_HEADER),
+                requestBody.length,
+                request.review(endpoint, clientHeaders.apply(ANTHROPIC_BETA_HEADER)));
         Call call = new Call(traceId, snapshot, caller, endpoint, route, admission);
         if (admission.decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);

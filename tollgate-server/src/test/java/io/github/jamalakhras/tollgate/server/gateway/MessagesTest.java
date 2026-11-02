@@ -20,14 +20,7 @@ class MessagesTest extends GatewayTestSupport {
     void forwardsAnthropicRequestsWithTheProviderKeyAndTheClientsVersion() throws Exception {
         PROVIDER.respond(200, "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
 
-        HttpResponse<String> response = messages(
-                CLAUDE,
-                "x-api-key",
-                KEY.value(),
-                "anthropic-version",
-                "2023-06-01",
-                "anthropic-beta",
-                "prompt-caching-2024-07-31");
+        HttpResponse<String> response = messages(CLAUDE, "x-api-key", KEY.value(), "anthropic-version", "2023-06-01");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
@@ -37,7 +30,7 @@ class MessagesTest extends GatewayTestSupport {
         assertThat(forwarded.path()).isEqualTo("/v1/messages");
         assertThat(forwarded.headers().get("X-api-key")).containsExactly("sk-provider");
         assertThat(forwarded.headers().get("Anthropic-version")).containsExactly("2023-06-01");
-        assertThat(forwarded.headers().get("Anthropic-beta")).containsExactly("prompt-caching-2024-07-31");
+        assertThat(forwarded.headers()).doesNotContainKey("Anthropic-beta");
         assertThat(forwarded.body()).startsWith("{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":64,");
     }
 

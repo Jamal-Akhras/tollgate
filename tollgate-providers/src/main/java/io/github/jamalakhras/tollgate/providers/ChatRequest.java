@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.providers;
 
 import io.github.jamalakhras.tollgate.core.config.OutputTokens;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,10 @@ public final class ChatRequest {
 
     public String model() {
         return model;
+    }
+
+    public RequestFeatures review(WireFormat format, @Nullable String betas) {
+        return RequestReview.of(format, body, betas);
     }
 
     public boolean isStreaming() {

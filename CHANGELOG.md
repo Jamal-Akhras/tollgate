@@ -43,3 +43,10 @@ versions may change the extension interfaces.
   admin port.
 - A config is rejected if any tenant's policy has no data-class guard, so a
   tenant's data class can never go unenforced.
+- Requests are checked against an allowlist before they are forwarded, and the
+  refusal is audited. Tollgate refuses:
+  - fields it has not reviewed, and `anthropic-beta` headers
+  - provider-side tools such as web search, web fetch and code execution
+  - fields that send data elsewhere or change pricing, such as `mcp_servers`
+    and `store: true`
+  - images, documents and files that the provider would fetch by URL or ID

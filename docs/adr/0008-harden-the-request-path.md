@@ -70,11 +70,15 @@ around each of those promises:
     - `tools`, `tool_choice`, `thinking`, `metadata`
   - **Both endpoints** also accept `stream`, but only as `false` until
     streaming ships.
-- **Only client-side tools.** A tool must be one the client runs itself: an
-  OpenAI `function` tool, or an Anthropic tool with no `type` or the `custom`
-  type. Server tools are refused, because the provider would run them on its
-  own infrastructure, outside Tollgate's view. Examples are web search, web
-  fetch, code execution and computer use.
+- **Only client-side tools.** A tool must be one the client runs itself:
+  - **OpenAI:** a `function` or `custom` tool.
+  - **Anthropic:** a tool with no `type`, or one of the types the client
+    executes. Those are `custom` and the tool versions starting `bash_`,
+    `text_editor_`, `computer_` and `memory_`.
+
+  Server tools are refused, because the provider would run them on its own
+  infrastructure, outside Tollgate's view. Examples are web search, web fetch
+  and code execution. Unknown tool types count as server tools.
 - **Content is inline unless a feature allows otherwise.** Each message
   content part is checked by type:
   - **Text** is allowed.
@@ -131,19 +135,18 @@ A request that uses a feature its data class is not allowed is refused with a
   - **What is still refused:**
     - the fields listed under extra fields below
     - betas that switch on refused abilities or other pricing: those starting
-      `mcp-client-`, `code-execution-`, `web-fetch-`, `computer-use-`,
-      `files-api-` and `context-1m-`
+      `mcp-client-`, `code-execution-`, `web-fetch-`, `files-api-` and
+      `context-1m-`
   - **The risk accepted:** a new provider feature that sends data elsewhere
     through a new top-level field, as `mcp_servers` did, would pass for the
     listed data classes until it is added to the refused list. For that
     reason it should be allowed for `internal` data at most, never for
     `confidential`.
 
-No other server tool can be allowed. Web fetch, the MCP connector, code
-execution and computer use each send data to destinations that a policy
-cannot review in advance: arbitrary URLs, third-party servers and remote
-sandboxes. OpenAI's `web_search_options` stays refused until its pricing is
-modelled.
+No other server tool can be allowed. Web fetch, the MCP connector and code
+execution each send data to destinations that a policy cannot review in
+advance: arbitrary URLs, third-party servers and remote sandboxes. OpenAI's
+`web_search_options` stays refused until its pricing is modelled.
 
 ### A provider can accept extra fields
 
@@ -256,8 +259,8 @@ These amend [ADR 0006](0006-budget-reservations.md).
   team that needs web search on public data, or images by URL, could not use
   Tollgate at all. Five switches, each tied to data classes, keep the strict
   default without leaving teams stuck.
-- **Allowing every server tool behind a switch.** The four features left out
-  cannot be made safe by data class, because the risk is where the data goes
+- **Allowing every server tool behind a switch.** Web fetch, the MCP
+  connector and code execution cannot be made safe by data class, because the risk is where the data goes
   after the provider receives it.
 - **Dropping disallowed fields silently.** The call would succeed but behave
   differently from what the client asked for, with nothing to say why.
@@ -283,8 +286,8 @@ These amend [ADR 0006](0006-budget-reservations.md).
   - **Need a policy feature:** images and documents by URL, provider file IDs,
     Anthropic web search, and the changing betas and fields of clients such
     as Claude Code.
-  - **Refused outright:** web fetch, the MCP connector, code execution,
-    computer use, and audio.
+  - **Refused outright:** web fetch, the MCP connector, code execution, and
+    audio.
 - **Verdict's calls stay allowed:** a forced Anthropic tool call, OpenAI JSON
   schema output, and an OpenAI-compatible local model.
 - **Budgets hold under concurrency and across restarts**, as long as the audit

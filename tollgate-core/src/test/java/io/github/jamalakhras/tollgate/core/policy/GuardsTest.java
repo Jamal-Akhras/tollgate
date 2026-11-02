@@ -5,15 +5,69 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class GuardsTest {
 
     private static GuardRequest request(@Nullable String region, @Nullable String dataClass, long size) {
-        return new GuardRequest("support-bot", "qwen3", "ollama", region, dataClass, size);
+        return new GuardRequest("support-bot", "qwen3", "ollama", region, dataClass, size, RequestFeatures.NONE);
+    }
+
+    private static GuardRequest using(RequestFeatures features, @Nullable String dataClass) {
+        return new GuardRequest("support-bot", "qwen3", "ollama", "local", dataClass, 1, features);
+    }
+
+    @Test
+    void requestFeaturesRefusesWhatIsNeverAllowedFirst() {
+        var features = new RequestFeatures(
+                List.of("The field 'mcp_servers' is not allowed", "second"),
+                List.of("The field 'x' is not one Tollgate has reviewed"),
+                Set.of(Feature.REMOTE_IMAGES));
+
+        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+                .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'mcp_servers' is not allowed"));
+        assertThat(RequestFeaturesGuard.INSTANCE.type()).isEqualTo("request-features");
+    }
+
+    @Test
+    void requestFeaturesRefusesUnreviewedFieldsBeforeFeatures() {
+        var features = new RequestFeatures(
+                List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of(Feature.REMOTE_IMAGES));
+
+        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+                .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'x' is not one Tollgate has reviewed"));
+    }
+
+    @Test
+    void requestFeaturesNamesTheFirstFeatureAndTheDataClass() {
+        var features = new RequestFeatures(List.of(), List.of(), Set.of(Feature.PROVIDER_FILES, Feature.REMOTE_IMAGES));
+
+        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+                .isEqualTo(Decision.deny(
+                        Refusal.POLICY_DENIED,
+                        "This request uses images by URL, which this policy does not allow for data class 'internal'"));
+        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, null)))
+                .isEqualTo(Decision.deny(
+                        Refusal.POLICY_DENIED, "This request uses images by URL, which this policy does not allow"));
+        assertThat(RequestFeaturesGuard.INSTANCE.check(using(RequestFeatures.NONE, null)))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void requestFeaturesAreCopied() {
+        List<String> refused = new ArrayList<>(List.of("a"));
+        Set<Feature> used = new HashSet<>(Set.of(Feature.REMOTE_DOCUMENTS));
+        var features = new RequestFeatures(refused, List.of(), used);
+        refused.add("b");
+        used.add(Feature.PROVIDER_FILES);
+
+        assertThat(features.refused()).containsExactly("a").isUnmodifiable();
+        assertThat(features.used()).containsExactly(Feature.REMOTE_DOCUMENTS).isUnmodifiable();
     }
 
     @Test

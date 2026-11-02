@@ -8,4 +8,5 @@ public record GuardRequest(
         String provider,
         @Nullable String region,
         @Nullable String dataClass,
-        long sizeBytes) {}
+        long sizeBytes,
+        RequestFeatures features) {}

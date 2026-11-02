@@ -75,8 +75,15 @@ an admin handler from the gateway port.
    class applies; a request header may make it stricter, never looser.
 3. **Pin the policy.** Choose the route's policy and record the config version
    that will decide this request.
-4. **Pre-call guards,** in order: size limits, data class and region rules, PII
-   redaction, custom guards. The tenant's model list was already checked in step 2.
+4. **Pre-call guards,** in order:
+   - the built-in check that the request asks only for reviewed fields, tools
+     and content ([ADR 0008](adr/0008-harden-the-request-path.md))
+   - size limits
+   - data class and region rules
+   - PII redaction
+   - custom guards
+
+   The tenant's model list was already checked in step 2.
 5. **Rate limit and reserve budget.** Reserve the most the call can cost. The
    request's size in bytes bounds its input tokens, and the gateway sets or
    lowers `max_tokens` to the model's cap, so the output is bounded too.
