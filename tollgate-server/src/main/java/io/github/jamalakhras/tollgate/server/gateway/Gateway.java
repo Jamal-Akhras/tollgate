@@ -235,7 +235,10 @@ final class Gateway implements AutoCloseable {
     private static ChatRequest.Forwarded forward(ChatRequest request, Route route, WireFormat endpoint) {
         try {
             return request.forward(
-                    route.upstream(), endpoint, route.definition().maxOutputTokens());
+                    route.upstream(),
+                    endpoint,
+                    route.definition().maxOutputTokens(),
+                    route.definition().maxWebSearches());
         } catch (InvalidRequestException e) {
             throw GatewayException.invalidRequest(String.valueOf(e.getMessage()), e.param());
         }
@@ -251,8 +254,9 @@ final class Gateway implements AutoCloseable {
         long maxOutputTokens = forwarded
                 .maxOutputTokens()
                 .orElseThrow(() -> new IllegalStateException("Budgeted model " + route.model() + " has no output cap"));
-        Money mostItCanCost =
-                route.definition().price().mostFor(forwarded.size() + PROMPT_OVERHEAD_TOKENS, maxOutputTokens);
+        Money mostItCanCost = route.definition()
+                .price()
+                .mostFor(forwarded.size() + PROMPT_OVERHEAD_TOKENS, maxOutputTokens, forwarded.webSearches());
         Optional<Reservation> reservation = budgets.reserve(call.caller().tenant(), budget, mostItCanCost);
         if (reservation.isEmpty()) {
             throw refuse(
@@ -340,7 +344,10 @@ final class Gateway implements AutoCloseable {
             log.warn("Provider {} reported no token usage; charging the full reservation", route.providerName());
             return worstCase;
         }
-        return route.definition().price().costOf(usage.get());
+        long webSearches = route.definition().offersWebSearch()
+                ? UsageReader.webSearches(route.provider().format(), response.body())
+                : 0;
+        return route.definition().price().costOf(usage.get(), webSearches);
     }
 
     private static Money nothing(Route route) {

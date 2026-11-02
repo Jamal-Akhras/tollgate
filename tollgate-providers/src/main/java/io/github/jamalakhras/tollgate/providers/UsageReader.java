@@ -24,6 +24,22 @@ public final class UsageReader {
         };
     }
 
+    public static long webSearches(WireFormat format, byte[] responseBody) {
+        if (format != WireFormat.ANTHROPIC) {
+            return 0;
+        }
+        try {
+            JsonNode count = ChatRequest.JSON
+                    .readTree(responseBody)
+                    .path("usage")
+                    .path("server_tool_use")
+                    .path("web_search_requests");
+            return countOrZero(count).orElse(0);
+        } catch (JacksonException e) {
+            return 0;
+        }
+    }
+
     private static Optional<Usage> openAi(JsonNode usage) {
         OptionalLong prompt = count(usage.path("prompt_tokens"));
         OptionalLong completion = count(usage.path("completion_tokens"));

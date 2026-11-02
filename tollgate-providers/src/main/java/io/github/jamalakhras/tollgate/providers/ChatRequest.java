@@ -13,6 +13,7 @@ import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 public final class ChatRequest {
@@ -64,13 +65,37 @@ public final class ChatRequest {
         return !off;
     }
 
-    public Forwarded forward(String upstreamModel, WireFormat format, @Nullable OutputTokens limit) {
+    public Forwarded forward(
+            String upstreamModel, WireFormat format, @Nullable OutputTokens limit, long maxWebSearches) {
         Map<String, Long> outputFields = limitedOutputFields(format, limit);
         ObjectNode forwarded = body.objectNode().setAll(body).put("model", upstreamModel);
         outputFields.forEach(forwarded::put);
+        long webSearches = format == WireFormat.ANTHROPIC ? limitWebSearches(forwarded, maxWebSearches) : 0;
         OptionalLong maxOutputTokens =
                 outputFields.values().stream().mapToLong(Long::longValue).max();
-        return new Forwarded(JSON.writeValueAsBytes(forwarded), maxOutputTokens);
+        return new Forwarded(JSON.writeValueAsBytes(forwarded), maxOutputTokens, webSearches);
+    }
+
+    private long limitWebSearches(ObjectNode forwarded, long maxWebSearches) {
+        JsonNode tools = body.path("tools");
+        if (!tools.isArray()) {
+            return 0;
+        }
+        long webSearches = 0;
+        ArrayNode limited = forwarded.putArray("tools");
+        for (JsonNode tool : tools) {
+            JsonNode copy = tool.deepCopy();
+            if (copy instanceof ObjectNode search && RequestReview.isWebSearch(search)) {
+                JsonNode requested = search.path("max_uses");
+                long uses = requested.isIntegralNumber() && requested.canConvertToLong() && requested.longValue() > 0
+                        ? Math.min(requested.longValue(), maxWebSearches)
+                        : maxWebSearches;
+                search.put("max_uses", uses);
+                webSearches = Math.addExact(webSearches, uses);
+            }
+            limited.add(copy);
+        }
+        return webSearches;
     }
 
     private Map<String, Long> limitedOutputFields(WireFormat format, @Nullable OutputTokens limit) {
@@ -96,10 +121,12 @@ public final class ChatRequest {
 
         private final byte[] body;
         private final OptionalLong maxOutputTokens;
+        private final long webSearches;
 
-        private Forwarded(byte[] body, OptionalLong maxOutputTokens) {
+        private Forwarded(byte[] body, OptionalLong maxOutputTokens, long webSearches) {
             this.body = body;
             this.maxOutputTokens = maxOutputTokens;
+            this.webSearches = webSearches;
         }
 
         public byte[] body() {
@@ -112,6 +139,10 @@ public final class ChatRequest {
 
         public OptionalLong maxOutputTokens() {
             return maxOutputTokens;
+        }
+
+        public long webSearches() {
+            return webSearches;
         }
     }
 }

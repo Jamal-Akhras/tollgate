@@ -66,6 +66,7 @@ final class RequestReview {
     private static final Set<String> OPENAI_TOOLS = Set.of("function", "custom");
     private static final List<String> ANTHROPIC_CLIENT_TOOLS =
             List.of("custom", "bash_", "text_editor_", "computer_", "memory_");
+    private static final String WEB_SEARCH_TOOL = "web_search_";
     private static final List<String> REFUSED_BETAS =
             List.of("mcp-client-", "code-execution-", "web-fetch-", "files-api-", "context-1m-");
 
@@ -140,7 +141,9 @@ final class RequestReview {
         }
         for (JsonNode tool : body.path("tools")) {
             String type = tool.path("type").asString("custom");
-            if (ANTHROPIC_CLIENT_TOOLS.stream().noneMatch(type::startsWith)) {
+            if (isWebSearch(tool)) {
+                used.add(Feature.WEB_SEARCH);
+            } else if (ANTHROPIC_CLIENT_TOOLS.stream().noneMatch(type::startsWith)) {
                 refuseTool(type);
             }
         }
@@ -149,6 +152,10 @@ final class RequestReview {
                 beta(beta.strip());
             }
         }
+    }
+
+    static boolean isWebSearch(JsonNode tool) {
+        return tool.path("type").asString("").startsWith(WEB_SEARCH_TOOL);
     }
 
     private void blocks(JsonNode content) {

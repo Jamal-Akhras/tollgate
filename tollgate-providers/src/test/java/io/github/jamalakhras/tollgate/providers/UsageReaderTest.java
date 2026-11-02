@@ -12,6 +12,25 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class UsageReaderTest {
 
+    @Test
+    void readsTheWebSearchesAnthropicReports() {
+        byte[] body =
+                "{\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"server_tool_use\":{\"web_search_requests\":4}}}"
+                        .getBytes(StandardCharsets.UTF_8);
+
+        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, body)).isEqualTo(4);
+        assertThat(UsageReader.webSearches(WireFormat.OPENAI, body)).isZero();
+        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, "{}".getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, "not json".getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+        assertThat(UsageReader.webSearches(
+                        WireFormat.ANTHROPIC,
+                        "{\"usage\":{\"server_tool_use\":{\"web_search_requests\":-1}}}"
+                                .getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+    }
+
     private static Optional<Usage> read(WireFormat format, String body) {
         return UsageReader.read(format, body.getBytes(StandardCharsets.UTF_8));
     }

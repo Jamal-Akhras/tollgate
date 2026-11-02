@@ -98,7 +98,7 @@ class GuardsTest {
         assertThat(Feature.fromConfigName("unreviewed-fields")).isEqualTo(Feature.UNREVIEWED_FIELDS);
         assertThat(Feature.REMOTE_DOCUMENTS.configName()).isEqualTo("remote-documents");
         assertThatThrownBy(() -> Feature.fromConfigName("web-fetch"))
-                .hasMessage("feature must be one of remote-images, remote-documents, provider-files,"
+                .hasMessage("feature must be one of remote-images, remote-documents, provider-files, web-search,"
                         + " unreviewed-fields, was web-fetch");
     }
 

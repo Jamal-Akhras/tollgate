@@ -3,11 +3,15 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import java.math.BigDecimal;
 import java.net.http.HttpResponse;
+import java.util.Currency;
 import org.junit.jupiter.api.Test;
 
 class RequestFeaturesTest extends GatewayTestSupport {
@@ -132,6 +136,26 @@ class RequestFeaturesTest extends GatewayTestSupport {
         assertThat(internal.statusCode()).isEqualTo(200);
         assertThat(confidential.statusCode()).isEqualTo(403);
         assertThat(confidential.body()).contains("not allow for data class 'confidential'");
+    }
+
+    @Test
+    void capsAndChargesWebSearchWherePolicyAllowsIt() throws Exception {
+        PROVIDER.respond(
+                200,
+                "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[],\"usage\":{\"input_tokens\":100,"
+                        + "\"output_tokens\":50,\"server_tool_use\":{\"web_search_requests\":2}}}");
+        String search = "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[],"
+                + "\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":10}]}";
+
+        HttpResponse<String> allowed = post(Endpoints.ANTHROPIC_MESSAGES, search, "x-api-key", CODER_KEY.value());
+        HttpResponse<String> refused = post(Endpoints.ANTHROPIC_MESSAGES, search, "x-api-key", KEY.value());
+
+        assertThat(allowed.statusCode()).isEqualTo(200);
+        assertThat(PROVIDER.received().getFirst().body()).contains("\"max_uses\":3");
+        Outcome outcome = (Outcome) auditRecordsOf(allowed).get(1);
+        assertThat(outcome.cost()).isEqualTo(Money.of(new BigDecimal("0.02105"), Currency.getInstance("USD")));
+        assertThat(refused.statusCode()).isEqualTo(403);
+        assertThat(refused.body()).contains("This request uses web search, which this policy does not allow");
     }
 
     @Test

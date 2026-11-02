@@ -7,6 +7,7 @@ import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Prices;
+import io.github.jamalakhras.tollgate.core.money.SearchPrice;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
@@ -242,6 +243,52 @@ class GatewayConfigTest {
                 .isFalse();
         assertThat(config.admit("support-bot", strictRoute, null, 10, images).admitted())
                 .isFalse();
+    }
+
+    @Test
+    void requiresAPriceForEveryAnthropicModelThatMaySearch() {
+        var searching = new Policy(STRICT.guards(), Map.of(Feature.WEB_SEARCH, List.of("internal")));
+        var tenants = Map.of("support-bot", new Tenant(List.of("qwen3", "claude-sonnet"), "internal", null, null));
+        var anthropicFormat = new Provider(
+                WireFormat.ANTHROPIC, URI.create("https://api.example.com"), null, "us", Duration.ofSeconds(30));
+
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES,
+                        Map.of("ollama", OLLAMA, "anthropic", anthropicFormat),
+                        MODELS,
+                        tenants,
+                        List.of(),
+                        Map.of(GatewayConfig.DEFAULT_POLICY, searching),
+                        AuditSettings.DISABLED))
+                .hasMessage("tenants.support-bot may use web search, so models.claude-sonnet needs price.webSearch"
+                        + " and maxWebSearches");
+        assertThat(new GatewayConfig(
+                                DATA_CLASSES,
+                                Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
+                                MODELS,
+                                tenants,
+                                List.of(),
+                                Map.of(GatewayConfig.DEFAULT_POLICY, searching),
+                                AuditSettings.DISABLED)
+                        .tenants())
+                .containsKey("support-bot");
+    }
+
+    @Test
+    void offersWebSearchOnlyWithAPriceAndALimit() {
+        var priced = Prices.perMillion("0", "0", "0", "0");
+        var withSearch = new ModelPrice(
+                priced.input(),
+                priced.output(),
+                priced.cacheRead(),
+                priced.cacheWrite(),
+                new SearchPrice(priced.input().perMillionTokens()));
+
+        assertThat(new Model("p", "u", withSearch, null, 2).offersWebSearch()).isTrue();
+        assertThat(new Model("p", "u", withSearch, null, 0).offersWebSearch()).isFalse();
+        assertThat(new Model("p", "u", priced, null, 2).offersWebSearch()).isFalse();
+        assertThatThrownBy(() -> new Model("p", "u", priced, null, -1))
+                .hasMessage("maxWebSearches must not be negative");
     }
 
     @Test

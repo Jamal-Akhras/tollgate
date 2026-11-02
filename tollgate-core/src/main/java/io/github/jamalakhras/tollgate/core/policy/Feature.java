@@ -7,6 +7,7 @@ public enum Feature {
     REMOTE_IMAGES("remote-images", "images by URL"),
     REMOTE_DOCUMENTS("remote-documents", "documents by URL"),
     PROVIDER_FILES("provider-files", "files held by the provider"),
+    WEB_SEARCH("web-search", "web search"),
     UNREVIEWED_FIELDS("unreviewed-fields", "fields and betas Tollgate has not reviewed");
 
     private final String configName;

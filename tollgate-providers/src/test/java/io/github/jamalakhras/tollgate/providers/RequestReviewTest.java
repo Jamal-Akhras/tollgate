@@ -113,11 +113,21 @@ class RequestReviewTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"web_search_20250305", "web_fetch_20250910", "code_execution_20250825", "tool_search_x"})
+    @ValueSource(strings = {"web_fetch_20250910", "code_execution_20250825", "tool_search_x"})
     void refusesAnthropicServerTools(String type) {
         assertThat(anthropic("\"tools\":[{\"type\":\"" + type + "\"}]", null).refused())
                 .containsExactly("The tool type '" + type
                         + "' is not allowed: it runs on the provider, outside Tollgate's view");
+    }
+
+    @Test
+    void marksAnthropicWebSearchAsAFeature() {
+        RequestFeatures features = anthropic("\"tools\":[{\"type\":\"web_search_20250305\"}]", null);
+
+        assertThat(features.used()).containsExactly(Feature.WEB_SEARCH);
+        assertThat(features.refused()).isEmpty();
+        assertThat(openAi("\"tools\":[{\"type\":\"web_search_20250305\"}]").refused())
+                .hasSize(1);
     }
 
     @Test

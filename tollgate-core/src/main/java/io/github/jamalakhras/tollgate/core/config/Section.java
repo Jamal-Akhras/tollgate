@@ -91,6 +91,10 @@ final class Section {
         };
     }
 
+    long optionalWholeNumber(String key, long fallback) {
+        return values.get(key) == null ? fallback : wholeNumber(key);
+    }
+
     long wholeNumber(String key) {
         Object value = values.get(key);
         if (value == null) {
@@ -147,6 +151,11 @@ final class Section {
     <T> @Nullable T optionalChild(String key, Function<Section, T> reader) {
         Object value = values.get(key);
         return value == null ? null : reader.apply(new Section(pathOf(key), asMap(pathOf(key), value)));
+    }
+
+    @Nullable
+    Money optionalMoney(String key, Currency currency) {
+        return values.get(key) == null ? null : money(key, currency);
     }
 
     Money money(String key, Currency currency) {

@@ -242,6 +242,20 @@ class ConfigReaderTest {
     }
 
     @Test
+    void readsWebSearchPricesAndLimits() {
+        Map<String, Object> price = Map.of("input", 3, "output", 15, "cacheRead", 0, "cacheWrite", 0, "webSearch", 10);
+        Map<String, Object> model =
+                Map.of("provider", "anthropic", "upstream", "claude", "price", price, "maxWebSearches", 3);
+
+        GatewayConfig config = ConfigReader.read(with("models.searcher", model));
+
+        Model searcher = entry(config.models(), "searcher");
+        assertThat(searcher.maxWebSearches()).isEqualTo(3);
+        assertThat(searcher.offersWebSearch()).isTrue();
+        assertThat(searcher.price().webSearch()).isNotNull();
+    }
+
+    @Test
     void readsPolicyFeatures() {
         Map<String, Object> features = Map.of("remote-images", List.of("public"), "unreviewed-fields", List.of());
         GatewayConfig config = ConfigReader.read(
@@ -261,8 +275,9 @@ class ConfigReaderTest {
                 Map.of("guards", List.of(DATA_CLASS_GUARD), "features", Map.of("remote-images", "public"));
 
         assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", unknown))))
-                .hasMessage("policies.default: feature must be one of remote-images, remote-documents, provider-files,"
-                        + " unreviewed-fields, was web-fetch");
+                .hasMessage(
+                        "policies.default: feature must be one of remote-images, remote-documents, provider-files, web-search,"
+                                + " unreviewed-fields, was web-fetch");
         assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", notAList))))
                 .hasMessageStartingWith("policies.default.features.remote-images");
     }

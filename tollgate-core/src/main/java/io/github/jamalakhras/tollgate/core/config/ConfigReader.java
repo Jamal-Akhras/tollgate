@@ -3,6 +3,8 @@ package io.github.jamalakhras.tollgate.core.config;
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
+import io.github.jamalakhras.tollgate.core.money.Money;
+import io.github.jamalakhras.tollgate.core.money.SearchPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
@@ -68,20 +70,23 @@ public final class ConfigReader {
     }
 
     private static Model model(Section section, Currency currency) {
-        section.requireOnly("provider", "upstream", "price", "maxOutputTokens");
+        section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches");
         ModelPrice price = section.child("price", child -> price(child, currency));
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
-        return section.build(
-                () -> new Model(section.text("provider"), section.text("upstream"), price, maxOutputTokens));
+        long maxWebSearches = section.optionalWholeNumber("maxWebSearches", 0);
+        return section.build(() ->
+                new Model(section.text("provider"), section.text("upstream"), price, maxOutputTokens, maxWebSearches));
     }
 
     private static ModelPrice price(Section section, Currency currency) {
-        section.requireOnly("input", "output", "cacheRead", "cacheWrite");
+        section.requireOnly("input", "output", "cacheRead", "cacheWrite", "webSearch");
+        Money webSearch = section.optionalMoney("webSearch", currency);
         return section.build(() -> new ModelPrice(
                 new TokenPrice(section.money("input", currency)),
                 new TokenPrice(section.money("output", currency)),
                 new TokenPrice(section.money("cacheRead", currency)),
-                new TokenPrice(section.money("cacheWrite", currency))));
+                new TokenPrice(section.money("cacheWrite", currency)),
+                webSearch == null ? null : new SearchPrice(webSearch)));
     }
 
     private static OutputTokens outputTokens(Section section) {

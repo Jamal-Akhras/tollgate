@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.core.config;
 
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.GuardRequest;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
@@ -53,7 +54,7 @@ public record GatewayConfig(
             }
         }
         for (var tenant : tenants.entrySet()) {
-            checkTenant(tenant.getKey(), tenant.getValue(), dataClasses, models, policies);
+            checkTenant(tenant.getKey(), tenant.getValue(), dataClasses, models, providers, policies);
         }
         for (var policy : policies.entrySet()) {
             for (Guard guard : policy.getValue().guards()) {
@@ -146,6 +147,7 @@ public record GatewayConfig(
             Tenant tenant,
             List<String> dataClasses,
             Map<String, Model> models,
+            Map<String, Provider> providers,
             Map<String, Policy> policies) {
         for (String model : tenant.models()) {
             if (!models.containsKey(model)) {
@@ -184,6 +186,23 @@ public record GatewayConfig(
                 if (definition != null && definition.maxOutputTokens() == null) {
                     throw new IllegalArgumentException("tenants." + name + ".budget needs models." + model
                             + ".maxOutputTokens, so that the most a call can cost is known");
+                }
+            }
+        }
+        Policy applied = policies.get(policy == null ? DEFAULT_POLICY : policy);
+        if (applied != null
+                && !applied.features()
+                        .getOrDefault(Feature.WEB_SEARCH, List.of())
+                        .isEmpty()) {
+            for (String model : tenant.models()) {
+                Model definition = models.get(model);
+                if (definition == null) {
+                    continue;
+                }
+                Provider provider = providers.get(definition.provider());
+                if (provider != null && provider.format() == WireFormat.ANTHROPIC && !definition.offersWebSearch()) {
+                    throw new IllegalArgumentException("tenants." + name + " may use web search, so models." + model
+                            + " needs price.webSearch and maxWebSearches");
                 }
             }
         }

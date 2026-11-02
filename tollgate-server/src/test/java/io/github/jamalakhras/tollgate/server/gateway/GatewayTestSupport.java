@@ -81,8 +81,9 @@ abstract class GatewayTestSupport {
                   claude-sonnet:
                     provider: anthropic
                     upstream: claude-sonnet-4-5
-                    price: { input: 3, output: 15, cacheRead: 0.30, cacheWrite: 3.75 }
+                    price: { input: 3, output: 15, cacheRead: 0.30, cacheWrite: 3.75, webSearch: 10 }
                     maxOutputTokens: { default: 1024, cap: 4096 }
+                    maxWebSearches: 3
                   slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
                   metered-model:
@@ -119,6 +120,7 @@ abstract class GatewayTestSupport {
                     features:
                       unreviewed-fields: [internal]
                       remote-images: [internal]
+                      web-search: [internal]
                 audit:
                   mode: sync
                   directory: '%8$s'

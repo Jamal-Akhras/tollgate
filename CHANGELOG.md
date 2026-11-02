@@ -54,3 +54,11 @@ versions may change the extension interfaces.
   `unreviewed-fields` for named data classes. `unreviewed-fields` lets clients
   such as Claude Code send new fields and betas. Server tools, refused fields
   and refused betas stay blocked.
+- Anthropic web search can be allowed with the `web-search` feature.
+  - **Searches are capped:** Tollgate caps each call's searches at the
+    model's `maxWebSearches`.
+  - **Budgets include the fee:** budgets reserve the search fee from
+    `price.webSearch`, priced per 1,000 searches, and charge the searches the
+    provider reports.
+  - **Pricing is checked at startup:** a policy that allows web search makes
+    that price a required setting.
