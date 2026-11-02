@@ -88,6 +88,9 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- A weekly workflow checks the distroless base image. When its digest has
+  moved, the workflow opens a pull request with the new one and runs CI on
+  it, so the image's Java runtime and libraries keep getting patches.
 - Audit trails are private on Linux and macOS: the directory is `0700` and
   its files `0600`, including files written by earlier versions.
 - The gateway port listens only on `127.0.0.1` unless `TOLLGATE_ADDRESS` says

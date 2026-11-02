@@ -1,0 +1,53 @@
+name: base-image
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Keep the base image patched
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compare the pinned digest with the current one
+        id: digest
+        run: |
+          current=$(curl -fsSI \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json" \
+            https://gcr.io/v2/distroless/java25-debian13/manifests/nonroot \
+            | tr -d '\r' | awk -F': ' 'tolower($1) == "docker-content-digest" { print $2 }')
+          pinned=$(sed -n 's/.*java25-debian13:nonroot@\(sha256:[0-9a-f]*\).*/\1/p' tollgate-server/pom.xml)
+          [[ "$current" =~ ^sha256:[0-9a-f]{64}$ && "$pinned" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+      - name: Open a pull request and test it
+        if: steps.digest.outputs.current != steps.digest.outputs.pinned
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.digest.outputs.current }}
+          PINNED: ${{ steps.digest.outputs.pinned }}
+        run: |
+          branch="base-image/${CURRENT:7:12}"
+          if git ls-remote --exit-code --heads origin "$branch"; then
+            echo "A pull request for $CURRENT already exists"
+            exit 0
+          fi
+          sed -i "s/$PINNED/$CURRENT/" tollgate-server/pom.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "Update the distroless base image"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Update the distroless base image" \
+            --body "gcr.io/distroless/java25-debian13:nonroot moved from $PINNED to $CURRENT."
+          gh workflow run ci.yml --ref "$branch"
