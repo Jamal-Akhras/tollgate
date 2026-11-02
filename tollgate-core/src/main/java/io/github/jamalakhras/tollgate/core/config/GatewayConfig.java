@@ -61,6 +61,7 @@ public record GatewayConfig(
                     checkDataClassGuard(policy.getKey(), dataClassGuard, dataClasses);
                 }
             }
+            checkFeatures(policy.getKey(), policy.getValue(), dataClasses);
         }
         Set<String> keyIds = new HashSet<>();
         for (TenantKey key : keys) {
@@ -123,9 +124,10 @@ public record GatewayConfig(
         }
         var request = new GuardRequest(
                 tenant, route.model(), route.providerName(), route.provider().region(), dataClass, sizeBytes, features);
+        Policy policy = policyOf(caller);
         List<Guard> guards = new ArrayList<>();
-        guards.add(RequestFeaturesGuard.INSTANCE);
-        guards.addAll(policyOf(caller).guards());
+        guards.add(new RequestFeaturesGuard(policy));
+        guards.addAll(policy.guards());
         Policy.Evaluation evaluation = new Policy(guards).evaluate(request);
         return new Admission(dataClass, evaluation.decision(), evaluation.steps());
     }
@@ -185,6 +187,17 @@ public record GatewayConfig(
                 }
             }
         }
+    }
+
+    private static void checkFeatures(String name, Policy policy, List<String> dataClasses) {
+        policy.features().forEach((feature, allowed) -> {
+            for (String dataClass : allowed) {
+                if (!dataClasses.contains(dataClass)) {
+                    throw new IllegalArgumentException("policies." + name + ".features." + feature.configName()
+                            + ": no data class named '" + dataClass + "'");
+                }
+            }
+        });
     }
 
     private static void checkDataClassGuard(String policy, DataClassGuard guard, List<String> dataClasses) {

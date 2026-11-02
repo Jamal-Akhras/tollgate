@@ -5,11 +5,14 @@ import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
+import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import java.time.Duration;
 import java.util.Currency;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public final class ConfigReader {
@@ -105,8 +108,16 @@ public final class ConfigReader {
     }
 
     private static Policy policy(Section section) {
-        section.requireOnly("guards");
-        return new Policy(section.sectionList("guards", ConfigReader::guard));
+        section.requireOnly("guards", "features");
+        List<Guard> guards = section.sectionList("guards", ConfigReader::guard);
+        Map<String, List<String>> features = section.optionalTextLists("features");
+        return section.build(() -> new Policy(guards, byFeature(features)));
+    }
+
+    private static Map<Feature, List<String>> byFeature(Map<String, List<String>> features) {
+        Map<Feature, List<String>> byFeature = new EnumMap<>(Feature.class);
+        features.forEach((name, dataClasses) -> byFeature.put(Feature.fromConfigName(name), dataClasses));
+        return byFeature;
     }
 
     private static Guard guard(Section section) {

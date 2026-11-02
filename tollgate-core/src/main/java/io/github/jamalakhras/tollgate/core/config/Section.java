@@ -107,9 +107,16 @@ final class Section {
     }
 
     Map<String, List<String>> textLists(String key) {
+        if (values.get(key) == null) {
+            throw new InvalidConfigException(pathOf(key) + " is required");
+        }
+        return optionalTextLists(key);
+    }
+
+    Map<String, List<String>> optionalTextLists(String key) {
         Object value = values.get(key);
         if (value == null) {
-            throw new InvalidConfigException(pathOf(key) + " is required");
+            return Map.of();
         }
         Map<String, List<String>> lists = new LinkedHashMap<>();
         asMap(pathOf(key), value).forEach((name, items) -> lists.put(name, textsAt(pathOf(key) + "." + name, items)));

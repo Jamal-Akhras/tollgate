@@ -33,6 +33,7 @@ abstract class GatewayTestSupport {
     static final FakeProvider PROVIDER = new FakeProvider();
     static final ApiKey KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey METERED_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey CODER_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -97,15 +98,27 @@ abstract class GatewayTestSupport {
                     models: [metered-model]
                     dataClass: internal
                     budget: { limit: 0.01, period: total }
+                  coder:
+                    models: [qwen3, claude-sonnet]
+                    dataClass: internal
+                    policy: coding
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
+                  - { id: %10$s, tenant: coder, sha256: %11$s }
                 policies:
                   default:
                     guards:
                       - { type: request-size, maxBytes: 900 }
                       - type: data-class
                         regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                  coding:
+                    guards:
+                      - type: data-class
+                        regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                    features:
+                      unreviewed-fields: [internal]
+                      remote-images: [internal]
                 audit:
                   mode: sync
                   directory: '%8$s'
@@ -121,7 +134,9 @@ abstract class GatewayTestSupport {
                         METERED_KEY.id(),
                         METERED_KEY.sha256(),
                         AUDIT_DIRECTORY,
-                        AUDIT_KEYS.publicKey());
+                        AUDIT_KEYS.publicKey(),
+                        CODER_KEY.id(),
+                        CODER_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

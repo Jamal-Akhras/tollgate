@@ -29,6 +29,11 @@ what was sent, who sent it, what it cost, and why it was allowed.
   `internal` or `confidential`. A request may make its class stricter, never
   looser, and each class may go only to providers in the regions you allow.
   Guards fail closed.
+- **Only reviewed requests leave.** Fields, tools and content are checked
+  against an allowlist, so a request cannot ask the provider to fetch URLs,
+  call other servers or keep the conversation. A policy can allow a reviewed
+  feature, such as images by URL, for named data classes only
+  ([ADR 0008](docs/adr/0008-harden-the-request-path.md)).
 - **Budgets with exact money.** The most a call can cost is reserved before
   the provider is called, and the reservation is settled from the provider's
   reported token usage. Amounts are integer nano-units, never floating point

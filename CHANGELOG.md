@@ -50,3 +50,7 @@ versions may change the extension interfaces.
   - fields that send data elsewhere or change pricing, such as `mcp_servers`
     and `store: true`
   - images, documents and files that the provider would fetch by URL or ID
+- Policies can allow `remote-images`, `remote-documents`, `provider-files` and
+  `unreviewed-fields` for named data classes. `unreviewed-fields` lets clients
+  such as Claude Code send new fields and betas. Server tools, refused fields
+  and refused betas stay blocked.

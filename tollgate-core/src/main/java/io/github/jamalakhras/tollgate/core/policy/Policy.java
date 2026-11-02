@@ -2,14 +2,28 @@ package io.github.jamalakhras.tollgate.core.policy;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
-public record Policy(List<Guard> guards) {
+public record Policy(List<Guard> guards, Map<Feature, List<String>> features) {
 
     public static final Policy NONE = new Policy(List.of());
 
     public Policy {
         guards = List.copyOf(guards);
+        Map<Feature, List<String>> copied = new EnumMap<>(Feature.class);
+        features.forEach((feature, dataClasses) -> copied.put(feature, List.copyOf(dataClasses)));
+        features = Map.copyOf(copied);
+    }
+
+    public Policy(List<Guard> guards) {
+        this(guards, Map.of());
+    }
+
+    public boolean allows(Feature feature, @Nullable String dataClass) {
+        return dataClass != null && features.getOrDefault(feature, List.of()).contains(dataClass);
     }
 
     public Evaluation evaluate(GuardRequest request) {

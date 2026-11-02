@@ -18,6 +18,8 @@ class GuardsTest {
         return new GuardRequest("support-bot", "qwen3", "ollama", region, dataClass, size, RequestFeatures.NONE);
     }
 
+    private static final RequestFeaturesGuard STRICT = new RequestFeaturesGuard(Policy.NONE);
+
     private static GuardRequest using(RequestFeatures features, @Nullable String dataClass) {
         return new GuardRequest("support-bot", "qwen3", "ollama", "local", dataClass, 1, features);
     }
@@ -29,9 +31,9 @@ class GuardsTest {
                 List.of("The field 'x' is not one Tollgate has reviewed"),
                 Set.of(Feature.REMOTE_IMAGES));
 
-        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+        assertThat(STRICT.check(using(features, "internal")))
                 .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'mcp_servers' is not allowed"));
-        assertThat(RequestFeaturesGuard.INSTANCE.type()).isEqualTo("request-features");
+        assertThat(STRICT.type()).isEqualTo("request-features");
     }
 
     @Test
@@ -39,7 +41,7 @@ class GuardsTest {
         var features = new RequestFeatures(
                 List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of(Feature.REMOTE_IMAGES));
 
-        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+        assertThat(STRICT.check(using(features, "internal")))
                 .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'x' is not one Tollgate has reviewed"));
     }
 
@@ -47,15 +49,70 @@ class GuardsTest {
     void requestFeaturesNamesTheFirstFeatureAndTheDataClass() {
         var features = new RequestFeatures(List.of(), List.of(), Set.of(Feature.PROVIDER_FILES, Feature.REMOTE_IMAGES));
 
-        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, "internal")))
+        assertThat(STRICT.check(using(features, "internal")))
                 .isEqualTo(Decision.deny(
                         Refusal.POLICY_DENIED,
                         "This request uses images by URL, which this policy does not allow for data class 'internal'"));
-        assertThat(RequestFeaturesGuard.INSTANCE.check(using(features, null)))
+        assertThat(STRICT.check(using(features, null)))
                 .isEqualTo(Decision.deny(
                         Refusal.POLICY_DENIED, "This request uses images by URL, which this policy does not allow"));
-        assertThat(RequestFeaturesGuard.INSTANCE.check(using(RequestFeatures.NONE, null)))
-                .isEqualTo(Decision.ALLOW);
+        assertThat(STRICT.check(using(RequestFeatures.NONE, null))).isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void requestFeaturesAllowsWhatThePolicyAllowsForTheDataClass() {
+        var guard = new RequestFeaturesGuard(new Policy(
+                List.of(),
+                Map.of(
+                        Feature.REMOTE_IMAGES,
+                        List.of("public", "internal"),
+                        Feature.UNREVIEWED_FIELDS,
+                        List.of("internal"))));
+        var images = new RequestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES));
+        var unreviewed =
+                new RequestFeatures(List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of());
+
+        assertThat(guard.check(using(images, "internal"))).isEqualTo(Decision.ALLOW);
+        assertThat(guard.check(using(images, "confidential")))
+                .isEqualTo(Decision.deny(
+                        Refusal.POLICY_DENIED,
+                        "This request uses images by URL, which this policy does not allow for data class"
+                                + " 'confidential'"));
+        assertThat(guard.check(using(images, null))).isInstanceOf(Decision.Deny.class);
+        assertThat(guard.check(using(unreviewed, "internal"))).isEqualTo(Decision.ALLOW);
+        assertThat(guard.check(using(unreviewed, "public"))).isInstanceOf(Decision.Deny.class);
+    }
+
+    @Test
+    void requestFeaturesNeverAllowsWhatIsRefused() {
+        var permissive =
+                new RequestFeaturesGuard(new Policy(List.of(), Map.of(Feature.UNREVIEWED_FIELDS, List.of("internal"))));
+        var features = new RequestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of());
+
+        assertThat(permissive.check(using(features, "internal")))
+                .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'mcp_servers' is not allowed"));
+    }
+
+    @Test
+    void namesFeaturesAsTheConfigDoes() {
+        assertThat(Feature.fromConfigName("unreviewed-fields")).isEqualTo(Feature.UNREVIEWED_FIELDS);
+        assertThat(Feature.REMOTE_DOCUMENTS.configName()).isEqualTo("remote-documents");
+        assertThatThrownBy(() -> Feature.fromConfigName("web-fetch"))
+                .hasMessage("feature must be one of remote-images, remote-documents, provider-files,"
+                        + " unreviewed-fields, was web-fetch");
+    }
+
+    @Test
+    void policyCopiesItsFeatures() {
+        List<String> classes = new ArrayList<>(List.of("public"));
+        var policy = new Policy(List.of(), Map.of(Feature.REMOTE_IMAGES, classes));
+        classes.add("internal");
+
+        assertThat(policy.allows(Feature.REMOTE_IMAGES, "internal")).isFalse();
+        assertThat(policy.allows(Feature.REMOTE_IMAGES, "public")).isTrue();
+        assertThat(policy.allows(Feature.PROVIDER_FILES, "public")).isFalse();
+        assertThat(policy.features()).isUnmodifiable();
+        assertThat(policy.features().get(Feature.REMOTE_IMAGES)).isUnmodifiable();
     }
 
     @Test

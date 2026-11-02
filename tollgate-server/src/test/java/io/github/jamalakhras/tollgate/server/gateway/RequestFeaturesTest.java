@@ -6,6 +6,7 @@ import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
@@ -78,6 +79,59 @@ class RequestFeaturesTest extends GatewayTestSupport {
                 .contains("\"type\":\"permission_error\"")
                 .contains("The anthropic-beta 'mcp-client-2025-11-20' is not allowed");
         assertThat(PROVIDER.received()).isEmpty();
+    }
+
+    @Test
+    void forwardsUnreviewedFieldsAndBetasWhereThePolicyAllowsThem() throws Exception {
+        PROVIDER.respond(200, "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
+
+        HttpResponse<String> response = post(
+                Endpoints.ANTHROPIC_MESSAGES,
+                "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[],\"context_management\":{}}",
+                "x-api-key",
+                CODER_KEY.value(),
+                "anthropic-beta",
+                "interleaved-thinking-2025-05-14");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        FakeProvider.Received forwarded = PROVIDER.received().getFirst();
+        assertThat(forwarded.headers().get("Anthropic-beta")).containsExactly("interleaved-thinking-2025-05-14");
+        assertThat(forwarded.body()).contains("\"context_management\":{}");
+    }
+
+    @Test
+    void stillRefusesWhatNoPolicyCanAllow() throws Exception {
+        HttpResponse<String> response = post(
+                Endpoints.ANTHROPIC_MESSAGES,
+                "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[]}",
+                "x-api-key",
+                CODER_KEY.value(),
+                "anthropic-beta",
+                "web-fetch-2025-09-10");
+
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(PROVIDER.received()).isEmpty();
+    }
+
+    @Test
+    void allowsAFeatureOnlyForTheDataClassesThePolicyNames() throws Exception {
+        PROVIDER.respond(200, OK);
+        String remoteImage = "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":"
+                + "\"image_url\",\"image_url\":{\"url\":\"https://example.com/chart.png\"}}]}]}";
+
+        HttpResponse<String> internal =
+                post(Endpoints.OPENAI_CHAT, remoteImage, "Authorization", "Bearer " + CODER_KEY.value());
+        HttpResponse<String> confidential = post(
+                Endpoints.OPENAI_CHAT,
+                remoteImage,
+                "Authorization",
+                "Bearer " + CODER_KEY.value(),
+                Gateway.DATA_CLASS_HEADER,
+                "confidential");
+
+        assertThat(internal.statusCode()).isEqualTo(200);
+        assertThat(confidential.statusCode()).isEqualTo(403);
+        assertThat(confidential.body()).contains("not allow for data class 'confidential'");
     }
 
     @Test

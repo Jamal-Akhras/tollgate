@@ -9,6 +9,7 @@ import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
@@ -208,6 +209,39 @@ class GatewayConfigTest {
                         AuditSettings.DISABLED))
                 .hasMessage("tenants.support-bot has no policy to enforce its data class; set"
                         + " tenants.support-bot.policy or define a 'default' policy");
+    }
+
+    @Test
+    void checksTheDataClassesAFeatureNames() {
+        var policies = Map.of("p", new Policy(List.of(), Map.of(Feature.REMOTE_IMAGES, List.of("secret"))));
+
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies, AuditSettings.DISABLED))
+                .hasMessage("policies.p.features.remote-images: no data class named 'secret'");
+    }
+
+    @Test
+    void appliesThePolicyFeaturesToTheRequest() {
+        var images = new RequestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES));
+        var withImages = new Policy(STRICT.guards(), Map.of(Feature.REMOTE_IMAGES, List.of("internal")));
+        var allowing = new GatewayConfig(
+                DATA_CLASSES,
+                Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
+                MODELS,
+                Map.of("support-bot", new Tenant(List.of("qwen3"), "internal", null, null)),
+                List.of(),
+                Map.of(GatewayConfig.DEFAULT_POLICY, withImages),
+                AuditSettings.DISABLED);
+        var route = allowing.route("support-bot", "qwen3").orElseThrow();
+        var strictRoute = config.route("support-bot", "qwen3").orElseThrow();
+
+        assertThat(allowing.admit("support-bot", route, null, 10, images).admitted())
+                .isTrue();
+        assertThat(allowing.admit("support-bot", route, "confidential", 10, images)
+                        .admitted())
+                .isFalse();
+        assertThat(config.admit("support-bot", strictRoute, null, 10, images).admitted())
+                .isFalse();
     }
 
     @Test

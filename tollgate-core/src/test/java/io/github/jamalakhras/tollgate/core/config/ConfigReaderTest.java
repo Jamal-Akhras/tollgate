@@ -8,6 +8,7 @@ import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
+import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -238,6 +239,32 @@ class ConfigReaderTest {
         assertThatThrownBy(() ->
                         ConfigReader.read(withGuard(Map.of("type", "data-class", "regions", Map.of("public", "us")))))
                 .hasMessage("policies.default.guards[0].regions.public must be a list");
+    }
+
+    @Test
+    void readsPolicyFeatures() {
+        Map<String, Object> features = Map.of("remote-images", List.of("public"), "unreviewed-fields", List.of());
+        GatewayConfig config = ConfigReader.read(
+                with("policies", Map.of("default", Map.of("guards", List.of(DATA_CLASS_GUARD), "features", features))));
+
+        assertThat(entry(config.policies(), "default").features())
+                .containsOnly(
+                        Map.entry(Feature.REMOTE_IMAGES, List.of("public")),
+                        Map.entry(Feature.UNREVIEWED_FIELDS, List.of()));
+    }
+
+    @Test
+    void rejectsUnknownFeatures() {
+        Map<String, Object> unknown =
+                Map.of("guards", List.of(DATA_CLASS_GUARD), "features", Map.of("web-fetch", List.of()));
+        Map<String, Object> notAList =
+                Map.of("guards", List.of(DATA_CLASS_GUARD), "features", Map.of("remote-images", "public"));
+
+        assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", unknown))))
+                .hasMessage("policies.default: feature must be one of remote-images, remote-documents, provider-files,"
+                        + " unreviewed-fields, was web-fetch");
+        assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", notAList))))
+                .hasMessageStartingWith("policies.default.features.remote-images");
     }
 
     @Test
