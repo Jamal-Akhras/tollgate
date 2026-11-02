@@ -12,12 +12,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 public final class JsonLinesAuditSink implements AuditSink {
+
+    private static final Set<PosixFilePermission> PRIVATE_DIRECTORY = PosixFilePermissions.fromString("rwx------");
+    private static final Set<PosixFilePermission> PRIVATE_FILE = PosixFilePermissions.fromString("rw-------");
 
     private final Path directory;
     private final FileChannel lockFile;
@@ -50,6 +56,7 @@ public final class JsonLinesAuditSink implements AuditSink {
             throw new IOException("Another Tollgate is already writing to the audit directory " + directory);
         }
         try {
+            keepPrivate(directory);
             return new JsonLinesAuditSink(
                     directory, lockFile, lock, AuditDirectory.lastSeal(directory), AuditDirectory.nextFile(directory));
         } catch (IOException | RuntimeException e) {
@@ -95,10 +102,28 @@ public final class JsonLinesAuditSink implements AuditSink {
         FileChannel open = channel;
         if (open == null) {
             open = FileChannel.open(trail, StandardOpenOption.CREATE_NEW, StandardOpenOption.APPEND);
+            if (hasPermissions(trail)) {
+                Files.setPosixFilePermissions(trail, PRIVATE_FILE);
+            }
             forceDirectory();
             channel = open;
         }
         return open;
+    }
+
+    private static void keepPrivate(Path directory) throws IOException {
+        if (!hasPermissions(directory)) {
+            return;
+        }
+        Files.setPosixFilePermissions(directory, PRIVATE_DIRECTORY);
+        Files.setPosixFilePermissions(directory.resolve(".lock"), PRIVATE_FILE);
+        for (Path file : AuditDirectory.files(directory)) {
+            Files.setPosixFilePermissions(file, PRIVATE_FILE);
+        }
+    }
+
+    private static boolean hasPermissions(Path path) {
+        return path.getFileSystem().supportedFileAttributeViews().contains("posix");
     }
 
     private void forceDirectory() throws IOException {

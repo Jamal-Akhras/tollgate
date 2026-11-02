@@ -88,6 +88,8 @@ versions may change the extension interfaces.
     `X-Content-Type-Options: nosniff`.
 - `max_tokens` is filled in only for tenants with a budget, so other requests
   keep the provider's own default and thinking models are not cut short.
+- Audit trails are private on Linux and macOS: the directory is `0700` and
+  its files `0600`, including files written by earlier versions.
 - The gateway port listens only on `127.0.0.1` unless `TOLLGATE_ADDRESS` says
   otherwise. The image listens on all of its own interfaces, and the README's
   `docker run` publishes every port on the host's `127.0.0.1` only.

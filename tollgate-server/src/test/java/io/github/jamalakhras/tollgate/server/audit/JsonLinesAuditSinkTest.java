@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.server.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.AuditLog;
@@ -11,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -31,6 +33,26 @@ class JsonLinesAuditSinkTest {
                 log.append(Samples.outcome(id));
             }
         }
+    }
+
+    private static String permissions(Path path) throws IOException {
+        return PosixFilePermissions.toString(Files.getPosixFilePermissions(path));
+    }
+
+    @Test
+    void keepsTheTrailPrivateToItsOwner() throws Exception {
+        assumeTrue(directory.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions only");
+        Path older = Files.writeString(directory.resolve("tollgate-audit-00000001.jsonl"), "");
+        Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwxr-xr-x"));
+        Files.setPosixFilePermissions(older, PosixFilePermissions.fromString("rw-r--r--"));
+
+        run("a");
+
+        assertThat(permissions(directory)).isEqualTo("rwx------");
+        assertThat(permissions(directory.resolve(".lock"))).isEqualTo("rw-------");
+        assertThat(AuditDirectory.files(directory))
+                .hasSize(2)
+                .allSatisfy(file -> assertThat(permissions(file)).isEqualTo("rw-------"));
     }
 
     private TrailVerifier.Report verify() throws IOException {
