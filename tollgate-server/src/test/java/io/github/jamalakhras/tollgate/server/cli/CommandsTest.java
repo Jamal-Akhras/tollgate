@@ -6,6 +6,8 @@ import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.AuditLog;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
+import io.github.jamalakhras.tollgate.core.config.AuditSettings;
+import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
@@ -20,6 +22,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
@@ -81,6 +84,52 @@ class CommandsTest {
         assertThat(AuditKeys.of(publicKey, signingKey, hmacKey).hmac(new byte[] {1}))
                 .hasSize(64);
         assertThat(printed).contains("signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}");
+    }
+
+    @Test
+    void initCreatesAConfigThatLoadsAndKeepsItsSecretsInAPrivateFile() throws IOException {
+        Path directory = trail.resolve("new");
+
+        int status = commands.run(List.of("init", directory.toString()));
+
+        assertThat(status).isZero();
+        String printed = out.toString(StandardCharsets.UTF_8);
+        Matcher shown = Pattern.compile("tg_\\w+").matcher(printed);
+        assertThat(shown.find()).isTrue();
+        ApiKey key = ApiKey.parse(shown.group()).orElseThrow();
+        GatewayConfig config = ConfigFile.read(directory.resolve(Init.CONFIG)).config();
+        assertThat(config.keys())
+                .singleElement()
+                .satisfies(entry -> assertThat(entry.sha256()).isEqualTo(key.sha256()));
+
+        String secrets = Files.readString(directory.resolve(Init.SECRETS));
+        assertThat(printed).doesNotContain(valueAfter(secrets, "TOLLGATE_AUDIT_SIGNING_KEY="));
+        assertThat(valueAfter(secrets, "TOLLGATE_ADMIN_TOKEN=")).hasSize(64);
+        assertThat(config.audit())
+                .isInstanceOfSatisfying(
+                        AuditSettings.Enabled.class,
+                        audit -> assertThat(AuditKeys.of(
+                                                audit.publicKey(),
+                                                valueAfter(secrets, "TOLLGATE_AUDIT_SIGNING_KEY="),
+                                                valueAfter(secrets, "TOLLGATE_AUDIT_HMAC_KEY="))
+                                        .hmac(new byte[] {1}))
+                                .hasSize(64));
+        if (directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(directory.resolve(Init.SECRETS))))
+                    .isEqualTo("rw-------");
+        }
+    }
+
+    @Test
+    void initNeverOverwritesAConfigOrItsSecrets() throws IOException {
+        Files.writeString(trail.resolve(Init.SECRETS), "TOLLGATE_ADMIN_TOKEN=keep-me\n");
+
+        int status = commands.run(List.of("init", trail.toString()));
+
+        assertThat(status).isEqualTo(Commands.FAILED);
+        assertThat(err.toString(StandardCharsets.UTF_8)).contains("never overwrites");
+        assertThat(trail.resolve(Init.CONFIG)).doesNotExist();
+        assertThat(trail.resolve(Init.SECRETS)).hasContent("TOLLGATE_ADMIN_TOKEN=keep-me");
     }
 
     @Test

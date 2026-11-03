@@ -17,6 +17,7 @@ import io.github.jamalakhras.tollgate.server.gateway.ConfigFile;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
@@ -34,6 +35,7 @@ public final class Commands {
     private static final String USAGE = """
             Usage:
               java -jar tollgate.jar                                            Start the gateway
+              java -jar tollgate.jar init [directory]                           Create a working config and its secrets
               java -jar tollgate.jar keys create --tenant <name>                Create an API key for a tenant
               java -jar tollgate.jar audit keys create                          Create the audit signing and HMAC keys
               java -jar tollgate.jar audit verify --public-key <key> <directory> Verify an audit trail
@@ -56,6 +58,9 @@ public final class Commands {
     }
 
     public int run(List<String> args) {
+        if (!args.isEmpty() && args.getFirst().equals("init") && args.size() <= 2) {
+            return init(Path.of(args.size() == 2 ? args.get(1) : "").toAbsolutePath());
+        }
         if (args.size() == 4 && args.subList(0, 3).equals(List.of("keys", "create", "--tenant"))) {
             return createKey(args.get(3));
         }
@@ -73,6 +78,48 @@ public final class Commands {
         }
         err.print(USAGE);
         return USAGE_ERROR;
+    }
+
+    private int init(Path directory) {
+        Init.Created created;
+        try {
+            created = Init.create(directory, random);
+        } catch (FileAlreadyExistsException e) {
+            err.println(e.getFile() + " already exists. Tollgate init never overwrites a config or its secrets.");
+            return FAILED;
+        } catch (IOException e) {
+            err.println("Could not create the config in " + directory + ": " + e.getMessage());
+            return FAILED;
+        }
+        out.printf(
+                """
+                Created %s and %s.
+
+                %s holds the audit keys and the admin token, and only you can read it.
+                Keep it out of version control, and back it up: without the keys, new audit
+                records cannot be signed.
+
+                The API key for tenant %s. It is shown only once:
+
+                    %s
+
+                The config sends requests to Ollama at localhost:11434 with qwen3:8b. Change
+                providers and models to match yours, then start Tollgate with the secrets in
+                its environment:
+
+                    set -a; . %s; set +a
+                    java -jar tollgate.jar
+
+                With systemd, set EnvironmentFile= to %s. With Docker, use --env-file.
+                """,
+                created.config(),
+                created.secrets(),
+                Init.SECRETS,
+                Init.TENANT,
+                created.key().value(),
+                created.secrets(),
+                created.secrets());
+        return 0;
     }
 
     private int createKey(String tenant) {

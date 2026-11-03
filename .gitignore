@@ -12,4 +12,5 @@ Thumbs.db
 
 # Local configuration and secrets
 .env
+tollgate.env
 *.local.yaml

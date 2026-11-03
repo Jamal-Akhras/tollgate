@@ -89,16 +89,19 @@ uses [Ollama](https://ollama.com) on its default port.
 alias tollgate='java -XX:+ExitOnOutOfMemoryError -jar tollgate-server/target/tollgate-server-0.1.0-SNAPSHOT.jar'
 ```
 
-**2. Create the audit keys and a tenant key.** Each command prints its secrets
-once, along with the config to add.
+**2. Create a config and its secrets.**
 
 ```bash
-tollgate audit keys create
-tollgate keys create --tenant demo
+tollgate init
 ```
 
-**3. Write `tollgate.yaml`,** filling in the key line, the public key, and the
-two secrets as environment variables:
+- **`tollgate.yaml`** is ready for Ollama with `qwen3:8b`, and holds no secrets.
+- **`tollgate.env`** holds the audit keys and an admin token. Only you can read
+  it, and `init` never overwrites it. Keep it out of version control and back
+  it up.
+- **The API key** for the tenant `my-app` is printed once.
+
+The config it writes:
 
 ```yaml
 dataClasses: [public, internal, confidential]
@@ -114,13 +117,13 @@ models:
     maxOutputTokens: { default: 1024, cap: 4096 }
 
 tenants:
-  demo:
+  my-app:
     models: [qwen3]
     dataClass: internal
-    budget: { limit: 5.00, period: monthly }
+    # budget: { limit: 5.00, period: monthly }  for a priced model
 
 keys:
-  - { id: …, tenant: demo, sha256: … }       # printed by 'keys create'
+  - { id: …, tenant: my-app, sha256: … }
 
 policies:
   default:
@@ -135,19 +138,19 @@ policies:
 audit:
   mode: sync
   directory: audit
-  publicKey: …                                # printed by 'audit keys create'
+  publicKey: …
   signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
 ```
 
-**4. Start Tollgate** with the two audit secrets and an admin token in its environment:
+**3. Start Tollgate** with the secrets in its environment:
 
 ```bash
-export TOLLGATE_AUDIT_SIGNING_KEY=… TOLLGATE_AUDIT_HMAC_KEY=… TOLLGATE_ADMIN_TOKEN=$(openssl rand -hex 32)
+set -a; . ./tollgate.env; set +a
 tollgate
 ```
 
-**5. Call it** with the OpenAI SDK, using the tenant key:
+**4. Call it** with the OpenAI SDK, using the tenant key:
 
 ```python
 from openai import OpenAI
@@ -163,7 +166,7 @@ A request that breaks a rule is refused in the SDK's own error format, with
 the reason, and each response carries an `X-Tollgate-Trace-Id` header that
 matches its audit records.
 
-**6. Verify the audit trail:**
+**5. Verify the audit trail:**
 
 ```console
 $ tollgate audit verify --public-key MCowBQYDK2VwAyEA… audit

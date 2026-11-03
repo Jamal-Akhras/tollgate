@@ -23,6 +23,10 @@ versions may change the extension interfaces.
   back in the format of the endpoint that was called.
 - `keys create`, which prints a new tenant key once with the config line that
   matches it.
+- `init`, which writes a working `tollgate.yaml` and a `tollgate.env` holding
+  the audit keys and an admin token. The secrets file is readable only by its
+  owner from the moment it exists, nothing is ever overwritten, and only the
+  tenant key is printed.
 - Request size and data-class guards. Data classes can only be made stricter,
   and each class goes only to the regions it allows.
 - Per-tenant budgets: the worst case is reserved before the call, settled from
