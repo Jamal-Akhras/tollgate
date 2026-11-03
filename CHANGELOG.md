@@ -29,6 +29,8 @@ versions may change the extension interfaces.
   reported usage, and over-budget requests are refused with `429`.
 - Prices can set a `reasoning` rate for reasoning tokens and `longContext`
   tiers that price the whole call once its prompt reaches `fromTokens`.
+- A price catalog generated from [models.dev](https://models.dev) ships inside
+  the jar, with `scripts/update-prices.py` to regenerate it.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are
