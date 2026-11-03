@@ -1,5 +1,6 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
+import io.github.jamalakhras.tollgate.server.StartupException;
 import java.net.InetAddress;
 import org.apache.catalina.connector.Connector;
 import org.jspecify.annotations.Nullable;
@@ -24,13 +25,12 @@ class AdminPortConfiguration {
     WebServerFactoryCustomizer<TomcatServletWebServerFactory> adminConnector(AdminProperties admin) {
         return factory -> {
             if (factory.getPort() == admin.port()) {
-                throw new IllegalStateException(
-                        "tollgate.admin.port must differ from server.port (" + admin.port() + ")");
+                throw new StartupException("tollgate.admin.port must differ from server.port (" + admin.port() + ")");
             }
             Connector connector = new Connector(TomcatServletWebServerFactory.DEFAULT_PROTOCOL);
             connector.setPort(admin.port());
             if (!connector.setProperty("address", admin.address())) {
-                throw new IllegalStateException("Could not bind the admin port to " + admin.address());
+                throw new StartupException("Could not bind the admin port to " + admin.address());
             }
             factory.addAdditionalConnectors(connector);
         };

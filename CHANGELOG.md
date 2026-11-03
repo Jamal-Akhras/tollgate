@@ -38,6 +38,9 @@ versions may change the extension interfaces.
 - A container image on a distroless Java 25 base, built with Jib.
 - The log says which address each port listens on at startup, and how to
   accept other machines when only localhost can connect.
+- Startup problems, such as a missing or invalid config, an unset secret or an
+  audit directory already in use, are reported in one short message without
+  a stack trace.
 
 ### Security
 

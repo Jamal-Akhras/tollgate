@@ -5,13 +5,17 @@ import io.github.jamalakhras.tollgate.core.audit.AuditLog;
 import io.github.jamalakhras.tollgate.core.budget.InMemoryBudgetStore;
 import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
+import io.github.jamalakhras.tollgate.server.StartupException;
 import io.github.jamalakhras.tollgate.server.audit.JsonLinesAuditSink;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -36,14 +40,28 @@ class GatewayConfiguration {
 
     @Bean(destroyMethod = "close")
     Gateway gateway(GatewayProperties properties, HttpClient providerHttpClient, Environment environment) {
-        return start(
-                ConfigFile.read(properties.config()),
-                environment::getProperty,
-                new ProviderClient(
-                        providerHttpClient, properties.maxResponseSize().toBytes()),
-                Clock.systemUTC(),
-                properties.maxRequestBytes(),
-                properties.maxStreamDuration());
+        try {
+            return start(
+                    ConfigFile.read(properties.config()),
+                    environment::getProperty,
+                    new ProviderClient(
+                            providerHttpClient, properties.maxResponseSize().toBytes()),
+                    Clock.systemUTC(),
+                    properties.maxRequestBytes(),
+                    properties.maxStreamDuration());
+        } catch (UncheckedIOException e) {
+            throw new StartupException(e.getMessage() + ": " + reason(Objects.requireNonNull(e.getCause())), e);
+        } catch (IllegalStateException e) {
+            throw new StartupException(String.valueOf(e.getMessage()), e);
+        }
+    }
+
+    private static String reason(IOException e) {
+        return switch (e) {
+            case AccessDeniedException denied -> "permission denied on " + denied.getFile();
+            case NoSuchFileException missing -> missing.getFile() + " does not exist";
+            default -> String.valueOf(e.getMessage());
+        };
     }
 
     static Gateway start(
