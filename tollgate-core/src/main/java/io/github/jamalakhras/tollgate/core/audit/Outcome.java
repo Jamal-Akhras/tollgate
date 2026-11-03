@@ -39,7 +39,8 @@ public record Outcome(
         TIMED_OUT,
         INVALID_RESPONSE,
         INTERRUPTED,
-        CLIENT_CLOSED;
+        CLIENT_CLOSED,
+        DRY_RUN;
 
         public String code() {
             return name().toLowerCase(Locale.ROOT);

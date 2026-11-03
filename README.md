@@ -60,8 +60,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
 - **Costs where you can see them.** A tenant with `showCosts: true` gets
   `X-Tollgate-Cost-Max`, the most a call could cost, and `X-Tollgate-Cost`,
   what it was charged, on every response. A stream ends with the charge as a
-  comment line that clients ignore
-  ([ADR 0011](docs/adr/0011-report-costs.md)).
+  comment line that clients ignore. Add `X-Tollgate-Dry-Run: true` to get the
+  estimate, after every policy and budget check, without calling the model
+  or spending anything ([ADR 0011](docs/adr/0011-report-costs.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.

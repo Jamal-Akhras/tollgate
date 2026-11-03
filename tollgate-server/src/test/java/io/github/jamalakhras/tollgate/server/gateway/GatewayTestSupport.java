@@ -40,6 +40,7 @@ abstract class GatewayTestSupport {
     static final ApiKey METERED_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey CODER_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey FRUGAL_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey PLANNER_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -125,6 +126,11 @@ abstract class GatewayTestSupport {
                     models: [frugal-model]
                     dataClass: internal
                     budget: { limit: 0.50, period: total }
+                  planner:
+                    models: [frugal-model]
+                    dataClass: internal
+                    budget: { limit: 0.50, period: total }
+                    showCosts: true
                   coder:
                     models: [qwen3, claude-sonnet, thinking-model]
                     dataClass: internal
@@ -135,6 +141,7 @@ abstract class GatewayTestSupport {
                   - { id: %6$s, tenant: metered, sha256: %7$s }
                   - { id: %10$s, tenant: coder, sha256: %11$s }
                   - { id: %12$s, tenant: frugal, sha256: %13$s }
+                  - { id: %14$s, tenant: planner, sha256: %15$s }
                 policies:
                   default:
                     guards:
@@ -168,7 +175,9 @@ abstract class GatewayTestSupport {
                         CODER_KEY.id(),
                         CODER_KEY.sha256(),
                         FRUGAL_KEY.id(),
-                        FRUGAL_KEY.sha256());
+                        FRUGAL_KEY.sha256(),
+                        PLANNER_KEY.id(),
+                        PLANNER_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

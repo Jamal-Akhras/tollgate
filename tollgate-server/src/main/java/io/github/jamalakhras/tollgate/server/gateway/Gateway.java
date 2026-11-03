@@ -20,6 +20,7 @@ import io.github.jamalakhras.tollgate.core.config.Tenant;
 import io.github.jamalakhras.tollgate.core.config.TenantKey;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
@@ -49,6 +50,7 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.json.JsonMapper;
 
 final class Gateway implements AutoCloseable {
 
@@ -59,6 +61,9 @@ final class Gateway implements AutoCloseable {
     static final String OUTPUT_LIMITED_HEADER = "X-Tollgate-Output-Limited";
     static final String COST_MAX_HEADER = "X-Tollgate-Cost-Max";
     static final String COST_HEADER = "X-Tollgate-Cost";
+    static final String DRY_RUN_HEADER = "X-Tollgate-Dry-Run";
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
 
@@ -120,7 +125,19 @@ final class Gateway implements AutoCloseable {
         if (admission.decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);
         }
-        Budgeted budgeted = reserve(call, requestBody, request);
+        boolean showCosts = showsCosts(call);
+        boolean dryRun = "true".equalsIgnoreCase(clientHeaders.apply(DRY_RUN_HEADER));
+        if (dryRun && !showCosts) {
+            throw refuse(
+                    call,
+                    requestBody,
+                    new Decision.Deny(Refusal.POLICY_DENIED, "Dry runs are only for tenants with showCosts: true"));
+        }
+        Budgeted budgeted = reserve(call, requestBody, request, dryRun);
+        Map<String, String> headers = headers(route, budgeted, showCosts);
+        if (dryRun) {
+            return Optional.of(dryRun(call, requestBody, budgeted, headers));
+        }
         Reservation reservation = budgeted.reservation();
         try {
             recordIntent(call, requestBody, Decision.ALLOW, reservation == null ? null : reservation.amount());
@@ -130,13 +147,6 @@ final class Gateway implements AutoCloseable {
             }
             throw e;
         }
-        boolean showCosts = showsCosts(call);
-        Map<String, String> headers = new LinkedHashMap<>();
-        budgeted.outputLimitedTo().ifPresent(tokens -> headers.put(OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
-        if (showCosts && budgeted.forwarded().maxOutputTokens().isPresent()) {
-            headers.put(
-                    COST_MAX_HEADER, mostItCanCost(route, budgeted.forwarded()).toString());
-        }
         if (request.isStreaming()) {
             stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
             return Optional.empty();
@@ -145,8 +155,48 @@ final class Gateway implements AutoCloseable {
         if (showCosts) {
             headers.put(COST_HEADER, sent.charge().toString());
         }
-        return Optional.of(new Result(sent.response(), headers));
+        return Optional.of(new Result(
+                sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
     }
+
+    private static Map<String, String> headers(Route route, Budgeted budgeted, boolean showCosts) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        budgeted.outputLimitedTo().ifPresent(tokens -> headers.put(OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
+        if (showCosts && budgeted.forwarded().maxOutputTokens().isPresent()) {
+            headers.put(
+                    COST_MAX_HEADER, mostItCanCost(route, budgeted.forwarded()).toString());
+        }
+        return headers;
+    }
+
+    private Result dryRun(Call call, byte[] requestBody, Budgeted budgeted, Map<String, String> headers) {
+        Route route = call.route();
+        ChatRequest.Forwarded forwarded = budgeted.forwarded();
+        recordIntent(call, requestBody, Decision.ALLOW, null);
+        recordOutcome(
+                call, Outcome.Result.DRY_RUN, null, Optional.empty(), nothing(route), Duration.ZERO, trail -> null);
+        OptionalLong output = forwarded.maxOutputTokens();
+        String priceCatalog = route.definition().priceCatalog();
+        Estimate estimate = new Estimate(
+                "tollgate.estimate",
+                route.model(),
+                inputTokens(forwarded),
+                output.isPresent() ? output.getAsLong() * forwarded.choices() : null,
+                headers.get(COST_MAX_HEADER),
+                priceCatalog == null
+                        ? "config"
+                        : "the " + priceCatalog + " price catalog, "
+                                + PriceCatalog.bundled().version());
+        return new Result(200, JSON.writeValueAsString(estimate), headers);
+    }
+
+    private record Estimate(
+            String object,
+            String model,
+            long inputTokens,
+            @Nullable Long outputTokens,
+            @Nullable String maxCost,
+            String price) {}
 
     List<String> models(WireFormat endpoint, Optional<String> credential) {
         Snapshot snapshot = current;
@@ -407,7 +457,7 @@ final class Gateway implements AutoCloseable {
         }
     }
 
-    private Budgeted reserve(Call call, byte[] requestBody, ChatRequest request) {
+    private Budgeted reserve(Call call, byte[] requestBody, ChatRequest request, boolean dryRun) {
         Route route = call.route();
         OutputTokens limits = route.definition().maxOutputTokens();
         String tenantName = call.caller().tenant();
@@ -421,7 +471,7 @@ final class Gateway implements AutoCloseable {
             throw new IllegalStateException("Budgeted model " + route.model() + " has no output cap");
         }
         Money mostItCanCost = mostItCanCost(route, forwarded);
-        Optional<Reservation> reservation = budgets.reserve(tenantName, budget, mostItCanCost);
+        Optional<Reservation> reservation = hold(tenantName, budget, mostItCanCost, dryRun);
         if (reservation.isPresent()) {
             return new Budgeted(forwarded, reservation.get(), OptionalLong.empty());
         }
@@ -434,7 +484,7 @@ final class Gateway implements AutoCloseable {
         long asked = forwarded.maxOutputTokens().orElse(limits.cap());
         if (fits >= lowest && fits < asked) {
             ChatRequest.Forwarded smaller = forward(request, route, call.endpoint(), limits.loweredTo(fits), true);
-            Optional<Reservation> lowered = budgets.reserve(tenantName, budget, mostItCanCost(route, smaller));
+            Optional<Reservation> lowered = hold(tenantName, budget, mostItCanCost(route, smaller), dryRun);
             if (lowered.isPresent()) {
                 return new Budgeted(smaller, lowered.get(), OptionalLong.of(fits));
             }
@@ -447,6 +497,15 @@ final class Gateway implements AutoCloseable {
                         "This request could cost up to " + mostItCanCost + ", which this tenant's "
                                 + budget.period().configName() + " budget of " + budget.limit()
                                 + " cannot cover, even with a shorter answer"));
+    }
+
+    private Optional<Reservation> hold(String tenant, Budget budget, Money amount, boolean dryRun) {
+        if (!dryRun) {
+            return budgets.reserve(tenant, budget, amount);
+        }
+        return budgets.available(tenant, budget).compareTo(amount) >= 0
+                ? Optional.of(new Reservation(tenant, budget, amount))
+                : Optional.empty();
     }
 
     private static long inputTokens(ChatRequest.Forwarded forwarded) {
@@ -566,7 +625,7 @@ final class Gateway implements AutoCloseable {
         return tenant != null && tenant.showCosts();
     }
 
-    record Result(ProviderResponse response, Map<String, String> headers) {}
+    record Result(int status, String body, Map<String, String> headers) {}
 
     private record Sent(ProviderResponse response, Money charge) {}
 

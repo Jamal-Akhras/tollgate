@@ -126,7 +126,7 @@ class AuditFailureTest {
                             "trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null, NOT_STREAMED)
                     .orElseThrow();
 
-            assertThat(response.response().status()).isEqualTo(200);
+            assertThat(response.status()).isEqualTo(200);
             assertThat(provider.received()).hasSize(1);
         }
     }

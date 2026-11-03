@@ -44,6 +44,10 @@ versions may change the extension interfaces.
 - Tenants with `showCosts: true` get `X-Tollgate-Cost-Max` and
   `X-Tollgate-Cost` on each response. A stream carries the maximum in its
   headers and ends with `: tollgate-cost <amount>`.
+- `X-Tollgate-Dry-Run: true` returns a cost estimate without calling the
+  model or reserving any budget. It runs every check a real call would, is
+  audited with the result `dry_run` and a cost of zero, and is only for
+  tenants with `showCosts`.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

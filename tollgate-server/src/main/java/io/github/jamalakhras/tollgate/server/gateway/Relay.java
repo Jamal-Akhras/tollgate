@@ -1,6 +1,6 @@
 package io.github.jamalakhras.tollgate.server.gateway;
 
-import io.github.jamalakhras.tollgate.providers.ProviderResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,12 +21,11 @@ final class Relay {
     }
 
     static ResponseEntity<byte[]> response(Gateway.Result result) {
-        ProviderResponse response = result.response();
-        return ResponseEntity.status(response.status())
+        return ResponseEntity.status(result.status())
                 .headers(headers -> {
                     headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
                     result.headers().forEach(headers::set);
                 })
-                .body(response.body());
+                .body(result.body().getBytes(StandardCharsets.UTF_8));
     }
 }
