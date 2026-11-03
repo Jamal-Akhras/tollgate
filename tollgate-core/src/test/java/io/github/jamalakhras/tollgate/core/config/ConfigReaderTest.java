@@ -296,6 +296,18 @@ class ConfigReaderTest {
     }
 
     @Test
+    void showsCostsOnlyToTenantsThatAskForThem() {
+        assertThat(entry(ConfigReader.read(document()).tenants(), "support-bot").showCosts())
+                .isFalse();
+        assertThat(entry(
+                                ConfigReader.read(with("tenants.support-bot.showCosts", true))
+                                        .tenants(),
+                                "support-bot")
+                        .showCosts())
+                .isTrue();
+    }
+
+    @Test
     void chargesReasoningAsOutputUnlessPricedApart() {
         TokenRates rates =
                 entry(ConfigReader.read(document()).models(), "qwen3").price().rates();
@@ -486,6 +498,7 @@ class ConfigReaderTest {
             models.qwen3.provider            | vllm            | models.qwen3.provider: no provider named 'vllm'
             models.qwen3.upstream            | ' '             | models.qwen3.upstream must be a non-empty string
             models.qwen3.price.reasoning     | free            | models.qwen3.price.reasoning must be an amount such as 3.50, was free
+            tenants.support-bot.showCosts    | yes             | tenants.support-bot.showCosts must be true or false, was yes
             models.qwen3.price.longContext   | 128000          | models.qwen3.price.longContext must be a list
             """)
     void reportsWhereAProblemIs(String path, String value, String message) {

@@ -57,6 +57,11 @@ what was sent, who sent it, what it cost, and why it was allowed.
     tollgate.yaml` prints the catalog prices your config uses, ready to paste
     in, and `tollgate prices show openai gpt-6.1-sol` prints one.
   - Nothing is fetched at runtime ([ADR 0009](docs/adr/0009-price-catalog.md)).
+- **Costs where you can see them.** A tenant with `showCosts: true` gets
+  `X-Tollgate-Cost-Max`, the most a call could cost, and `X-Tollgate-Cost`,
+  what it was charged, on every response. A stream ends with the charge as a
+  comment line that clients ignore
+  ([ADR 0011](docs/adr/0011-report-costs.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.

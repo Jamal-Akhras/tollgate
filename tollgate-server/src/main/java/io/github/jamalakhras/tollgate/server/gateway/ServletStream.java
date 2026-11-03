@@ -2,7 +2,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.OptionalLong;
+import java.util.Map;
 
 final class ServletStream implements StreamTarget {
 
@@ -13,11 +13,11 @@ final class ServletStream implements StreamTarget {
     }
 
     @Override
-    public void open(OptionalLong outputLimitedTo) throws IOException {
+    public void open(Map<String, String> headers) throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("text/event-stream");
         response.setHeader("Cache-Control", "no-cache");
-        outputLimitedTo.ifPresent(tokens -> response.setHeader(Gateway.OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
+        headers.forEach(response::setHeader);
         response.flushBuffer();
     }
 

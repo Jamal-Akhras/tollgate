@@ -160,10 +160,14 @@ public final class ConfigReader {
     }
 
     private static Tenant tenant(Section section, Currency currency) {
-        section.requireOnly("models", "dataClass", "policy", "budget");
+        section.requireOnly("models", "dataClass", "policy", "budget", "showCosts");
         Budget budget = section.optionalChild("budget", child -> budget(child, currency));
         return section.build(() -> new Tenant(
-                section.texts("models"), section.optionalText("dataClass"), section.optionalText("policy"), budget));
+                section.texts("models"),
+                section.optionalText("dataClass"),
+                section.optionalText("policy"),
+                budget,
+                section.flag("showCosts", false)));
     }
 
     private static Budget budget(Section section, Currency currency) {

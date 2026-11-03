@@ -25,8 +25,7 @@ final class Relay {
         return ResponseEntity.status(response.status())
                 .headers(headers -> {
                     headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-                    result.outputLimitedTo()
-                            .ifPresent(tokens -> headers.set(Gateway.OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
+                    result.headers().forEach(headers::set);
                 })
                 .body(response.body());
     }

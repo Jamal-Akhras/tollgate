@@ -28,8 +28,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -88,7 +88,7 @@ class AuditFailureTest {
 
     private static final StreamTarget NOT_STREAMED = new StreamTarget() {
         @Override
-        public void open(OptionalLong outputLimitedTo) {
+        public void open(Map<String, String> headers) {
             throw new AssertionError("Not a streamed request");
         }
 

@@ -35,10 +35,12 @@ import io.github.jamalakhras.tollgate.providers.UsageReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +57,8 @@ final class Gateway implements AutoCloseable {
     static final long PROMPT_OVERHEAD_TOKENS = 1_024;
     static final long IMAGE_TOKENS = 5_000;
     static final String OUTPUT_LIMITED_HEADER = "X-Tollgate-Output-Limited";
+    static final String COST_MAX_HEADER = "X-Tollgate-Cost-Max";
+    static final String COST_HEADER = "X-Tollgate-Cost";
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
 
@@ -126,12 +130,22 @@ final class Gateway implements AutoCloseable {
             }
             throw e;
         }
+        boolean showCosts = showsCosts(call);
+        Map<String, String> headers = new LinkedHashMap<>();
+        budgeted.outputLimitedTo().ifPresent(tokens -> headers.put(OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
+        if (showCosts && budgeted.forwarded().maxOutputTokens().isPresent()) {
+            headers.put(
+                    COST_MAX_HEADER, mostItCanCost(route, budgeted.forwarded()).toString());
+        }
         if (request.isStreaming()) {
-            stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage());
+            stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
             return Optional.empty();
         }
-        ProviderResponse response = send(call, budgeted.forwarded(), reservation, clientHeaders);
-        return Optional.of(new Result(response, budgeted.outputLimitedTo()));
+        Sent sent = send(call, budgeted.forwarded(), reservation, clientHeaders);
+        if (showCosts) {
+            headers.put(COST_HEADER, sent.charge().toString());
+        }
+        return Optional.of(new Result(sent.response(), headers));
     }
 
     List<String> models(WireFormat endpoint, Optional<String> credential) {
@@ -184,7 +198,7 @@ final class Gateway implements AutoCloseable {
         }
     }
 
-    private ProviderResponse send(
+    private Sent send(
             Call call,
             ChatRequest.Forwarded forwarded,
             @Nullable Reservation reservation,
@@ -209,7 +223,7 @@ final class Gateway implements AutoCloseable {
             if (!succeeded(response)) {
                 throw unsuccessful(route, response);
             }
-            return response.withModel(route.model());
+            return new Sent(response.withModel(route.model()), charge);
         } catch (InvalidProviderResponseException e) {
             result = Outcome.Result.INVALID_RESPONSE;
             log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
@@ -242,7 +256,9 @@ final class Gateway implements AutoCloseable {
             Budgeted budgeted,
             Function<String, @Nullable String> clientHeaders,
             StreamTarget target,
-            boolean relayUsage) {
+            boolean relayUsage,
+            Map<String, String> headers,
+            boolean showCosts) {
         Route route = call.route();
         Reservation reservation = budgeted.reservation();
         Money charge = reservation == null ? nothing(route) : reservation.amount();
@@ -267,7 +283,7 @@ final class Gateway implements AutoCloseable {
                 throw unsuccessful(route, stream.whole());
             }
             StreamRewriter rewriter = new StreamRewriter(call.endpoint(), route.model(), relayUsage);
-            target.open(budgeted.outputLimitedTo());
+            target.open(headers);
             opened = true;
             List<String> event = stream.nextEvent(remaining(deadline));
             while (event != null) {
@@ -286,6 +302,9 @@ final class Gateway implements AutoCloseable {
                 charge = route.definition().price().costOf(usage.get(), rewriter.reasoningTokens(), webSearches);
             } else {
                 log.warn("Provider {} streamed no token usage; charging the full reservation", route.providerName());
+            }
+            if (showCosts) {
+                target.write((": tollgate-cost " + charge + "\n\n").getBytes(StandardCharsets.UTF_8));
             }
         } catch (IOException e) {
             result = Outcome.Result.CLIENT_CLOSED;
@@ -542,7 +561,14 @@ final class Gateway implements AutoCloseable {
 
     record Reload(String version, boolean changed) {}
 
-    record Result(ProviderResponse response, OptionalLong outputLimitedTo) {}
+    private static boolean showsCosts(Call call) {
+        Tenant tenant = call.snapshot().config().tenants().get(call.caller().tenant());
+        return tenant != null && tenant.showCosts();
+    }
+
+    record Result(ProviderResponse response, Map<String, String> headers) {}
+
+    private record Sent(ProviderResponse response, Money charge) {}
 
     private record Budgeted(
             ChatRequest.Forwarded forwarded, @Nullable Reservation reservation, OptionalLong outputLimitedTo) {}

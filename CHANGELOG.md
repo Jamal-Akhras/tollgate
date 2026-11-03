@@ -41,6 +41,9 @@ versions may change the extension interfaces.
   team can paste them in and own them.
 - A weekly workflow regenerates the price catalog and opens a pull request
   when a price changes, so every change is reviewed before it ships.
+- Tenants with `showCosts: true` get `X-Tollgate-Cost-Max` and
+  `X-Tollgate-Cost` on each response. A stream carries the maximum in its
+  headers and ends with `: tollgate-cost <amount>`.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

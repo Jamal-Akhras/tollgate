@@ -27,7 +27,6 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,7 +42,7 @@ class BudgetReplayTest {
             "{\"choices\":[],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":10}}";
     private static final StreamTarget NOT_STREAMED = new StreamTarget() {
         @Override
-        public void open(OptionalLong outputLimitedTo) {
+        public void open(Map<String, String> headers) {
             throw new AssertionError("Not a streamed request");
         }
 

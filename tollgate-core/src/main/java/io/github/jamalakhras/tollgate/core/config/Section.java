@@ -103,6 +103,14 @@ final class Section {
         };
     }
 
+    boolean flag(String key, boolean fallback) {
+        return switch (values.get(key)) {
+            case null -> fallback;
+            case Boolean flag -> flag;
+            default -> throw new InvalidConfigException(pathOf(key) + " must be true or false, was " + values.get(key));
+        };
+    }
+
     long optionalWholeNumber(String key, long fallback) {
         return values.get(key) == null ? fallback : wholeNumber(key);
     }

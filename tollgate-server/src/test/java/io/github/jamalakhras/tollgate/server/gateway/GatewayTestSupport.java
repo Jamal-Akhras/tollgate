@@ -128,6 +128,7 @@ abstract class GatewayTestSupport {
                   coder:
                     models: [qwen3, claude-sonnet, thinking-model]
                     dataClass: internal
+                    showCosts: true
                     policy: coding
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
