@@ -31,6 +31,11 @@ public record ModelPrice(
         this(new TokenRates(input, output, cacheRead, cacheWrite), List.of(), null);
     }
 
+    public static ModelPrice free(Currency currency) {
+        TokenPrice nothing = new TokenPrice(new Money(0, currency));
+        return new ModelPrice(nothing, nothing, nothing, nothing);
+    }
+
     public Currency currency() {
         return rates.currency();
     }

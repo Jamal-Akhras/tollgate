@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 
 import io.github.jamalakhras.tollgate.core.config.ConfigReader;
 import io.github.jamalakhras.tollgate.core.config.InvalidConfigException;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +37,8 @@ final class ConfigFile {
             String yaml = new String(bytes, StandardCharsets.UTF_8);
             Map<String, Object> document =
                     yaml.isBlank() ? Map.of() : YAML.readValue(yaml, new TypeReference<Map<String, Object>>() {});
-            return new LoadedConfig(path, ConfigReader.read(document), sha256(bytes));
+            PriceCatalog catalog = PriceCatalog.bundled();
+            return new LoadedConfig(path, ConfigReader.read(document, catalog), version(catalog, bytes));
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read " + path, e);
         } catch (JacksonException e) {
@@ -46,9 +48,11 @@ final class ConfigFile {
         }
     }
 
-    private static String sha256(byte[] bytes) {
+    private static String version(PriceCatalog catalog, byte[] bytes) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update((catalog.version() + "\n").getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest.digest(bytes));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Every Java runtime provides SHA-256", e);
         }

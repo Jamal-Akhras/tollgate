@@ -126,7 +126,7 @@ models:
   qwen3:
     provider: ollama
     upstream: qwen3:32b
-    price: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+    price: free
     maxOutputTokens: { default: 4096, cap: 16384 }
 
 tenants:

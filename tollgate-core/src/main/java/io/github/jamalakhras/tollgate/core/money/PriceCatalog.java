@@ -38,6 +38,10 @@ public final class PriceCatalog {
         return version;
     }
 
+    public boolean covers(String provider) {
+        return prices.containsKey(provider);
+    }
+
     public Optional<ModelPrice> price(String provider, String model) {
         return Optional.ofNullable(prices.getOrDefault(provider, Map.of()).get(model));
     }

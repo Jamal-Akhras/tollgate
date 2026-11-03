@@ -4,7 +4,9 @@ import io.github.jamalakhras.tollgate.core.policy.RefusedFields;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
@@ -14,9 +16,26 @@ public record Provider(
         @Nullable SecretRef apiKey,
         @Nullable String region,
         Duration timeout,
-        List<String> extraFields) {
+        List<String> extraFields,
+        @Nullable String catalog) {
 
     private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]");
+    private static final Map<String, String> CATALOG_HOSTS = Map.ofEntries(
+            Map.entry("api.openai.com", "openai"),
+            Map.entry("api.anthropic.com", "anthropic"),
+            Map.entry("dashscope-intl.aliyuncs.com", "alibaba"),
+            Map.entry("dashscope.aliyuncs.com", "alibaba-cn"),
+            Map.entry("openrouter.ai", "openrouter"),
+            Map.entry("api.deepseek.com", "deepseek"),
+            Map.entry("api.mistral.ai", "mistral"),
+            Map.entry("api.groq.com", "groq"),
+            Map.entry("api.together.xyz", "togetherai"),
+            Map.entry("api.fireworks.ai", "fireworks-ai"),
+            Map.entry("api.x.ai", "xai"),
+            Map.entry("generativelanguage.googleapis.com", "google"),
+            Map.entry("api.moonshot.ai", "moonshotai"),
+            Map.entry("api.z.ai", "zai"),
+            Map.entry("ollama.com", "ollama-cloud"));
 
     public Provider {
         Objects.requireNonNull(format, "format");
@@ -46,7 +65,11 @@ public record Provider(
 
     public Provider(
             WireFormat format, URI baseUrl, @Nullable SecretRef apiKey, @Nullable String region, Duration timeout) {
-        this(format, baseUrl, apiKey, region, timeout, List.of());
+        this(format, baseUrl, apiKey, region, timeout, List.of(), null);
+    }
+
+    public Optional<String> priceCatalog() {
+        return Optional.ofNullable(catalog != null ? catalog : CATALOG_HOSTS.get(baseUrl.getHost()));
     }
 
     public URI endpoint(String path) {

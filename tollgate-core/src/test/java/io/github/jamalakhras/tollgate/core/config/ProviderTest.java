@@ -24,11 +24,36 @@ class ProviderTest {
     void acceptsExtraFieldsThatNeitherSendDataElsewhereNorChangeThePrice() {
         List<String> fields = new ArrayList<>(List.of("top_k", "min_p"));
         var provider = new Provider(
-                WireFormat.OPENAI, URI.create("http://gpu-box:11434/v1"), null, null, Duration.ofSeconds(5), fields);
+                WireFormat.OPENAI,
+                URI.create("http://gpu-box:11434/v1"),
+                null,
+                null,
+                Duration.ofSeconds(5),
+                fields,
+                null);
         fields.add("num_ctx");
 
         assertThat(provider.extraFields()).containsExactly("top_k", "min_p").isUnmodifiable();
         assertThat(provider("http://gpu-box:11434/v1", null).extraFields()).isEmpty();
+    }
+
+    @Test
+    void findsThePriceCatalogFromTheHostUnlessOneIsNamed() {
+        assertThat(provider("https://api.openai.com/v1", null).priceCatalog()).contains("openai");
+        assertThat(provider("https://dashscope.aliyuncs.com/compatible-mode/v1", null)
+                        .priceCatalog())
+                .contains("alibaba-cn");
+        assertThat(provider("http://localhost:11434/v1", null).priceCatalog()).isEmpty();
+        assertThat(new Provider(
+                                WireFormat.OPENAI,
+                                URI.create("https://llm-proxy.example.com/v1"),
+                                null,
+                                null,
+                                Duration.ofSeconds(5),
+                                List.of(),
+                                "openrouter")
+                        .priceCatalog())
+                .contains("openrouter");
     }
 
     @ParameterizedTest
@@ -40,7 +65,8 @@ class ProviderTest {
                         null,
                         null,
                         Duration.ofSeconds(5),
-                        List.of("top_k", field)))
+                        List.of("top_k", field),
+                        null))
                 .hasMessageStartingWith("extraFields must not include '" + field + "': ");
     }
 

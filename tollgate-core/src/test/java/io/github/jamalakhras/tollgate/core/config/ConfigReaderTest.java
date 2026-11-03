@@ -7,6 +7,7 @@ import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
@@ -44,6 +45,11 @@ class ConfigReaderTest {
             "publicKey", "MCowBQYDK2VwAyEA",
             "signingKey", "${env:TOLLGATE_AUDIT_SIGNING_KEY}",
             "hmacKey", "${env:TOLLGATE_AUDIT_HMAC_KEY}");
+
+    private static final PriceCatalog CATALOG = Prices.catalog("""
+            anthropic\tclaude-sonnet-4-5\t0\t3\t15\t15\t0.3\t3.75
+            openrouter\tqwen/qwen3-32b\t0\t0.1\t0.3\t0.3\t0.1\t0.1
+            """);
 
     private static Map<String, Object> document() {
         Map<String, Object> document = new LinkedHashMap<>();
@@ -175,7 +181,7 @@ class ConfigReaderTest {
         assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.price", Map.of("input", 1))))
                 .hasMessage("models.qwen3.price.output is required");
         assertThatThrownBy(() -> ConfigReader.read(without("models.qwen3.price")))
-                .hasMessage("models.qwen3.price is required");
+                .hasMessageStartingWith("models.qwen3.price is required: its provider has no price catalog");
         assertThatThrownBy(() -> ConfigReader.read(with(
                         "models.qwen3.price", Map.of("input", "free", "output", 0, "cacheRead", 0, "cacheWrite", 0))))
                 .hasMessage("models.qwen3.price.input must be an amount such as 3.50, was free");
@@ -295,6 +301,55 @@ class ConfigReaderTest {
                 entry(ConfigReader.read(document()).models(), "qwen3").price().rates();
 
         assertThat(rates.reasoning()).isEqualTo(rates.output());
+    }
+
+    @Test
+    void takesAMissingPriceFromTheCatalogOfTheProvidersHost() {
+        GatewayConfig config = ConfigReader.read(without("models.claude-sonnet.price"), CATALOG);
+
+        assertThat(entry(config.models(), "claude-sonnet").price())
+                .isEqualTo(CATALOG.price("anthropic", "claude-sonnet-4-5").orElseThrow());
+    }
+
+    @Test
+    void readsFreeModelsAndCatalogsNamedByTheProvider() {
+        Map<String, Object> document = without("models.qwen3.price");
+        parentOf(document, "providers.ollama.catalog").put("catalog", "openrouter");
+        parentOf(document, "models.qwen3.upstream").put("upstream", "qwen/qwen3-32b");
+
+        assertThat(entry(ConfigReader.read(document, CATALOG).models(), "qwen3").price())
+                .isEqualTo(CATALOG.price("openrouter", "qwen/qwen3-32b").orElseThrow());
+        assertThat(entry(
+                                ConfigReader.read(with("models.qwen3.price", "free"), CATALOG)
+                                        .models(),
+                                "qwen3")
+                        .price())
+                .isEqualTo(ModelPrice.free(Currency.getInstance("USD")));
+    }
+
+    @Test
+    void explainsWhyAModelNeedsAWrittenPrice() {
+        assertThatThrownBy(() -> ConfigReader.read(without("models.qwen3.price"), CATALOG))
+                .hasMessage("models.qwen3.price is required: its provider has no price catalog."
+                        + " Write the price, or price: free if it costs nothing");
+        Map<String, Object> unknownModel = without("models.claude-sonnet.price");
+        parentOf(unknownModel, "models.claude-sonnet.upstream").put("upstream", "claude-next");
+        assertThatThrownBy(() -> ConfigReader.read(unknownModel, CATALOG))
+                .hasMessage(
+                        "models.claude-sonnet.price is required: the anthropic price catalog has no model claude-next");
+        Map<String, Object> pounds = without("models.claude-sonnet.price");
+        pounds.put("currency", "GBP");
+        assertThatThrownBy(() -> ConfigReader.read(pounds, CATALOG))
+                .hasMessage("models.claude-sonnet.price is required, because the price catalog is in USD and the"
+                        + " currency is GBP");
+        Map<String, Object> unknownProvider = without("models.qwen3.price");
+        parentOf(unknownProvider, "models.qwen3.provider").put("provider", "vllm");
+        assertThatThrownBy(() -> ConfigReader.read(unknownProvider, CATALOG))
+                .hasMessage("models.qwen3.provider: no provider named 'vllm'");
+        assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.price", "cheap"), CATALOG))
+                .hasMessage("models.qwen3.price must be a price or free, was cheap");
+        assertThatThrownBy(() -> ConfigReader.read(with("providers.ollama.catalog", "nowhere"), CATALOG))
+                .hasMessage("providers.ollama.catalog names no price catalog: nowhere");
     }
 
     @Test

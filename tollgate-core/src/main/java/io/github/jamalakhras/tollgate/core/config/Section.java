@@ -45,6 +45,14 @@ final class Section {
         return new InvalidConfigException(pathOf(key) + " " + problem);
     }
 
+    boolean isText(String key) {
+        return values.get(key) instanceof String;
+    }
+
+    String path(String key) {
+        return pathOf(key);
+    }
+
     String text(String key) {
         String text = optionalText(key);
         if (text == null) {

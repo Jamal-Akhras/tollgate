@@ -31,6 +31,11 @@ versions may change the extension interfaces.
   tiers that price the whole call once its prompt reaches `fromTokens`.
 - A price catalog generated from [models.dev](https://models.dev) ships inside
   the jar, with `scripts/update-prices.py` to regenerate it.
+- `price` is optional for models on known hosts, such as OpenAI, Anthropic and
+  DashScope, and for providers that name a catalog with `catalog:`; the
+  catalog's price is used. `price: free` marks a model that costs nothing. A
+  model with no price and no catalog entry stops the config from loading.
+  The config version now includes the catalog version.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

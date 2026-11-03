@@ -5,6 +5,7 @@ import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.core.money.ContextTier;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.SearchPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenRates;
@@ -18,6 +19,7 @@ import java.util.Currency;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 public final class ConfigReader {
 
@@ -27,12 +29,16 @@ public final class ConfigReader {
     private ConfigReader() {}
 
     public static GatewayConfig read(Map<String, ?> document) {
+        return read(document, PriceCatalog.bundled());
+    }
+
+    public static GatewayConfig read(Map<String, ?> document, PriceCatalog catalog) {
         Section root = Section.root(document);
         root.requireOnly("currency", "dataClasses", "providers", "models", "tenants", "keys", "policies", "audit");
         Currency currency = root.currency("currency", DEFAULT_CURRENCY);
         var dataClasses = root.texts("dataClasses");
-        var providers = root.sections("providers", ConfigReader::provider);
-        var models = root.sections("models", section -> model(section, currency));
+        var providers = root.sections("providers", section -> provider(section, catalog));
+        var models = root.sections("models", section -> model(section, currency, providers, catalog));
         var tenants = root.sections("tenants", section -> tenant(section, currency));
         var keys = root.sectionList("keys", ConfigReader::key);
         var policies = root.sections("policies", ConfigReader::policy);
@@ -60,25 +66,66 @@ public final class ConfigReader {
         };
     }
 
-    private static Provider provider(Section section) {
-        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout", "extraFields");
+    private static Provider provider(Section section, PriceCatalog catalog) {
+        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout", "extraFields", "catalog");
         String apiKey = section.optionalText("apiKey");
+        String named = section.optionalText("catalog");
+        if (named != null && !catalog.covers(named)) {
+            throw section.invalid("catalog", "names no price catalog: " + named);
+        }
         return section.build(() -> new Provider(
                 WireFormat.fromConfigName(section.text("format")),
                 section.uri("baseUrl"),
                 apiKey == null ? null : SecretRef.parse(apiKey),
                 section.optionalText("region"),
                 section.duration("timeout", DEFAULT_TIMEOUT),
-                section.texts("extraFields")));
+                section.texts("extraFields"),
+                named));
     }
 
-    private static Model model(Section section, Currency currency) {
+    private static Model model(
+            Section section, Currency currency, Map<String, Provider> providers, PriceCatalog catalog) {
         section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches");
-        ModelPrice price = section.child("price", child -> price(child, currency));
+        String provider = section.text("provider");
+        String upstream = section.text("upstream");
+        ModelPrice price = modelPrice(section, currency, providers.get(provider), provider, upstream, catalog);
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
         long maxWebSearches = section.optionalWholeNumber("maxWebSearches", 0);
-        return section.build(() ->
-                new Model(section.text("provider"), section.text("upstream"), price, maxOutputTokens, maxWebSearches));
+        return section.build(() -> new Model(provider, upstream, price, maxOutputTokens, maxWebSearches));
+    }
+
+    private static ModelPrice modelPrice(
+            Section section,
+            Currency currency,
+            @Nullable Provider provider,
+            String providerName,
+            String upstream,
+            PriceCatalog catalog) {
+        if (section.isText("price")) {
+            String text = section.text("price");
+            if (!text.equals("free")) {
+                throw section.invalid("price", "must be a price or free, was " + text);
+            }
+            return ModelPrice.free(currency);
+        }
+        ModelPrice written = section.optionalChild("price", child -> price(child, currency));
+        if (written != null) {
+            return written;
+        }
+        String required = section.path("price") + " is required";
+        if (provider == null) {
+            throw new InvalidConfigException(section.path("provider") + ": no provider named '" + providerName + "'");
+        }
+        if (!currency.equals(DEFAULT_CURRENCY)) {
+            throw new InvalidConfigException(
+                    required + ", because the price catalog is in USD and the currency is " + currency);
+        }
+        String named = provider.priceCatalog()
+                .orElseThrow(() -> new InvalidConfigException(required
+                        + ": its provider has no price catalog. Write the price, or price: free if it costs nothing"));
+        return catalog.price(named, upstream)
+                .orElseThrow(() -> new InvalidConfigException(
+                        required + ": the " + named + " price catalog has no model " + upstream));
     }
 
     private static ModelPrice price(Section section, Currency currency) {

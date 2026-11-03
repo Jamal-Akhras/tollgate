@@ -46,6 +46,15 @@ what was sent, who sent it, what it cost, and why it was allowed.
   are integer nano-units, never floating point
   ([ADR 0003](docs/adr/0003-money-representation.md),
   [ADR 0006](docs/adr/0006-budget-reservations.md)).
+- **Prices you don't have to type.**
+  - **Hosted models:** a reviewed catalog generated from
+    [models.dev](https://models.dev) ships with each release. Models on
+    OpenAI, Anthropic, DashScope, OpenRouter and other known hosts take their
+    price from it, including long-context tiers and reasoning rates.
+  - **Other providers:** a provider can name a catalog with `catalog:`.
+  - **Local models:** set `price: free`.
+  - **Your own rates:** a `price` you write always wins.
+  - Nothing is fetched at runtime ([ADR 0009](docs/adr/0009-price-catalog.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.
@@ -93,7 +102,7 @@ models:
   qwen3:
     provider: ollama
     upstream: "qwen3:8b"
-    price: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+    price: free
     maxOutputTokens: { default: 1024, cap: 4096 }
 
 tenants:
