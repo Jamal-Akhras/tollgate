@@ -24,6 +24,7 @@ public final class StreamRewriter {
     private long cacheRead;
     private long cacheWrite;
     private long webSearches;
+    private long reasoningTokens;
 
     public StreamRewriter(WireFormat format, String model, boolean relayUsage) {
         this.format = format;
@@ -71,6 +72,10 @@ public final class StreamRewriter {
         return webSearches;
     }
 
+    public long reasoningTokens() {
+        return reasoningTokens;
+    }
+
     private boolean read(ObjectNode data) {
         return switch (format) {
             case OPENAI -> {
@@ -79,6 +84,7 @@ public final class StreamRewriter {
                     yield true;
                 }
                 UsageReader.openAi(reported).ifPresent(found -> usage = found);
+                reasoningTokens = UsageReader.reasoningTokens(reported);
                 JsonNode choices = data.path("choices");
                 yield relayUsage || !choices.isArray() || !choices.isEmpty();
             }

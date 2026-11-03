@@ -31,6 +31,25 @@ class UsageReaderTest {
                 .isZero();
     }
 
+    @Test
+    void readsTheReasoningTokensOpenAiFormatProvidersReport() {
+        byte[] body = """
+                {"usage":{"prompt_tokens":53,"completion_tokens":31,
+                 "completion_tokens_details":{"reasoning_tokens":20}}}""".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, body)).isEqualTo(20);
+        assertThat(UsageReader.reasoningTokens(WireFormat.ANTHROPIC, body)).isZero();
+        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, "{}".getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, "not json".getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+        assertThat(UsageReader.reasoningTokens(
+                        WireFormat.OPENAI,
+                        "{\"usage\":{\"completion_tokens_details\":{\"reasoning_tokens\":-1}}}"
+                                .getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+    }
+
     private static Optional<Usage> read(WireFormat format, String body) {
         return UsageReader.read(format, body.getBytes(StandardCharsets.UTF_8));
     }

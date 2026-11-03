@@ -81,6 +81,42 @@ reproduced. A Tollgate upgrade that changes a catalog price changes the
 config version that the next records carry. This amends
 [ADR 0007](0007-audit-trail.md).
 
+### Prices that depend on the call
+
+Amended on 2026-11-03. Some models are priced by more than the four rates:
+
+- **Long-context tiers.** About one model in ten charges more once the
+  prompt reaches a size, and some have several tiers. For example, Qwen
+  models on DashScope change price at 32k, 128k and 256k tokens.
+- **Reasoning tokens.** Some providers price reasoning tokens apart from the
+  rest of the output, often higher.
+
+A single price per model would charge these wrongly, so `price` describes
+them:
+
+```yaml
+price:
+  input: 0.4
+  output: 1.2
+  reasoning: 4                 # optional, defaults to output
+  cacheRead: 0.08
+  cacheWrite: 0.5
+  longContext:                 # optional
+    - { fromTokens: 256000, input: 1.2, output: 3.6, reasoning: 12, cacheRead: 0.24, cacheWrite: 1.5 }
+```
+
+- **A tier applies to the whole call** once its prompt, counting input, cache
+  reads and cache writes, reaches `fromTokens`. With several tiers, the
+  highest one reached applies.
+- **Reasoning tokens** are taken from the reported output tokens and charged
+  at the reasoning rate. Providers that do not report them, such as
+  Anthropic, charge thinking as output.
+- **Reservations stay worst case.** The tier is chosen from the request's
+  estimated prompt, which is never below the real one. Output is reserved at
+  the higher of the output and reasoning rates.
+- **The audit trail records the cost**, as it does for web searches. Its
+  record format does not change.
+
 ## Alternatives considered
 
 - **Fetching prices at startup or on a schedule.** This is the most current,
@@ -94,6 +130,12 @@ config version that the next records carry. This amends
   proxies and aggregators, so the explicit `catalog` setting stays.
 - **Converting catalog prices into other currencies.** Exchange rates would be
   a new live dependency, with the same problems as live prices.
+- **Taking the dearest tier and rate for every call.** It never undercharges,
+  but ordinary calls on these models would count at two or three times their
+  cost, and budgets would run out early.
+- **Leaving tiered and reasoning-priced models out of the catalog.** Those
+  are many of the Qwen, Gemini and newer GPT models, which people are most
+  likely to use.
 
 ## Consequences
 

@@ -277,12 +277,7 @@ class GatewayConfigTest {
     @Test
     void offersWebSearchOnlyWithAPriceAndALimit() {
         var priced = Prices.perMillion("0", "0", "0", "0");
-        var withSearch = new ModelPrice(
-                priced.input(),
-                priced.output(),
-                priced.cacheRead(),
-                priced.cacheWrite(),
-                new SearchPrice(priced.input().perMillionTokens()));
+        var withSearch = new ModelPrice(priced.rates(), List.of(), new SearchPrice(Prices.usd("10")));
 
         assertThat(new Model("p", "u", withSearch, null, 2).offersWebSearch()).isTrue();
         assertThat(new Model("p", "u", withSearch, null, 0).offersWebSearch()).isFalse();

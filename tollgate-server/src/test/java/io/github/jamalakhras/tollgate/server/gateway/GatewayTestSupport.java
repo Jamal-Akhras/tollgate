@@ -102,6 +102,10 @@ abstract class GatewayTestSupport {
                     upstream: "qwen3:32b"
                     price: { input: 0, output: 1000, cacheRead: 0, cacheWrite: 0 }
                     maxOutputTokens: { default: 1000, cap: 1000 }
+                  thinking-model:
+                    provider: ollama
+                    upstream: qwen-plus
+                    price: { input: 0, output: 1, reasoning: 4, cacheRead: 0, cacheWrite: 0 }
                   slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
                   metered-model:
@@ -122,7 +126,7 @@ abstract class GatewayTestSupport {
                     dataClass: internal
                     budget: { limit: 0.50, period: total }
                   coder:
-                    models: [qwen3, claude-sonnet]
+                    models: [qwen3, claude-sonnet, thinking-model]
                     dataClass: internal
                     policy: coding
                 keys:

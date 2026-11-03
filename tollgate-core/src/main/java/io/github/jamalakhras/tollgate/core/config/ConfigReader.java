@@ -2,10 +2,12 @@ package io.github.jamalakhras.tollgate.core.config;
 
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
+import io.github.jamalakhras.tollgate.core.money.ContextTier;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.SearchPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
+import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
@@ -80,14 +82,29 @@ public final class ConfigReader {
     }
 
     private static ModelPrice price(Section section, Currency currency) {
-        section.requireOnly("input", "output", "cacheRead", "cacheWrite", "webSearch");
+        section.requireOnly("input", "output", "reasoning", "cacheRead", "cacheWrite", "webSearch", "longContext");
+        TokenRates rates = rates(section, currency);
+        List<ContextTier> longContext = section.sectionList("longContext", tier -> contextTier(tier, currency));
         Money webSearch = section.optionalMoney("webSearch", currency);
-        return section.build(() -> new ModelPrice(
+        return section.build(
+                () -> new ModelPrice(rates, longContext, webSearch == null ? null : new SearchPrice(webSearch)));
+    }
+
+    private static ContextTier contextTier(Section section, Currency currency) {
+        section.requireOnly("fromTokens", "input", "output", "reasoning", "cacheRead", "cacheWrite");
+        TokenRates rates = rates(section, currency);
+        return section.build(() -> new ContextTier(section.wholeNumber("fromTokens"), rates));
+    }
+
+    private static TokenRates rates(Section section, Currency currency) {
+        Money output = section.money("output", currency);
+        Money reasoning = section.optionalMoney("reasoning", currency);
+        return section.build(() -> new TokenRates(
                 new TokenPrice(section.money("input", currency)),
-                new TokenPrice(section.money("output", currency)),
+                new TokenPrice(output),
+                new TokenPrice(reasoning == null ? output : reasoning),
                 new TokenPrice(section.money("cacheRead", currency)),
-                new TokenPrice(section.money("cacheWrite", currency)),
-                webSearch == null ? null : new SearchPrice(webSearch)));
+                new TokenPrice(section.money("cacheWrite", currency))));
     }
 
     private static OutputTokens outputTokens(Section section) {

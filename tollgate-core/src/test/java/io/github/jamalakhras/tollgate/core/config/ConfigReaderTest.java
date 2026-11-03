@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
+import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.Prices;
+import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
@@ -163,12 +165,7 @@ class ConfigReaderTest {
 
         assertThat(entry(config.tenants(), "support-bot").budget())
                 .isEqualTo(new Budget(Money.of(new BigDecimal(50), Currency.getInstance("GBP")), Period.MONTHLY));
-        assertThat(entry(config.models(), "claude-sonnet")
-                        .price()
-                        .input()
-                        .perMillionTokens()
-                        .currency())
-                .isEqualTo(Currency.getInstance("GBP"));
+        assertThat(entry(config.models(), "claude-sonnet").price().currency()).isEqualTo(Currency.getInstance("GBP"));
     }
 
     @Test
@@ -253,6 +250,51 @@ class ConfigReaderTest {
         assertThat(searcher.maxWebSearches()).isEqualTo(3);
         assertThat(searcher.offersWebSearch()).isTrue();
         assertThat(searcher.price().webSearch()).isNotNull();
+    }
+
+    @Test
+    void readsReasoningAndLongContextPrices() {
+        Map<String, Object> tier = Map.of(
+                "fromTokens", 256_000, "input", 1.2, "output", 3.6, "reasoning", 12, "cacheRead", 0, "cacheWrite", 0);
+        Map<String, Object> price = Map.of(
+                "input",
+                0.4,
+                "output",
+                1.2,
+                "reasoning",
+                4,
+                "cacheRead",
+                0,
+                "cacheWrite",
+                0,
+                "longContext",
+                List.of(tier));
+        Map<String, Object> model = Map.of("provider", "ollama", "upstream", "qwen-plus", "price", price);
+
+        ModelPrice read = entry(
+                        ConfigReader.read(with("models.qwen-plus", model)).models(), "qwen-plus")
+                .price();
+
+        assertThat(read.rates().reasoning().perMillionTokens()).isEqualTo(Prices.usd("4"));
+        assertThat(read.longContext()).singleElement().satisfies(found -> {
+            assertThat(found.fromTokens()).isEqualTo(256_000);
+            assertThat(found.rates().reasoning().perMillionTokens()).isEqualTo(Prices.usd("12"));
+        });
+
+        Map<String, Object> unknown = new HashMap<>(tier);
+        unknown.put("batch", 0.5);
+        Map<String, Object> withUnknown = new HashMap<>(price);
+        withUnknown.put("longContext", List.of(unknown));
+        assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.price", withUnknown)))
+                .hasMessage("models.qwen3.price.longContext[0].batch is not a recognised setting");
+    }
+
+    @Test
+    void chargesReasoningAsOutputUnlessPricedApart() {
+        TokenRates rates =
+                entry(ConfigReader.read(document()).models(), "qwen3").price().rates();
+
+        assertThat(rates.reasoning()).isEqualTo(rates.output());
     }
 
     @Test
@@ -386,6 +428,8 @@ class ConfigReaderTest {
             providers.ollama.apiKey          | ${env:OLLAMA}   | providers.ollama: an API key may only be sent over https, except to this machine
             models.qwen3.provider            | vllm            | models.qwen3.provider: no provider named 'vllm'
             models.qwen3.upstream            | ' '             | models.qwen3.upstream must be a non-empty string
+            models.qwen3.price.reasoning     | free            | models.qwen3.price.reasoning must be an amount such as 3.50, was free
+            models.qwen3.price.longContext   | 128000          | models.qwen3.price.longContext must be a list
             """)
     void reportsWhereAProblemIs(String path, String value, String message) {
         assertThatThrownBy(() -> ConfigReader.read(with(path, value)))

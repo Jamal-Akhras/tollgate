@@ -53,6 +53,17 @@ class StreamRewriterTest {
     }
 
     @Test
+    void readsTheReasoningTokensInTheUsageChunk() {
+        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+
+        rewriter.rewrite(List.of(CHUNK));
+        assertThat(rewriter.reasoningTokens()).isZero();
+        rewriter.rewrite(List.of("data: {\"choices\":[],\"usage\":{\"prompt_tokens\":9,\"completion_tokens\":4,"
+                + "\"completion_tokens_details\":{\"reasoning_tokens\":3}}}"));
+        assertThat(rewriter.reasoningTokens()).isEqualTo(3);
+    }
+
+    @Test
     void relaysTheUsageChunkToClientsThatAskedForIt() {
         var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", true);
 

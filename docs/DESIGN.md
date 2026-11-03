@@ -174,6 +174,8 @@ audit:                             # required; 'mode: off' must be written out
   has a known price before its first request. The price comes from the config,
   or from the reviewed catalog that ships with each release
   ([ADR 0009](adr/0009-price-catalog.md)). Nothing is fetched at runtime.
+  A price can also give reasoning tokens their own rate, and list long-context
+  tiers that apply once a prompt reaches a size.
 - **Rules** use CEL, the Common Expression Language: fast, side-effect free,
   guaranteed to terminate, and type-checked when the config loads.
 - **Secrets** are references, never values, and are never logged:

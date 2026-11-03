@@ -3,10 +3,14 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.http.HttpResponse;
+import java.util.Currency;
 import org.junit.jupiter.api.Test;
 
 class BudgetTest extends GatewayTestSupport {
@@ -41,6 +45,24 @@ class BudgetTest extends GatewayTestSupport {
         assertThat(PROVIDER.received().getFirst().body()).contains("\"max_tokens\":500");
         assertThat(belowFloor.statusCode()).isEqualTo(429);
         assertThat(belowFloor.body()).contains("even with a shorter answer");
+    }
+
+    @Test
+    void chargesReasoningTokensAtTheirOwnRate() throws Exception {
+        PROVIDER.respond(
+                200,
+                "{\"choices\":[],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":1000,"
+                        + "\"completion_tokens_details\":{\"reasoning_tokens\":250}}}");
+
+        HttpResponse<String> response = post(
+                Endpoints.OPENAI_CHAT,
+                "{\"model\":\"thinking-model\",\"messages\":[]}",
+                "Authorization",
+                "Bearer " + CODER_KEY.value());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        assertThat(outcome.cost()).isEqualTo(Money.of(new BigDecimal("0.00175"), Currency.getInstance("USD")));
     }
 
     @Test

@@ -35,7 +35,8 @@ class ConfigFileTest {
                 """);
 
         var route = ConfigFile.read(file).config().route("support-bot", "qwen3").orElseThrow();
-        assertThat(route.definition().price().output().perMillionTokens()).hasToString("0.4 USD");
+        assertThat(route.definition().price().rates().output().perMillionTokens())
+                .hasToString("0.4 USD");
     }
 
     @Test

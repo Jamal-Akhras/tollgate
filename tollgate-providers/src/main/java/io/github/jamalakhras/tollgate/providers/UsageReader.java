@@ -40,6 +40,22 @@ public final class UsageReader {
         }
     }
 
+    public static long reasoningTokens(WireFormat format, byte[] responseBody) {
+        if (format != WireFormat.OPENAI) {
+            return 0;
+        }
+        try {
+            return reasoningTokens(ChatRequest.JSON.readTree(responseBody).path("usage"));
+        } catch (JacksonException e) {
+            return 0;
+        }
+    }
+
+    static long reasoningTokens(JsonNode usage) {
+        return countOrZero(usage.path("completion_tokens_details").path("reasoning_tokens"))
+                .orElse(0);
+    }
+
     static Optional<Usage> openAi(JsonNode usage) {
         OptionalLong prompt = count(usage.path("prompt_tokens"));
         OptionalLong completion = count(usage.path("completion_tokens"));
