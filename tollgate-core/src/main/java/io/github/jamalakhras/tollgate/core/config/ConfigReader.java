@@ -88,19 +88,34 @@ public final class ConfigReader {
         section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches");
         String provider = section.text("provider");
         String upstream = section.text("upstream");
-        ModelPrice price = modelPrice(section, currency, providers.get(provider), provider, upstream, catalog);
+        String priceCatalog =
+                section.has("price") ? null : priceCatalog(section, currency, providers.get(provider), provider);
+        ModelPrice price = priceCatalog == null
+                ? writtenPrice(section, currency)
+                : catalog.price(priceCatalog, upstream)
+                        .orElseThrow(() -> new InvalidConfigException(section.path("price") + " is required: the "
+                                + priceCatalog + " price catalog has no model " + upstream));
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
         long maxWebSearches = section.optionalWholeNumber("maxWebSearches", 0);
-        return section.build(() -> new Model(provider, upstream, price, maxOutputTokens, maxWebSearches));
+        return section.build(() -> new Model(provider, upstream, price, maxOutputTokens, maxWebSearches, priceCatalog));
     }
 
-    private static ModelPrice modelPrice(
-            Section section,
-            Currency currency,
-            @Nullable Provider provider,
-            String providerName,
-            String upstream,
-            PriceCatalog catalog) {
+    private static String priceCatalog(
+            Section section, Currency currency, @Nullable Provider provider, String providerName) {
+        if (provider == null) {
+            throw new InvalidConfigException(section.path("provider") + ": no provider named '" + providerName + "'");
+        }
+        String required = section.path("price") + " is required";
+        if (!currency.equals(DEFAULT_CURRENCY)) {
+            throw new InvalidConfigException(
+                    required + ", because the price catalog is in USD and the currency is " + currency);
+        }
+        return provider.priceCatalog()
+                .orElseThrow(() -> new InvalidConfigException(required
+                        + ": its provider has no price catalog. Write the price, or price: free if it costs nothing"));
+    }
+
+    private static ModelPrice writtenPrice(Section section, Currency currency) {
         if (section.isText("price")) {
             String text = section.text("price");
             if (!text.equals("free")) {
@@ -108,24 +123,7 @@ public final class ConfigReader {
             }
             return ModelPrice.free(currency);
         }
-        ModelPrice written = section.optionalChild("price", child -> price(child, currency));
-        if (written != null) {
-            return written;
-        }
-        String required = section.path("price") + " is required";
-        if (provider == null) {
-            throw new InvalidConfigException(section.path("provider") + ": no provider named '" + providerName + "'");
-        }
-        if (!currency.equals(DEFAULT_CURRENCY)) {
-            throw new InvalidConfigException(
-                    required + ", because the price catalog is in USD and the currency is " + currency);
-        }
-        String named = provider.priceCatalog()
-                .orElseThrow(() -> new InvalidConfigException(required
-                        + ": its provider has no price catalog. Write the price, or price: free if it costs nothing"));
-        return catalog.price(named, upstream)
-                .orElseThrow(() -> new InvalidConfigException(
-                        required + ": the " + named + " price catalog has no model " + upstream));
+        return section.child("price", child -> price(child, currency));
     }
 
     private static ModelPrice price(Section section, Currency currency) {

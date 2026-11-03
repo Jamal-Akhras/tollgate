@@ -18,7 +18,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 
-final class ConfigFile {
+public final class ConfigFile {
 
     private static final YAMLMapper YAML = YAMLMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
@@ -27,7 +27,7 @@ final class ConfigFile {
 
     private ConfigFile() {}
 
-    static LoadedConfig read(Path path) {
+    public static LoadedConfig read(Path path) {
         if (!Files.isRegularFile(path)) {
             throw new IllegalStateException("No Tollgate configuration at " + path.toAbsolutePath()
                     + "; set tollgate.config or TOLLGATE_CONFIG to its location");

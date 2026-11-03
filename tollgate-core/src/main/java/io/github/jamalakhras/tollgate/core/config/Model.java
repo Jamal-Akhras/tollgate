@@ -9,7 +9,8 @@ public record Model(
         String upstream,
         ModelPrice price,
         @Nullable OutputTokens maxOutputTokens,
-        long maxWebSearches) {
+        long maxWebSearches,
+        @Nullable String priceCatalog) {
 
     public Model {
         Objects.requireNonNull(price, "price");
@@ -19,7 +20,16 @@ public record Model(
     }
 
     public Model(String provider, String upstream, ModelPrice price, @Nullable OutputTokens maxOutputTokens) {
-        this(provider, upstream, price, maxOutputTokens, 0);
+        this(provider, upstream, price, maxOutputTokens, 0, null);
+    }
+
+    public Model(
+            String provider,
+            String upstream,
+            ModelPrice price,
+            @Nullable OutputTokens maxOutputTokens,
+            long maxWebSearches) {
+        this(provider, upstream, price, maxOutputTokens, maxWebSearches, null);
     }
 
     public boolean offersWebSearch() {

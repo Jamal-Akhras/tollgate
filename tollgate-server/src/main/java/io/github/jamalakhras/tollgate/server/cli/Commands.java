@@ -4,15 +4,27 @@ import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
+import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
+import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.Names;
+import io.github.jamalakhras.tollgate.core.money.ContextTier;
+import io.github.jamalakhras.tollgate.core.money.ModelPrice;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
+import io.github.jamalakhras.tollgate.core.money.TokenPrice;
+import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.server.audit.AuditDirectory;
+import io.github.jamalakhras.tollgate.server.gateway.ConfigFile;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public final class Commands {
 
@@ -25,6 +37,8 @@ public final class Commands {
               java -jar tollgate.jar keys create --tenant <name>                Create an API key for a tenant
               java -jar tollgate.jar audit keys create                          Create the audit signing and HMAC keys
               java -jar tollgate.jar audit verify --public-key <key> <directory> Verify an audit trail
+              java -jar tollgate.jar prices show <provider> <model>             Show a model's price in the catalog
+              java -jar tollgate.jar prices pin <tollgate.yaml>                 Print the catalog prices a config uses
             """;
 
     private final PrintStream out;
@@ -50,6 +64,12 @@ public final class Commands {
         }
         if (args.size() == 5 && args.subList(0, 3).equals(List.of("audit", "verify", "--public-key"))) {
             return verify(args.get(3), Path.of(args.get(4)));
+        }
+        if (args.size() == 4 && args.subList(0, 2).equals(List.of("prices", "show"))) {
+            return showPrice(args.get(2), args.get(3));
+        }
+        if (args.size() == 3 && args.subList(0, 2).equals(List.of("prices", "pin"))) {
+            return pinPrices(Path.of(args.get(2)));
         }
         err.print(USAGE);
         return USAGE_ERROR;
@@ -139,6 +159,79 @@ public final class Commands {
         }
         out.println("The audit trail is intact.");
         return 0;
+    }
+
+    private int showPrice(String provider, String model) {
+        PriceCatalog catalog = PriceCatalog.bundled();
+        if (!catalog.covers(provider)) {
+            err.println("The price catalog has no provider " + provider);
+            return FAILED;
+        }
+        Optional<ModelPrice> price = catalog.price(provider, model);
+        if (price.isEmpty()) {
+            err.println("The " + provider + " price catalog has no model " + model);
+            return FAILED;
+        }
+        out.printf("%s on %s, in USD per million tokens, from %s:%n%n", model, provider, catalog.version());
+        price(price.get(), "    ").forEach(out::println);
+        return 0;
+    }
+
+    private int pinPrices(Path config) {
+        GatewayConfig read;
+        try {
+            read = ConfigFile.read(config).config();
+        } catch (IllegalStateException | UncheckedIOException e) {
+            err.println(e.getMessage());
+            return FAILED;
+        }
+        List<Map.Entry<String, Model>> fromCatalog = read.models().entrySet().stream()
+                .filter(model -> model.getValue().priceCatalog() != null)
+                .sorted(Map.Entry.comparingByKey())
+                .toList();
+        if (fromCatalog.isEmpty()) {
+            out.println("No model in " + config + " takes its price from the catalog.");
+            return 0;
+        }
+        out.printf(
+                "These models take their price from %s. To pin a price, put its lines under the model in %s:%n%n",
+                PriceCatalog.bundled().version(), config);
+        out.println("    models:");
+        for (Map.Entry<String, Model> model : fromCatalog) {
+            out.println("      " + model.getKey() + ":");
+            price(model.getValue().price(), "        ").forEach(out::println);
+        }
+        return 0;
+    }
+
+    private static List<String> price(ModelPrice price, String indent) {
+        List<String> lines = new ArrayList<>();
+        lines.add(indent + "price:");
+        rates(price.rates()).forEach(rate -> lines.add(indent + "  " + rate));
+        if (!price.longContext().isEmpty()) {
+            lines.add(indent + "  longContext:");
+            for (ContextTier tier : price.longContext()) {
+                lines.add(indent + "    - { fromTokens: " + tier.fromTokens() + ", "
+                        + String.join(", ", rates(tier.rates())) + " }");
+            }
+        }
+        return lines;
+    }
+
+    private static List<String> rates(TokenRates rates) {
+        List<String> written = new ArrayList<>();
+        written.add("input: " + amount(rates.input()));
+        written.add("output: " + amount(rates.output()));
+        if (!rates.reasoning().equals(rates.output())) {
+            written.add("reasoning: " + amount(rates.reasoning()));
+        }
+        written.add("cacheRead: " + amount(rates.cacheRead()));
+        written.add("cacheWrite: " + amount(rates.cacheWrite()));
+        return written;
+    }
+
+    private static String amount(TokenPrice price) {
+        return price.perMillionTokens().toBigDecimal().stripTrailingZeros().toPlainString();
     }
 
     private static String count(long count, String one, String many) {

@@ -309,6 +309,8 @@ class ConfigReaderTest {
 
         assertThat(entry(config.models(), "claude-sonnet").price())
                 .isEqualTo(CATALOG.price("anthropic", "claude-sonnet-4-5").orElseThrow());
+        assertThat(entry(config.models(), "claude-sonnet").priceCatalog()).isEqualTo("anthropic");
+        assertThat(entry(config.models(), "qwen3").priceCatalog()).isNull();
     }
 
     @Test

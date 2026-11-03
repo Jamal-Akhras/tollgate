@@ -53,7 +53,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
     price from it, including long-context tiers and reasoning rates.
   - **Other providers:** a provider can name a catalog with `catalog:`.
   - **Local models:** set `price: free`.
-  - **Your own rates:** a `price` you write always wins.
+  - **Your own rates:** a `price` you write always wins. `tollgate prices pin
+    tollgate.yaml` prints the catalog prices your config uses, ready to paste
+    in, and `tollgate prices show openai gpt-6.1-sol` prints one.
   - Nothing is fetched at runtime ([ADR 0009](docs/adr/0009-price-catalog.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every

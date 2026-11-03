@@ -6,11 +6,14 @@ import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.AuditLog;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
+import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.server.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.server.audit.JsonLinesAuditSink;
+import io.github.jamalakhras.tollgate.server.gateway.ConfigFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -21,6 +24,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -150,6 +154,78 @@ class CommandsTest {
         Matcher value = Pattern.compile(Pattern.quote(prefix) + "(\\S+)").matcher(text);
         assertThat(value.find()).isTrue();
         return value.group(1);
+    }
+
+    @Test
+    void showsAModelsPriceInTheCatalog() {
+        int status = commands.run(List.of("prices", "show", "alibaba", "qwen-plus"));
+
+        assertThat(status).isZero();
+        assertThat(out.toString(StandardCharsets.UTF_8))
+                .startsWith("qwen-plus on alibaba, in USD per million tokens, from models.dev ")
+                .contains("    price:", "      reasoning: ", "      longContext:", "        - { fromTokens: ");
+    }
+
+    @Test
+    void saysWhenTheCatalogHasNoSuchModel() {
+        assertThat(commands.run(List.of("prices", "show", "nowhere", "qwen-plus")))
+                .isEqualTo(Commands.FAILED);
+        assertThat(commands.run(List.of("prices", "show", "alibaba", "qwen-next")))
+                .isEqualTo(Commands.FAILED);
+        assertThat(err.toString(StandardCharsets.UTF_8).lines())
+                .containsExactly(
+                        "The price catalog has no provider nowhere",
+                        "The alibaba price catalog has no model qwen-next");
+    }
+
+    @Test
+    void pinsTheCatalogPricesAConfigUsesSoTheyCanBePastedBackIn() throws IOException {
+        String providers = """
+                providers:
+                  dashscope: { format: openai, baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" }
+                  ollama: { format: openai, baseUrl: "http://localhost:11434/v1" }
+                audit: { mode: off }
+                """;
+        Path config = Files.writeString(trail.resolve("tollgate.yaml"), providers + """
+                models:
+                  qwen: { provider: dashscope, upstream: qwen-plus }
+                  local: { provider: ollama, upstream: "qwen3:8b", price: free }
+                """);
+
+        int status = commands.run(List.of("prices", "pin", config.toString()));
+
+        assertThat(status).isZero();
+        String printed = out.toString(StandardCharsets.UTF_8);
+        assertThat(printed).contains("      qwen:").doesNotContain("local:");
+        String pinned = printed.substring(printed.indexOf("    models:"))
+                .stripTrailing()
+                .stripIndent()
+                .replace("  qwen:\n", "  qwen:\n    provider: dashscope\n    upstream: qwen-plus\n");
+        Model model = Objects.requireNonNull(
+                ConfigFile.read(Files.writeString(trail.resolve("pinned.yaml"), providers + pinned))
+                        .config()
+                        .models()
+                        .get("qwen"));
+        assertThat(model.priceCatalog()).isNull();
+        assertThat(model.price())
+                .isEqualTo(PriceCatalog.bundled().price("alibaba", "qwen-plus").orElseThrow());
+    }
+
+    @Test
+    void pinsNothingWhenEveryPriceIsWritten() throws IOException {
+        Path config = Files.writeString(trail.resolve("tollgate.yaml"), """
+                providers: { ollama: { format: openai, baseUrl: "http://localhost:11434/v1" } }
+                models: { local: { provider: ollama, upstream: "qwen3:8b", price: free } }
+                audit: { mode: off }
+                """);
+
+        assertThat(commands.run(List.of("prices", "pin", config.toString()))).isZero();
+        assertThat(out.toString(StandardCharsets.UTF_8).lines())
+                .containsExactly("No model in " + config + " takes its price from the catalog.");
+        assertThat(commands.run(
+                        List.of("prices", "pin", trail.resolve("missing.yaml").toString())))
+                .isEqualTo(Commands.FAILED);
+        assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("No Tollgate configuration at");
     }
 
     @Test

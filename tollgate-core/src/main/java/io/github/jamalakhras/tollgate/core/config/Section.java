@@ -45,6 +45,10 @@ final class Section {
         return new InvalidConfigException(pathOf(key) + " " + problem);
     }
 
+    boolean has(String key) {
+        return values.get(key) != null;
+    }
+
     boolean isText(String key) {
         return values.get(key) instanceof String;
     }
