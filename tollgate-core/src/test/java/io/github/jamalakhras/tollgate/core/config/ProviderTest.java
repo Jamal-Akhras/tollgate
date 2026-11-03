@@ -57,7 +57,7 @@ class ProviderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"mcp_servers", "store", "service_tier", "web_search_options"})
+    @ValueSource(strings = {"mcp_servers", "store", "service_tier", "speed", "web_search_options"})
     void refusesExtraFieldsThatTollgateRefusesInRequests(String field) {
         assertThatThrownBy(() -> new Provider(
                         WireFormat.OPENAI,

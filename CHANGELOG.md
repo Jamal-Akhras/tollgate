@@ -66,8 +66,9 @@ versions may change the extension interfaces.
   refusal is audited. Tollgate refuses:
   - fields it has not reviewed, and `anthropic-beta` headers
   - provider-side tools such as web search, web fetch and code execution
-  - fields that send data elsewhere or change pricing, such as `mcp_servers`
-    and `store: true`
+  - fields that send data elsewhere or change pricing, such as `mcp_servers`,
+    `store: true`, and `speed: "fast"`, which bills Anthropic's fast mode at
+    twice the price
   - images, documents and files that the provider would fetch by URL or ID
 - Policies can allow `remote-images`, `remote-documents`, `provider-files` and
   `unreviewed-fields` for named data classes. `unreviewed-fields` lets clients

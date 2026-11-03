@@ -100,6 +100,13 @@ class RequestReviewTest {
     }
 
     @Test
+    void refusesFastModeOnAnthropicEvenWhereUnreviewedFieldsAreAllowed() {
+        assertThat(anthropic("\"speed\":\"fast\"", null).refused())
+                .containsExactly("The field 'speed' is not allowed: it changes the price Tollgate budgets for");
+        assertThat(anthropic("\"speed\":\"fast\"", null).unreviewed()).isEmpty();
+    }
+
+    @Test
     void refusesMcpServersOnAnthropicToo() {
         assertThat(anthropic("\"mcp_servers\":[]", null).refused())
                 .containsExactly(

@@ -162,7 +162,8 @@ allows these fields either. They are:
 - `mcp_servers`, `container`
 - `store`, `metadata`
 - `web_search_options`
-- `service_tier`
+- `service_tier`, and Anthropic's `speed`, added on 2026-11-03 when fast
+  mode stopped needing a beta header
 - `modalities`, `audio`
 
 ### The data-class check cannot be left out
