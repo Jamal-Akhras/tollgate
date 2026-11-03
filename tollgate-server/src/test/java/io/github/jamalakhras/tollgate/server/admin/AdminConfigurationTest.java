@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.InetAddress;
 import java.util.Optional;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,24 @@ class AdminConfigurationTest {
             assertThat(connector.getPort()).isEqualTo(8081);
             assertThat(connector.getProperty("address")).hasToString("/127.0.0.1");
         });
+    }
+
+    @Test
+    void saysWhoCanConnectToEachPort() throws Exception {
+        assertThat(AdminPortConfiguration.listening(
+                        "The gateway", InetAddress.getLoopbackAddress(), 8080, "TOLLGATE_ADDRESS"))
+                .isEqualTo("The gateway listens on 127.0.0.1:8080, so only this machine can connect."
+                        + " Set TOLLGATE_ADDRESS to accept other machines");
+        assertThat(AdminPortConfiguration.listening(
+                        "The gateway", InetAddress.getByName("0.0.0.0"), 8080, "TOLLGATE_ADDRESS"))
+                .isEqualTo("The gateway listens on port 8080 on every network interface");
+        assertThat(AdminPortConfiguration.listening("The gateway", null, 8080, "TOLLGATE_ADDRESS"))
+                .isEqualTo("The gateway listens on port 8080 on every network interface");
+        assertThat(AdminPortConfiguration.listening(
+                        "The gateway", InetAddress.getByName("192.168.1.20"), 8080, "TOLLGATE_ADDRESS"))
+                .isEqualTo("The gateway listens on 192.168.1.20:8080");
+        assertThat(AdminPortConfiguration.listening("The admin API", InetAddress.getLoopbackAddress(), 8081, null))
+                .isEqualTo("The admin API listens on 127.0.0.1:8081, so only this machine can connect");
     }
 
     @Test

@@ -179,6 +179,36 @@ lands on the volume, and point the provider at `host.docker.internal`. The
 `--add-host` line makes that name work on Linux too; Docker Desktop provides
 it already.
 
+### As a systemd service
+
+```ini
+[Unit]
+Description=Tollgate, a policy and audit gateway for LLM traffic
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=tollgate
+StateDirectory=tollgate
+EnvironmentFile=/etc/tollgate/tollgate.env
+Environment=TOLLGATE_CONFIG=/etc/tollgate/tollgate.yaml
+Environment=TOLLGATE_ADDRESS=0.0.0.0
+ExecStart=/usr/bin/java -XX:+ExitOnOutOfMemoryError -jar /opt/tollgate/tollgate.jar
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- **`TOLLGATE_ADDRESS`** is only needed when clients run on other machines or
+  in containers, such as Open WebUI. Without it, they get a connection error.
+- **`tollgate.env`** holds the audit secrets and the admin token as
+  `NAME=value` lines. Make it readable by root only.
+- **Set `audit.directory` to `/var/lib/tollgate/audit`.** A relative directory
+  is resolved next to the config file, and `/etc/tollgate` is not writable.
+- **Start it** with `systemctl enable --now tollgate`. `journalctl -u tollgate`
+  shows the address each port listens on.
+
 ## Operating it
 
 | Port | Serves |

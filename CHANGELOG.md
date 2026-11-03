@@ -36,6 +36,8 @@ versions may change the extension interfaces.
 - `POST /admin/v1/config/reload`, which validates the file and swaps it in
   atomically.
 - A container image on a distroless Java 25 base, built with Jib.
+- The log says which address each port listens on at startup, and how to
+  accept other machines when only localhost can connect.
 
 ### Security
 
