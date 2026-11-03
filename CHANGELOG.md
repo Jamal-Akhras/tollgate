@@ -60,7 +60,10 @@ versions may change the extension interfaces.
 - `audit keys create` and `audit verify`.
 - `POST /admin/v1/config/reload`, which validates the file and swaps it in
   atomically.
-- A container image on a distroless Java 25 base, built with Jib.
+- A container image on a distroless Java 25 base, built with Jib. Pushing a
+  `v*` tag publishes it to `ghcr.io/jamal-akhras/tollgate` with a build
+  provenance attestation, and drafts a GitHub release with the jar and SBOM.
+  A tag that does not match the project version publishes nothing.
 - The log says which address each port listens on at startup, and how to
   accept other machines when only localhost can connect.
 - Startup problems, such as a missing or invalid config, an unset secret or an

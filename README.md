@@ -199,6 +199,14 @@ lands on the volume, and point the provider at `host.docker.internal`. The
 `--add-host` line makes that name work on Linux too; Docker Desktop provides
 it already.
 
+From the first release, each version is published as
+`ghcr.io/jamal-akhras/tollgate:<version>` for amd64 and arm64, with a signed
+record of how it was built. Check it before you run it:
+
+```bash
+gh attestation verify oci://ghcr.io/jamal-akhras/tollgate:<version> --owner Jamal-Akhras
+```
+
 ### As a systemd service
 
 ```ini

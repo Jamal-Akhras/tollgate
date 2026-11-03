@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish the image and a draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      IMAGE: ghcr.io/jamal-akhras/tollgate
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - name: Check the tag matches the project version
+        run: |
+          version=$(./mvnw -B -q help:evaluate -Dexpression=project.version -DforceStdout)
+          if [[ "v$version" != "$GITHUB_REF_NAME" || "$version" == *-SNAPSHOT ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match the release version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Build and verify
+        run: ./mvnw -B -ntp -Psbom install
+      - name: Push the image
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          ./mvnw -B -ntp -pl tollgate-server jib:build -Djib.to.tags=latest
+          echo "DIGEST=$(cat tollgate-server/target/jib-image.digest)" >> "$GITHUB_ENV"
+      - name: Record how the image was built
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ env.DIGEST }}
+          push-to-registry: true
+      - name: Draft the GitHub release
+        run: |
+          cp "tollgate-server/target/tollgate-server-$VERSION.jar" "tollgate-$VERSION.jar"
+          cp target/bom.json "tollgate-$VERSION.sbom.json"
+          gh release create "$GITHUB_REF_NAME" --draft --generate-notes \
+            --title "Tollgate $VERSION" \
+            "tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json"
