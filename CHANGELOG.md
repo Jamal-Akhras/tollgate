@@ -39,6 +39,8 @@ versions may change the extension interfaces.
 - `prices show <provider> <model>` prints a catalog price as config, and
   `prices pin <tollgate.yaml>` prints the catalog prices a config uses, so a
   team can paste them in and own them.
+- A weekly workflow regenerates the price catalog and opens a pull request
+  when a price changes, so every change is reviewed before it ships.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

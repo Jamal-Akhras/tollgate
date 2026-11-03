@@ -1,0 +1,55 @@
+name: prices
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Keep the price catalog current
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      CATALOG: tollgate-core/src/main/resources/io/github/jamalakhras/tollgate/core/money/prices.tsv
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Convert the current models.dev data
+        id: convert
+        run: |
+          commit=$(gh api repos/anomalyco/models.dev/commits/dev --jq .sha)
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          curl -fsSL https://models.dev/api.json -o "$RUNNER_TEMP/api.json"
+          python3 -I scripts/update-prices.py "$RUNNER_TEMP/api.json" "$commit" "$RUNNER_TEMP/prices.tsv"
+          if cmp -s <(tail -n +2 "$CATALOG") <(tail -n +2 "$RUNNER_TEMP/prices.tsv"); then
+            echo "No price changed"
+            exit 0
+          fi
+          mv "$RUNNER_TEMP/prices.tsv" "$CATALOG"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Open a pull request and test it
+        if: steps.convert.outputs.commit != ''
+        env:
+          COMMIT: ${{ steps.convert.outputs.commit }}
+        run: |
+          branch="prices/${COMMIT:0:12}"
+          if git ls-remote --exit-code --heads origin "$branch"; then
+            echo "A pull request for models.dev $COMMIT already exists"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "Update the price catalog from models.dev"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Update the price catalog from models.dev" \
+            --body "Prices from models.dev at anomalyco/models.dev@$COMMIT. Review every changed line before merging: these prices size every reservation and settle every budget."
+          gh workflow run ci.yml --ref "$branch"
