@@ -52,6 +52,16 @@ versions may change the extension interfaces.
   model or reserving any budget. It runs every check a real call would, is
   audited with the result `dry_run` and a cost of zero, and is only for
   tenants with `showCosts`.
+- Redaction of patterned personal data
+  ([ADR 0012](docs/adr/0012-redact-personal-data.md)). A policy's `redact`
+  setting replaces email addresses, card numbers, IBANs, phone numbers,
+  UK National Insurance and US Social Security numbers, and IP addresses with
+  placeholders such as `[EMAIL_1]` for the data classes it names, and the
+  answer gets the real values back, in streams and tool-call arguments too.
+  Its `refuse` setting stops a request that carries an API key or private key
+  with `403`. Intents with redactions record how many values of each kind
+  were replaced and an HMAC of what was sent, as version 2 of the audit
+  record format; every other record stays at version 1.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

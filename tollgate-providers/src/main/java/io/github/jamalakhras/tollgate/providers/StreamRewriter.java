@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.providers;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Usage;
+import io.github.jamalakhras.tollgate.core.redact.Placeholders;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,7 @@ public final class StreamRewriter {
     private final WireFormat format;
     private final String model;
     private final boolean relayUsage;
+    private final @Nullable AnswerRestorer restorer;
     private @Nullable Usage usage;
     private long input = -1;
     private long output = -1;
@@ -27,12 +29,18 @@ public final class StreamRewriter {
     private long reasoningTokens;
 
     public StreamRewriter(WireFormat format, String model, boolean relayUsage) {
+        this(format, model, relayUsage, Placeholders.NONE);
+    }
+
+    public StreamRewriter(WireFormat format, String model, boolean relayUsage, Placeholders placeholders) {
         this.format = format;
         this.model = model;
         this.relayUsage = relayUsage;
+        this.restorer = placeholders.isEmpty() ? null : new AnswerRestorer(placeholders, true);
     }
 
     public Optional<byte[]> rewrite(List<String> event) {
+        StringBuilder before = new StringBuilder();
         StringBuilder out = new StringBuilder();
         boolean relay = true;
         for (String line : event) {
@@ -42,6 +50,7 @@ public final class StreamRewriter {
             }
             String payload = line.substring(DATA.length()).strip();
             if (payload.equals(DONE)) {
+                ended(before);
                 out.append(line).append('\n');
                 continue;
             }
@@ -53,12 +62,56 @@ public final class StreamRewriter {
             if (data.has("model")) {
                 data.put("model", model);
             }
+            restore(data, before);
             out.append(DATA)
                     .append(' ')
                     .append(ChatRequest.JSON.writeValueAsString(data))
                     .append('\n');
         }
-        return relay ? Optional.of(out.append('\n').toString().getBytes(StandardCharsets.UTF_8)) : Optional.empty();
+        if (relay) {
+            before.append(out).append('\n');
+        }
+        return before.isEmpty() ? Optional.empty() : Optional.of(bytes(before));
+    }
+
+    public Optional<byte[]> finish() {
+        StringBuilder rest = new StringBuilder();
+        ended(rest);
+        return rest.isEmpty() ? Optional.empty() : Optional.of(bytes(rest));
+    }
+
+    private void restore(ObjectNode data, StringBuilder before) {
+        if (restorer == null) {
+            return;
+        }
+        switch (format) {
+            case OPENAI -> restorer.openAiChunk(data);
+            case ANTHROPIC -> restorer.anthropicEvent(data).forEach(delta -> event(before, delta));
+        }
+    }
+
+    private void ended(StringBuilder before) {
+        if (restorer == null) {
+            return;
+        }
+        switch (format) {
+            case OPENAI -> restorer.openAiEnd().forEach(chunk -> event(before, chunk));
+            case ANTHROPIC -> restorer.anthropicEnd().forEach(delta -> event(before, delta));
+        }
+    }
+
+    private void event(StringBuilder out, ObjectNode data) {
+        if (format == WireFormat.ANTHROPIC) {
+            out.append("event: ").append(data.path("type").asString("")).append('\n');
+        }
+        out.append(DATA)
+                .append(' ')
+                .append(ChatRequest.JSON.writeValueAsString(data))
+                .append("\n\n");
+    }
+
+    private static byte[] bytes(StringBuilder text) {
+        return text.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public Optional<Usage> usage() {

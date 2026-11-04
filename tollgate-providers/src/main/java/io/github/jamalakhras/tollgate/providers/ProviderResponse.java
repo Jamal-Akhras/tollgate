@@ -1,5 +1,7 @@
 package io.github.jamalakhras.tollgate.providers;
 
+import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.redact.Placeholders;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
@@ -40,6 +42,18 @@ public final class ProviderResponse {
         ObjectNode object = object();
         if (object.has("model")) {
             object.put("model", model);
+        }
+        return new ProviderResponse(status, ChatRequest.JSON.writeValueAsBytes(object), contentType, retryAfter);
+    }
+
+    public ProviderResponse restored(WireFormat format, Placeholders placeholders) {
+        if (placeholders.isEmpty()) {
+            return this;
+        }
+        ObjectNode object = object();
+        switch (format) {
+            case OPENAI -> AnswerRestorer.openAi(object, placeholders);
+            case ANTHROPIC -> AnswerRestorer.anthropic(object, placeholders);
         }
         return new ProviderResponse(status, ChatRequest.JSON.writeValueAsBytes(object), contentType, retryAfter);
     }

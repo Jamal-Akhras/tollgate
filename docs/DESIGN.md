@@ -80,7 +80,8 @@ an admin handler from the gateway port.
      and content ([ADR 0008](adr/0008-harden-the-request-path.md))
    - size limits
    - data class and region rules
-   - PII redaction
+   - personal data: refuse or redact patterned values
+     ([ADR 0012](adr/0012-redact-personal-data.md))
    - custom guards
 
    The tenant's model list was already checked in step 2.
@@ -94,7 +95,7 @@ an admin handler from the gateway port.
    a circuit breaker. Fall back to another provider only before the first byte
    reaches the client.
 8. **Post-call guards:** output PII and structural validation.
-9. **Restore** redacted values in the response when the policy asks for it. The
+9. **Restore** redacted values in the response, including streams. The
    mapping lives in memory for that request only.
 10. **Settle and audit outcome.** Settle the cost from the provider's reported
     token usage, release the unused reservation, and record the outcome.
@@ -150,11 +151,11 @@ policies:
         when: "request.dataClass == 'confidential' && provider.region != 'local'"
         action: deny
         reason: "Confidential data stays on local models"
-      - type: pii-redact
-        entities: [email, phone, iban, uk-nino]
-        restoreInResponse: true
-        mode: enforce              # enforce | monitor (shadow)
-        failure: closed            # closed | open
+    redact:                        # replaced before the call, restored in the answer
+      email: [internal, confidential]
+      iban: [internal, confidential, restricted]
+    refuse:                        # never sent
+      secret: [public, internal, confidential, restricted]
 
 audit:                             # required; 'mode: off' must be written out
   mode: sync                       # sync | async | off
@@ -278,8 +279,9 @@ The record format, the hashing and the failure rules are in
 ## 10. Streaming
 
 - With no output guards, streams pass straight through.
-- Output redaction holds back a small window of text so values split across
-  chunks are still caught, at the cost of that window's latency.
+- Restoring redacted values holds back at most one placeholder's length of
+  text, so a placeholder split across events is still restored
+  ([ADR 0012](adr/0012-redact-personal-data.md)).
 - Strict policies can buffer the whole response.
 - Retries and provider fallback happen only before the first byte is sent.
 
@@ -326,7 +328,7 @@ with hardware details for every audit mode.
 | Milestone | Scope |
 |---|---|
 | **M0** (done) | Build, quality gates, CI, money types, server skeleton with port separation, admin API contract |
-| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); a reviewed price catalog ([ADR 0009](adr/0009-price-catalog.md)); redaction and restore of patterned PII (emails, phone and card numbers, IBANs, secrets) on non-streaming calls; streaming with usage; first performance report |
+| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); a reviewed price catalog ([ADR 0009](adr/0009-price-catalog.md)); redaction and restore of patterned personal data (emails, phone and card numbers, IBANs, national IDs, IP addresses, secrets), streams included; streaming with usage; first performance report |
 | **M2** | The hold-back window for output guards on streams; name detection and redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
 | **M3** | Studio (simulator, guard editor, shadow mode, maker-checker); cluster config sync; Helm chart; Terraform example |
 | Later | Translation between formats, Responses API, Azure OpenAI and Bedrock, gRPC guards, policy for MCP tool calls, semantic caching, a Python helper package |

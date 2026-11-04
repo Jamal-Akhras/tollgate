@@ -79,6 +79,10 @@ final class Init {
                     features:
                       unreviewed-fields: [public, internal]
                       remote-images: [public, internal]
+                    redact:
+                      card: [public, internal, confidential]
+                    refuse:
+                      secret: [public, internal, confidential]
 
                 audit:
                   mode: sync

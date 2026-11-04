@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.providers;
 import io.github.jamalakhras.tollgate.core.config.OutputTokens;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
+import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,12 @@ public final class ChatRequest {
 
     public String model() {
         return model;
+    }
+
+    public ChatRequest redacted(WireFormat format, Redactor redactor) {
+        ObjectNode copy = body.deepCopy();
+        RequestRedaction.apply(format, copy, redactor);
+        return new ChatRequest(copy, model);
     }
 
     public RequestFeatures review(WireFormat format, @Nullable String betas, List<String> extraFields) {

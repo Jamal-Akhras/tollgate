@@ -37,6 +37,15 @@ what was sent, who sent it, what it cost, and why it was allowed.
   call other servers or keep the conversation. A policy can allow a reviewed
   feature, such as images by URL, for named data classes only
   ([ADR 0008](docs/adr/0008-harden-the-request-path.md)).
+- **Personal data stays home.** A policy can replace email addresses, card
+  numbers, IBANs, phone numbers, national ID numbers and IP addresses with
+  placeholders such as `[EMAIL_1]` before a request leaves, and put the real
+  values back in the answer, in tool-call arguments and in streams. It can
+  refuse API keys and private keys outright. The audit trail counts what was
+  replaced and proves what was sent, without recording any value. Detection
+  is by pattern and checksum, so a value written in words or a key with an
+  unknown prefix gets through
+  ([ADR 0012](docs/adr/0012-redact-personal-data.md)).
 - **Budgets with exact money.** The most a call can cost is reserved before
   the provider is called, and the reservation is settled from the provider's
   reported token usage. Near the limit, the answer is shortened to fit rather
@@ -134,6 +143,10 @@ policies:
     features:                                 # confidential data stays strict
       unreviewed-fields: [public, internal]
       remote-images: [public, internal]
+    redact:                                   # sent as [CARD_1], restored in the answer
+      card: [public, internal, confidential]
+    refuse:                                   # API keys and private keys never leave
+      secret: [public, internal, confidential]
 
 audit:
   mode: sync
@@ -274,8 +287,8 @@ WantedBy=multi-user.target
 
 | Milestone | Scope |
 |---|---|
-| **M1** (in progress) | Everything above, the security hardening in [ADR 0008](docs/adr/0008-harden-the-request-path.md), redaction of emails, phone and card numbers and secrets, streaming, and a published performance report |
-| **M2** | Name detection, redaction on streams, CEL rules, webhook guards, Postgres and Redis storage, rate limits, provider fallback, OpenTelemetry, a Spring Boot starter, and a first release to Maven Central |
+| **M1** (in progress) | Everything above, the security hardening in [ADR 0008](docs/adr/0008-harden-the-request-path.md), redaction and restore of emails, phone and card numbers, IBANs, national IDs, IP addresses and secrets, including on streams, streaming, and a published performance report |
+| **M2** | Name detection, CEL rules, webhook guards, Postgres and Redis storage, rate limits, provider fallback, OpenTelemetry, a Spring Boot starter, and a first release to Maven Central |
 | **M3** | Policy Studio: a simulator, a guard editor, shadow mode and maker-checker approval |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).

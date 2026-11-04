@@ -6,6 +6,7 @@ import io.github.jamalakhras.tollgate.core.audit.AuditUnavailableException;
 import io.github.jamalakhras.tollgate.core.audit.Fingerprint;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.audit.Redactions;
 import io.github.jamalakhras.tollgate.core.auth.KeyRing;
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.BudgetStore;
@@ -23,7 +24,11 @@ import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
+import io.github.jamalakhras.tollgate.core.redact.Placeholders;
+import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import io.github.jamalakhras.tollgate.providers.ChatRequest;
 import io.github.jamalakhras.tollgate.providers.InvalidProviderResponseException;
 import io.github.jamalakhras.tollgate.providers.InvalidRequestException;
@@ -62,6 +67,7 @@ final class Gateway implements AutoCloseable {
     static final String COST_MAX_HEADER = "X-Tollgate-Cost-Max";
     static final String COST_HEADER = "X-Tollgate-Cost";
     static final String DRY_RUN_HEADER = "X-Tollgate-Dry-Run";
+    static final String PERSONAL_DATA_STEP = "personal-data";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -121,8 +127,9 @@ final class Gateway implements AutoCloseable {
                         endpoint,
                         clientHeaders.apply(ANTHROPIC_BETA_HEADER),
                         route.provider().extraFields()));
-        Call call = new Call(traceId, snapshot, caller, endpoint, route, admission);
-        if (admission.decision() instanceof Decision.Deny denial) {
+        Scanned scanned = scan(request, endpoint, admission);
+        Call call = new Call(traceId, snapshot, caller, endpoint, route, scanned.admission(), scanned.redactor());
+        if (call.admission().decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);
         }
         boolean showCosts = showsCosts(call);
@@ -133,14 +140,19 @@ final class Gateway implements AutoCloseable {
                     requestBody,
                     new Decision.Deny(Refusal.POLICY_DENIED, "Dry runs are only for tenants with showCosts: true"));
         }
-        Budgeted budgeted = reserve(call, requestBody, request, dryRun);
+        Budgeted budgeted = reserve(call, requestBody, scanned.request(), dryRun);
         Map<String, String> headers = headers(route, budgeted, showCosts);
         if (dryRun) {
             return Optional.of(dryRun(call, requestBody, budgeted, headers));
         }
         Reservation reservation = budgeted.reservation();
         try {
-            recordIntent(call, requestBody, Decision.ALLOW, reservation == null ? null : reservation.amount());
+            recordIntent(
+                    call,
+                    requestBody,
+                    Decision.ALLOW,
+                    reservation == null ? null : reservation.amount(),
+                    budgeted.forwarded());
         } catch (GatewayException e) {
             if (reservation != null) {
                 budgets.settle(reservation, nothing(route));
@@ -159,6 +171,32 @@ final class Gateway implements AutoCloseable {
                 sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
     }
 
+    private static Scanned scan(ChatRequest request, WireFormat endpoint, Admission admission) {
+        if (!admission.admitted() || !admission.scans()) {
+            return new Scanned(request, admission, null);
+        }
+        Redactor redactor = new Redactor(admission.refuse(), admission.redact());
+        long started = System.nanoTime();
+        ChatRequest redacted = request.redacted(endpoint, redactor);
+        Decision decision = redactor.refused()
+                .map(detector -> refusal(detector, admission.dataClass()))
+                .orElse(Decision.ALLOW);
+        GuardStep step = new GuardStep(PERSONAL_DATA_STEP, decision, Duration.ofNanos(System.nanoTime() - started));
+        return new Scanned(redacted, admission.after(step), redactor);
+    }
+
+    private record Scanned(
+            ChatRequest request,
+            Admission admission,
+            @Nullable Redactor redactor) {}
+
+    private static Decision refusal(Detector detector, @Nullable String dataClass) {
+        String forClass = dataClass == null ? "" : " for data class '" + dataClass + "'";
+        return Decision.deny(
+                Refusal.POLICY_DENIED,
+                "This request contains " + detector.description() + ", which this policy refuses" + forClass);
+    }
+
     private static Map<String, String> headers(Route route, Budgeted budgeted, boolean showCosts) {
         Map<String, String> headers = new LinkedHashMap<>();
         budgeted.outputLimitedTo().ifPresent(tokens -> headers.put(OUTPUT_LIMITED_HEADER, Long.toString(tokens)));
@@ -172,7 +210,7 @@ final class Gateway implements AutoCloseable {
     private Result dryRun(Call call, byte[] requestBody, Budgeted budgeted, Map<String, String> headers) {
         Route route = call.route();
         ChatRequest.Forwarded forwarded = budgeted.forwarded();
-        recordIntent(call, requestBody, Decision.ALLOW, null);
+        recordIntent(call, requestBody, Decision.ALLOW, null, forwarded);
         recordOutcome(
                 call, Outcome.Result.DRY_RUN, null, Optional.empty(), nothing(route), Duration.ZERO, trail -> null);
         OptionalLong output = forwarded.maxOutputTokens();
@@ -271,9 +309,9 @@ final class Gateway implements AutoCloseable {
             }
             charge = costOf(route, response, usage, charge);
             if (!succeeded(response)) {
-                throw unsuccessful(route, response);
+                throw unsuccessful(route, response, call.placeholders());
             }
-            return new Sent(response.withModel(route.model()), charge);
+            return new Sent(response.withModel(route.model()).restored(call.endpoint(), call.placeholders()), charge);
         } catch (InvalidProviderResponseException e) {
             result = Outcome.Result.INVALID_RESPONSE;
             log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
@@ -330,9 +368,10 @@ final class Gateway implements AutoCloseable {
             result = Outcome.Result.RESPONDED;
             if (!succeeded(stream.status())) {
                 charge = nothing(route);
-                throw unsuccessful(route, stream.whole());
+                throw unsuccessful(route, stream.whole(), call.placeholders());
             }
-            StreamRewriter rewriter = new StreamRewriter(call.endpoint(), route.model(), relayUsage);
+            StreamRewriter rewriter =
+                    new StreamRewriter(call.endpoint(), route.model(), relayUsage, call.placeholders());
             target.open(headers);
             opened = true;
             List<String> event = stream.nextEvent(remaining(deadline));
@@ -345,6 +384,13 @@ final class Gateway implements AutoCloseable {
                     }
                 }
                 event = stream.nextEvent(remaining(deadline));
+            }
+            Optional<byte[]> rest = rewriter.finish();
+            if (rest.isPresent()) {
+                target.write(rest.get());
+                if (fingerprint != null) {
+                    fingerprint.add(rest.get());
+                }
             }
             usage = rewriter.usage();
             if (usage.isPresent()) {
@@ -410,7 +456,7 @@ final class Gateway implements AutoCloseable {
         }
     }
 
-    private static GatewayException unsuccessful(Route route, ProviderResponse response) {
+    private static GatewayException unsuccessful(Route route, ProviderResponse response, Placeholders placeholders) {
         if (response.status() == 401 || response.status() == 403) {
             log.error(
                     "Provider {} rejected Tollgate's credentials with status {}",
@@ -424,7 +470,9 @@ final class Gateway implements AutoCloseable {
                 response.status(),
                 response.errorMessage().orElse("no message"));
         return GatewayException.providerError(
-                response.status(), response.errorMessage().orElse(null), response.retryAfter());
+                response.status(),
+                response.errorMessage().map(placeholders::restore).orElse(null),
+                response.retryAfter());
     }
 
     private byte[] read(InputStream body) {
@@ -518,16 +566,24 @@ final class Gateway implements AutoCloseable {
     }
 
     private GatewayException refuse(Call call, byte[] requestBody, Decision.Deny denial) {
-        recordIntent(call, requestBody, denial, null);
+        recordIntent(call, requestBody, denial, null, null);
         return GatewayException.refused(denial);
     }
 
-    private void recordIntent(Call call, byte[] requestBody, Decision decision, @Nullable Money reservation) {
+    private void recordIntent(
+            Call call,
+            byte[] requestBody,
+            Decision decision,
+            @Nullable Money reservation,
+            ChatRequest.@Nullable Forwarded sent) {
         AuditLog trail = audit;
         if (trail == null) {
             return;
         }
         Route route = call.route();
+        Map<Detector, Integer> redacted = call.redacted();
+        Redactions redactions =
+                sent == null || redacted.isEmpty() ? null : new Redactions(redacted, trail.hmac(sent.body()));
         Intent intent = new Intent(
                 call.traceId(),
                 clock.instant(),
@@ -542,7 +598,8 @@ final class Gateway implements AutoCloseable {
                 trail.hmac(requestBody),
                 call.admission().steps(),
                 decision,
-                reservation);
+                reservation,
+                redactions);
         try {
             trail.append(intent);
         } catch (AuditUnavailableException e) {
@@ -638,7 +695,17 @@ final class Gateway implements AutoCloseable {
             TenantKey caller,
             WireFormat endpoint,
             Route route,
-            Admission admission) {}
+            Admission admission,
+            @Nullable Redactor redactor) {
+
+        Placeholders placeholders() {
+            return redactor == null ? Placeholders.NONE : redactor.placeholders();
+        }
+
+        Map<Detector, Integer> redacted() {
+            return redactor == null ? Map.of() : redactor.values();
+        }
+    }
 
     private record Snapshot(LoadedConfig loaded, KeyRing keys, Map<String, String> providerKeys) {
 

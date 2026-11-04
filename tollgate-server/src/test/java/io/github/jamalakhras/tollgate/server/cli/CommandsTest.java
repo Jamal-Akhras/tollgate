@@ -12,7 +12,9 @@ import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import io.github.jamalakhras.tollgate.server.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.server.audit.JsonLinesAuditSink;
 import io.github.jamalakhras.tollgate.server.gateway.ConfigFile;
@@ -101,6 +103,11 @@ class CommandsTest {
         assertThat(config.keys())
                 .singleElement()
                 .satisfies(entry -> assertThat(entry.sha256()).isEqualTo(key.sha256()));
+        Policy policy = Objects.requireNonNull(config.policies().get(GatewayConfig.DEFAULT_POLICY));
+        for (String dataClass : config.dataClasses()) {
+            assertThat(policy.refuses(dataClass)).containsExactly(Detector.SECRET);
+            assertThat(policy.redacts(dataClass)).containsExactly(Detector.CARD);
+        }
 
         String secrets = Files.readString(directory.resolve(Init.SECRETS));
         assertThat(printed).doesNotContain(valueAfter(secrets, "TOLLGATE_AUDIT_SIGNING_KEY="));
