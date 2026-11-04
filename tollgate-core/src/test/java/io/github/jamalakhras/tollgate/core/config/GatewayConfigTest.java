@@ -16,6 +16,7 @@ import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -219,6 +220,79 @@ class GatewayConfigTest {
         assertThatThrownBy(() -> new GatewayConfig(
                         DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies, AuditSettings.DISABLED))
                 .hasMessage("policies.p.features.remote-images: no data class named 'secret'");
+    }
+
+    @Test
+    void checksTheDataClassesADetectorNames() {
+        var redacting =
+                Map.of("p", new Policy(List.of(), Map.of(), Map.of(Detector.EMAIL, List.of("secret")), Map.of()));
+        var refusing = Map.of("p", new Policy(List.of(), Map.of(), Map.of(), Map.of(Detector.CARD, List.of("top"))));
+
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), redacting, AuditSettings.DISABLED))
+                .hasMessage("policies.p.redact.email: no data class named 'secret'");
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), refusing, AuditSettings.DISABLED))
+                .hasMessage("policies.p.refuse.card: no data class named 'top'");
+    }
+
+    @Test
+    void refusesToBothRedactAndRefuseADetectorForOneDataClass() {
+        var both = Map.of(
+                "p",
+                new Policy(
+                        List.of(),
+                        Map.of(),
+                        Map.of(Detector.SECRET, List.of("public")),
+                        Map.of(Detector.SECRET, List.of("internal", "public"))));
+
+        assertThatThrownBy(() -> new GatewayConfig(
+                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), both, AuditSettings.DISABLED))
+                .hasMessage("policies.p: secret is both redacted and refused for data class 'public'; choose one");
+    }
+
+    @Test
+    void admitsWithTheDetectorsForTheRequestsDataClass() {
+        Policy scanning = new Policy(
+                STRICT.guards(),
+                Map.of(),
+                Map.of(Detector.EMAIL, List.of("internal", "confidential"), Detector.CARD, List.of("confidential")),
+                Map.of(Detector.SECRET, List.of("public", "internal", "confidential")));
+        GatewayConfig scanned = new GatewayConfig(
+                DATA_CLASSES,
+                Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
+                MODELS,
+                Map.of("support-bot", new Tenant(List.of("qwen3", "claude-sonnet"), "internal", null, null)),
+                List.of(),
+                Map.of(GatewayConfig.DEFAULT_POLICY, scanning),
+                AuditSettings.DISABLED);
+        GatewayConfig.Route route = scanned.route("support-bot", "qwen3").orElseThrow();
+
+        Admission internal = scanned.admit("support-bot", route, null, 10, RequestFeatures.NONE);
+        Admission confidential = scanned.admit("support-bot", route, "confidential", 10, RequestFeatures.NONE);
+        Admission unknown = scanned.admit("support-bot", route, "secret", 10, RequestFeatures.NONE);
+
+        assertThat(internal.redact()).containsExactly(Detector.EMAIL);
+        assertThat(internal.refuse()).containsExactly(Detector.SECRET);
+        assertThat(internal.scans()).isTrue();
+        assertThat(confidential.redact()).containsExactlyInAnyOrder(Detector.EMAIL, Detector.CARD);
+        assertThat(unknown.admitted()).isFalse();
+        assertThat(unknown.scans()).isFalse();
+        assertThat(admit("support-bot", "qwen3", null, 10).scans()).isFalse();
+    }
+
+    @Test
+    void addsAStepToAnAdmission() {
+        Admission admission = admit("support-bot", "qwen3", null, 10);
+        Decision denial = Decision.deny(Refusal.POLICY_DENIED, "no");
+
+        Admission after = admission.after(new GuardStep("personal-data", denial, Duration.ofNanos(5)));
+
+        assertThat(after.decision()).isEqualTo(denial);
+        assertThat(after.admitted()).isFalse();
+        assertThat(after.steps()).extracting(GuardStep::guard).endsWith("data-class", "personal-data");
+        assertThat(after.dataClass()).isEqualTo(admission.dataClass());
+        assertThat(admission.steps()).hasSize(after.steps().size() - 1);
     }
 
     @Test

@@ -14,6 +14,7 @@ import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.Currency;
 import java.util.EnumMap;
@@ -182,10 +183,18 @@ public final class ConfigReader {
     }
 
     private static Policy policy(Section section) {
-        section.requireOnly("guards", "features");
+        section.requireOnly("guards", "features", "redact", "refuse");
         List<Guard> guards = section.sectionList("guards", ConfigReader::guard);
         Map<String, List<String>> features = section.optionalTextLists("features");
-        return section.build(() -> new Policy(guards, byFeature(features)));
+        Map<String, List<String>> redact = section.optionalTextLists("redact");
+        Map<String, List<String>> refuse = section.optionalTextLists("refuse");
+        return section.build(() -> new Policy(guards, byFeature(features), byDetector(redact), byDetector(refuse)));
+    }
+
+    private static Map<Detector, List<String>> byDetector(Map<String, List<String>> detectors) {
+        Map<Detector, List<String>> byDetector = new EnumMap<>(Detector.class);
+        detectors.forEach((name, dataClasses) -> byDetector.put(Detector.fromConfigName(name), dataClasses));
+        return byDetector;
     }
 
     private static Map<Feature, List<String>> byFeature(Map<String, List<String>> features) {

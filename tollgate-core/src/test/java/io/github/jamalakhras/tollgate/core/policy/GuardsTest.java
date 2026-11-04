@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.core.policy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,6 +23,22 @@ class GuardsTest {
 
     private static GuardRequest using(RequestFeatures features, @Nullable String dataClass) {
         return new GuardRequest("support-bot", "qwen3", "ollama", "local", dataClass, 1, features);
+    }
+
+    @Test
+    void namesTheDetectorsAPolicyAppliesToADataClass() {
+        Policy policy = new Policy(
+                List.of(),
+                Map.of(),
+                Map.of(Detector.EMAIL, List.of("internal"), Detector.IP, List.of("internal", "public")),
+                Map.of(Detector.SECRET, List.of("public")));
+
+        assertThat(policy.redacts("internal")).containsExactlyInAnyOrder(Detector.EMAIL, Detector.IP);
+        assertThat(policy.redacts("public")).containsExactly(Detector.IP);
+        assertThat(policy.refuses("public")).containsExactly(Detector.SECRET);
+        assertThat(policy.refuses("internal")).isEmpty();
+        assertThat(policy.redacts(null)).isEmpty();
+        assertThat(Policy.NONE.redacts("internal")).isEmpty();
     }
 
     @Test

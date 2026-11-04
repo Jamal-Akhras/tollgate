@@ -9,6 +9,7 @@ import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeaturesGuard;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +64,7 @@ public record GatewayConfig(
                 }
             }
             checkFeatures(policy.getKey(), policy.getValue(), dataClasses);
+            checkDetectors(policy.getKey(), policy.getValue(), dataClasses);
         }
         Set<String> keyIds = new HashSet<>();
         for (TenantKey key : keys) {
@@ -130,7 +132,12 @@ public record GatewayConfig(
         guards.add(new RequestFeaturesGuard(policy));
         guards.addAll(policy.guards());
         Policy.Evaluation evaluation = new Policy(guards).evaluate(request);
-        return new Admission(dataClass, evaluation.decision(), evaluation.steps());
+        return new Admission(
+                dataClass,
+                evaluation.decision(),
+                evaluation.steps(),
+                policy.refuses(dataClass),
+                policy.redacts(dataClass));
     }
 
     private Policy policyOf(Tenant tenant) {
@@ -139,7 +146,7 @@ public record GatewayConfig(
     }
 
     private static Admission refused(@Nullable String dataClass, Refusal refusal, String message) {
-        return new Admission(dataClass, Decision.deny(refusal, message), List.of());
+        return new Admission(dataClass, Decision.deny(refusal, message), List.of(), Set.of(), Set.of());
     }
 
     private static void checkTenant(
@@ -217,6 +224,28 @@ public record GatewayConfig(
                 }
             }
         });
+    }
+
+    private static void checkDetectors(String name, Policy policy, List<String> dataClasses) {
+        for (var setting :
+                Map.of("redact", policy.redact(), "refuse", policy.refuse()).entrySet()) {
+            setting.getValue().forEach((detector, chosen) -> {
+                for (String dataClass : chosen) {
+                    if (!dataClasses.contains(dataClass)) {
+                        throw new IllegalArgumentException("policies." + name + "." + setting.getKey() + "."
+                                + detector.configName() + ": no data class named '" + dataClass + "'");
+                    }
+                }
+            });
+        }
+        for (String dataClass : dataClasses) {
+            for (Detector detector : policy.redacts(dataClass)) {
+                if (policy.refuses(dataClass).contains(detector)) {
+                    throw new IllegalArgumentException("policies." + name + ": " + detector.configName()
+                            + " is both redacted and refused for data class '" + dataClass + "'; choose one");
+                }
+            }
+        }
     }
 
     private static void checkDataClassGuard(String policy, DataClassGuard guard, List<String> dataClasses) {

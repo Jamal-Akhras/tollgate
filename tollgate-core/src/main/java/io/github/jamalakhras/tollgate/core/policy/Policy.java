@@ -1,21 +1,33 @@
 package io.github.jamalakhras.tollgate.core.policy;
 
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
-public record Policy(List<Guard> guards, Map<Feature, List<String>> features) {
+public record Policy(
+        List<Guard> guards,
+        Map<Feature, List<String>> features,
+        Map<Detector, List<String>> redact,
+        Map<Detector, List<String>> refuse) {
 
     public static final Policy NONE = new Policy(List.of());
 
     public Policy {
         guards = List.copyOf(guards);
-        Map<Feature, List<String>> copied = new EnumMap<>(Feature.class);
-        features.forEach((feature, dataClasses) -> copied.put(feature, List.copyOf(dataClasses)));
-        features = Map.copyOf(copied);
+        features = copy(features);
+        redact = copy(redact);
+        refuse = copy(refuse);
+    }
+
+    public Policy(List<Guard> guards, Map<Feature, List<String>> features) {
+        this(guards, features, Map.of(), Map.of());
     }
 
     public Policy(List<Guard> guards) {
@@ -24,6 +36,30 @@ public record Policy(List<Guard> guards, Map<Feature, List<String>> features) {
 
     public boolean allows(Feature feature, @Nullable String dataClass) {
         return dataClass != null && features.getOrDefault(feature, List.of()).contains(dataClass);
+    }
+
+    public Set<Detector> redacts(@Nullable String dataClass) {
+        return detectors(redact, dataClass);
+    }
+
+    public Set<Detector> refuses(@Nullable String dataClass) {
+        return detectors(refuse, dataClass);
+    }
+
+    private static Set<Detector> detectors(Map<Detector, List<String>> byDetector, @Nullable String dataClass) {
+        Set<Detector> detectors = EnumSet.noneOf(Detector.class);
+        byDetector.forEach((detector, dataClasses) -> {
+            if (dataClass != null && dataClasses.contains(dataClass)) {
+                detectors.add(detector);
+            }
+        });
+        return detectors.isEmpty() ? Set.of() : Collections.unmodifiableSet(detectors);
+    }
+
+    private static <K> Map<K, List<String>> copy(Map<K, List<String>> byKey) {
+        Map<K, List<String>> copied = new HashMap<>();
+        byKey.forEach((key, dataClasses) -> copied.put(key, List.copyOf(dataClasses)));
+        return Map.copyOf(copied);
     }
 
     public Evaluation evaluate(GuardRequest request) {

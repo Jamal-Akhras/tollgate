@@ -12,7 +12,9 @@ import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
+import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Duration;
@@ -406,6 +408,37 @@ class ConfigReaderTest {
                 .containsOnly(
                         Map.entry(Feature.REMOTE_IMAGES, List.of("public")),
                         Map.entry(Feature.UNREVIEWED_FIELDS, List.of()));
+    }
+
+    @Test
+    void readsWhatAPolicyRedactsAndRefuses() {
+        GatewayConfig config = ConfigReader.read(with(
+                "policies",
+                Map.of(
+                        "default",
+                        Map.of(
+                                "guards", List.of(DATA_CLASS_GUARD),
+                                "redact", Map.of("email", List.of("confidential"), "national-id", List.of()),
+                                "refuse", Map.of("secret", List.of("public", "confidential"))))));
+
+        Policy policy = entry(config.policies(), "default");
+        assertThat(policy.redact())
+                .containsOnly(
+                        Map.entry(Detector.EMAIL, List.of("confidential")), Map.entry(Detector.NATIONAL_ID, List.of()));
+        assertThat(policy.refuse()).containsOnly(Map.entry(Detector.SECRET, List.of("public", "confidential")));
+    }
+
+    @Test
+    void rejectsUnknownDetectors() {
+        Map<String, Object> unknown =
+                Map.of("guards", List.of(DATA_CLASS_GUARD), "redact", Map.of("names", List.of("public")));
+        Map<String, Object> notAList = Map.of("guards", List.of(DATA_CLASS_GUARD), "refuse", Map.of("secret", true));
+
+        assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", unknown))))
+                .hasMessage("policies.default: detector must be one of secret, email, card, iban, national-id, phone,"
+                        + " ip, was names");
+        assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", notAList))))
+                .hasMessageStartingWith("policies.default.refuse.secret");
     }
 
     @Test
