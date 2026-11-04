@@ -83,7 +83,8 @@ class AuditFailureTest {
                 AuditLog.start(sink, keys, Clock.systemUTC(), true),
                 Clock.systemUTC(),
                 1_000_000,
-                Duration.ofMinutes(1));
+                Duration.ofMinutes(1),
+                Duration.ofSeconds(1));
     }
 
     private static final StreamTarget NOT_STREAMED = new StreamTarget() {

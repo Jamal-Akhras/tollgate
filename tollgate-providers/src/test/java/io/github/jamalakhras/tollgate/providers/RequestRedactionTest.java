@@ -6,7 +6,6 @@ import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import java.nio.charset.StandardCharsets;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -15,7 +14,7 @@ import tools.jackson.databind.JsonNode;
 class RequestRedactionTest {
 
     private static Redactor redactor() {
-        return new Redactor(Set.of(Detector.SECRET), EnumSet.of(Detector.EMAIL, Detector.CARD, Detector.PHONE));
+        return new Redactor(Set.of(Detector.SECRET), Set.of(Detector.EMAIL, Detector.CARD, Detector.PHONE));
     }
 
     private static String sent(String json, WireFormat format, Redactor redactor) {

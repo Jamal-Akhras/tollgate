@@ -1,7 +1,6 @@
 package io.github.jamalakhras.tollgate.core.redact;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -22,7 +21,7 @@ class DetectorTest {
 
     static List<String> found(Detector detector, String text) {
         List<Span> spans = new ArrayList<>();
-        detector.find(text, spans);
+        detector.find(text, spans, ScanBudget.UNLIMITED);
         return spans.stream()
                 .map(span -> text.substring(span.start(), span.end()))
                 .toList();
@@ -446,14 +445,15 @@ class DetectorTest {
     }
 
     @Test
-    void namesEachDetectorInConfig() {
-        assertThat(Detector.fromConfigName("national-id")).isEqualTo(Detector.NATIONAL_ID);
-        for (Detector detector : Detector.values()) {
-            assertThat(Detector.fromConfigName(detector.configName())).isEqualTo(detector);
+    void namesEachBuiltInDetector() {
+        assertThat(Detector.builtIn("national-id")).contains(Detector.NATIONAL_ID);
+        assertThat(Detector.builtIn("names")).isEmpty();
+        for (Detector detector : Detector.BUILT_IN) {
+            assertThat(Detector.builtIn(detector.configName())).contains(detector);
             assertThat(detector.description()).isNotBlank();
+            assertThat(detector).hasToString(detector.configName());
         }
-        assertThatThrownBy(() -> Detector.fromConfigName("names"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("detector must be one of secret, email, card, iban, national-id, phone, ip, was names");
+        assertThat(Detector.builtInNames()).isEqualTo("secret, email, card, iban, national-id, phone, ip");
+        assertThat(Detector.NATIONAL_ID.label()).isEqualTo("NATIONAL_ID");
     }
 }

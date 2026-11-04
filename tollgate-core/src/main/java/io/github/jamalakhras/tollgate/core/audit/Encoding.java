@@ -61,7 +61,7 @@ final class Encoding {
         if (redactions != null) {
             u32(redactions.values().size());
             redactions.values().forEach((detector, count) -> {
-                text(detector.configName());
+                text(detector);
                 u32(count);
             });
             sha256(redactions.sentHmac());

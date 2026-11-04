@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
-import java.util.EnumSet;
 import java.util.Set;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -41,7 +40,7 @@ class HostileInputTest {
             })
     void redactsAMegabyteOfRepeatedPatternQuickly(String unit) {
         String text = unit.repeat(ONE_MEGABYTE / unit.length());
-        Redactor redactor = new Redactor(Set.of(), EnumSet.allOf(Detector.class));
+        Redactor redactor = new Redactor(Set.of(), Set.copyOf(Detector.BUILT_IN));
 
         String redacted = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> redactor.redact(text));
 
@@ -52,7 +51,7 @@ class HostileInputTest {
     @ValueSource(strings = {"a@", "a.", "a@b.c"})
     void handlesALongDomain(String start) {
         String text = start + "a.".repeat(ONE_MEGABYTE / 2) + "com";
-        Redactor redactor = new Redactor(Set.of(), EnumSet.allOf(Detector.class));
+        Redactor redactor = new Redactor(Set.of(), Set.copyOf(Detector.BUILT_IN));
 
         assertTimeoutPreemptively(Duration.ofSeconds(10), () -> redactor.redact(text));
     }

@@ -7,7 +7,8 @@ public enum Refusal {
     INVALID_DATA_CLASS,
     POLICY_DENIED,
     TOO_LARGE,
-    BUDGET_EXCEEDED;
+    BUDGET_EXCEEDED,
+    REDACTION_TIMEOUT;
 
     public String code() {
         return name().toLowerCase(Locale.ROOT);

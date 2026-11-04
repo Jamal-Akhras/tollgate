@@ -15,6 +15,7 @@ import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
+import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Duration;
@@ -24,9 +25,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class ConfigReaderTest {
 
@@ -435,10 +440,83 @@ class ConfigReaderTest {
         Map<String, Object> notAList = Map.of("guards", List.of(DATA_CLASS_GUARD), "refuse", Map.of("secret", true));
 
         assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", unknown))))
-                .hasMessage("policies.default: detector must be one of secret, email, card, iban, national-id, phone,"
-                        + " ip, was names");
+                .hasMessage("policies.default.redact names no detector 'names'; define it under detectors, or use a"
+                        + " built-in one: secret, email, card, iban, national-id, phone, ip");
         assertThatThrownBy(() -> ConfigReader.read(with("policies", Map.of("default", notAList))))
                 .hasMessageStartingWith("policies.default.refuse.secret");
+    }
+
+    private static Map<String, Object> withDetectors(Map<String, Object> detectors, Map<String, Object> redact) {
+        Map<String, Object> document = with("detectors", detectors);
+        document.put("policies", Map.of("default", Map.of("guards", List.of(DATA_CLASS_GUARD), "redact", redact)));
+        return document;
+    }
+
+    @Test
+    void readsDetectorsTheConfigDefinesAndUsesThemInPolicies() {
+        GatewayConfig config = ConfigReader.read(withDetectors(
+                Map.of(
+                        "customer-id", Map.of("pattern", "CUST-[0-9]{6}"),
+                        "clients", Map.of("terms", List.of("Globex", "Acme Holdings"), "caseSensitive", true)),
+                Map.of("customer-id", List.of("confidential"), "clients", List.of("public"), "email", List.of())));
+
+        Policy policy = entry(config.policies(), "default");
+        assertThat(policy.redacts("confidential"))
+                .extracting(Detector::configName)
+                .containsExactly("customer-id");
+        assertThat(policy.redacts("public")).extracting(Detector::configName).containsExactly("clients");
+        Redactor redactor = new Redactor(Set.of(), policy.redacts("public"));
+        assertThat(redactor.redact("Globex and globex")).isEqualTo("[CLIENTS_1] and globex");
+    }
+
+    static Stream<Arguments> brokenDetectors() {
+        return Stream.of(
+                Arguments.of(
+                        Map.of("email", Map.of("pattern", "x")),
+                        "detectors.email: 'email' is a built-in detector; choose another name"),
+                Arguments.of(
+                        Map.of("both", Map.of("pattern", "x", "terms", List.of("x"))),
+                        "detectors.both: set either pattern or terms"),
+                Arguments.of(Map.of("neither", Map.of()), "detectors.neither: set either pattern or terms"),
+                Arguments.of(
+                        Map.of("cased", Map.of("pattern", "x", "caseSensitive", true)),
+                        "detectors.cased: caseSensitive applies only to terms; start a pattern with (?i) to ignore case"),
+                Arguments.of(
+                        Map.of("bad", Map.of("pattern", "x(")),
+                        "detectors.bad: pattern is not a valid regular expression: Unclosed group near index 2"),
+                Arguments.of(
+                        Map.of("empty", Map.of("terms", List.of())),
+                        "detectors.empty: terms must list at least one term"),
+                Arguments.of(
+                        Map.of("-dash", Map.of("pattern", "x")),
+                        "detectors.-dash: detector '-dash' must start with a letter or digit and use only letters,"
+                                + " digits, '.', '_', ':' and '-'"),
+                Arguments.of(
+                        Map.of("odd", Map.of("pattern", "x", "flags", "i")),
+                        "detectors.odd.flags is not a recognised setting"),
+                Arguments.of(
+                        Map.of("national.id", Map.of("pattern", "x")),
+                        "detectors.national.id: its placeholders, such as [NATIONAL_ID_1], would be the same as"
+                                + " those of detector 'national-id'"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("brokenDetectors")
+    void explainsWhatIsWrongWithADetector(Map<String, Object> detectors, String problem) {
+        assertThatThrownBy(() -> ConfigReader.read(withDetectors(detectors, Map.of())))
+                .isInstanceOf(InvalidConfigException.class)
+                .hasMessage(problem);
+    }
+
+    @Test
+    void rejectsTwoDetectorsWithTheSamePlaceholders() {
+        Map<String, Object> detectors = new LinkedHashMap<>();
+        detectors.put("customer-id", Map.of("pattern", "x"));
+        detectors.put("customer_id", Map.of("pattern", "y"));
+
+        assertThatThrownBy(() -> ConfigReader.read(withDetectors(detectors, Map.of())))
+                .hasMessage("detectors.customer_id: its placeholders, such as [CUSTOMER_ID_1], would be the same as"
+                        + " those of detector 'customer-id'");
     }
 
     @Test

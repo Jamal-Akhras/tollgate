@@ -11,7 +11,6 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,11 +18,11 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Currency;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
@@ -107,7 +106,7 @@ public final class AuditJson {
         if (redactions != null) {
             ObjectNode written = line.putObject("redactions");
             ObjectNode values = written.putObject("values");
-            redactions.values().forEach((detector, count) -> values.put(detector.configName(), count));
+            redactions.values().forEach(values::put);
             written.put("sentHmac", redactions.sentHmac());
         }
     }
@@ -211,11 +210,9 @@ public final class AuditJson {
     private static Redactions readRedactions(Fields fields) {
         fields.requireExactly("values", "sentHmac");
         Fields values = fields.child("values");
-        Map<Detector, Integer> counts = new EnumMap<>(Detector.class);
+        Map<String, Integer> counts = new TreeMap<>();
         for (String name : values.node().propertyNames()) {
-            counts.put(
-                    values.build(() -> Detector.fromConfigName(name)),
-                    values.build(() -> Math.toIntExact(values.whole(name))));
+            counts.put(name, values.build(() -> Math.toIntExact(values.whole(name))));
         }
         return fields.build(() -> new Redactions(counts, fields.text("sentHmac")));
     }

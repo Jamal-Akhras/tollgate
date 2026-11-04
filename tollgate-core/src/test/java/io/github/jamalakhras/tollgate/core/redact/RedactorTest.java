@@ -2,14 +2,13 @@ package io.github.jamalakhras.tollgate.core.redact;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class RedactorTest {
 
-    private static final Set<Detector> ALL = EnumSet.allOf(Detector.class);
+    private static final Set<Detector> ALL = Set.copyOf(Detector.BUILT_IN);
 
     @Test
     void replacesEachValueWithANumberedPlaceholder() {
@@ -18,7 +17,7 @@ class RedactorTest {
         String redacted = redactor.redact("Mail jane@example.com or bob@example.org, card 4111 1111 1111 1111.");
 
         assertThat(redacted).isEqualTo("Mail [EMAIL_1] or [EMAIL_2], card [CARD_1].");
-        assertThat(redactor.values()).isEqualTo(Map.of(Detector.EMAIL, 2, Detector.CARD, 1));
+        assertThat(redactor.values()).isEqualTo(Map.of("email", 2, "card", 1));
         assertThat(redactor.refused()).isEmpty();
     }
 
@@ -29,7 +28,7 @@ class RedactorTest {
         assertThat(redactor.redact("From jane@example.com")).isEqualTo("From [EMAIL_1]");
         assertThat(redactor.redact("To bob@example.org, cc jane@example.com")).isEqualTo("To [EMAIL_2], cc [EMAIL_1]");
         assertThat(redactor.redact("jane@example.com")).isEqualTo("[EMAIL_1]");
-        assertThat(redactor.values()).isEqualTo(Map.of(Detector.EMAIL, 2));
+        assertThat(redactor.values()).isEqualTo(Map.of("email", 2));
     }
 
     @Test
@@ -69,12 +68,12 @@ class RedactorTest {
 
         assertThat(redactor.redact("Write to 4111111111111111@example.com")).isEqualTo("Write to [EMAIL_1]");
         assertThat(redactor.redact("Or +4420794609581@example.com")).isEqualTo("Or [EMAIL_2]");
-        assertThat(redactor.values()).isEqualTo(Map.of(Detector.EMAIL, 2));
+        assertThat(redactor.values()).isEqualTo(Map.of("email", 2));
     }
 
     @Test
     void notesTheFirstRefusedDetectorItFinds() {
-        Redactor redactor = new Redactor(EnumSet.of(Detector.SECRET, Detector.CARD), Set.of(Detector.EMAIL));
+        Redactor redactor = new Redactor(Set.of(Detector.CARD, Detector.SECRET), Set.of(Detector.EMAIL));
 
         assertThat(redactor.redact("jane@example.com")).isEqualTo("[EMAIL_1]");
         assertThat(redactor.refused()).isEmpty();
@@ -114,7 +113,7 @@ class RedactorTest {
         String redacted = redactor.redact(text);
 
         assertThat(redacted).isEqualTo("Template says [EMAIL_1], mine is [EMAIL_2], [CARD_1] and [EMAIL_3] stay");
-        assertThat(redactor.values()).isEqualTo(Map.of(Detector.EMAIL, 1));
+        assertThat(redactor.values()).isEqualTo(Map.of("email", 1));
         assertThat(redactor.placeholders().restore("Reply to [EMAIL_2] about [EMAIL_1] and [EMAIL_3]"))
                 .isEqualTo("Reply to jane@example.com about [EMAIL_1] and [EMAIL_9]");
     }

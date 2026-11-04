@@ -18,6 +18,7 @@ import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.Currency;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -35,14 +36,16 @@ public final class ConfigReader {
 
     public static GatewayConfig read(Map<String, ?> document, PriceCatalog catalog) {
         Section root = Section.root(document);
-        root.requireOnly("currency", "dataClasses", "providers", "models", "tenants", "keys", "policies", "audit");
+        root.requireOnly(
+                "currency", "dataClasses", "providers", "models", "tenants", "keys", "detectors", "policies", "audit");
         Currency currency = root.currency("currency", DEFAULT_CURRENCY);
         var dataClasses = root.texts("dataClasses");
         var providers = root.sections("providers", section -> provider(section, catalog));
         var models = root.sections("models", section -> model(section, currency, providers, catalog));
         var tenants = root.sections("tenants", section -> tenant(section, currency));
         var keys = root.sectionList("keys", ConfigReader::key);
-        var policies = root.sections("policies", ConfigReader::policy);
+        var detectors = detectors(root);
+        var policies = root.sections("policies", section -> policy(section, detectors));
         var audit = root.child("audit", ConfigReader::audit);
         return root.build(() -> new GatewayConfig(dataClasses, providers, models, tenants, keys, policies, audit));
     }
@@ -182,18 +185,64 @@ public final class ConfigReader {
         return section.build(() -> new TenantKey(section.text("id"), section.text("tenant"), section.text("sha256")));
     }
 
-    private static Policy policy(Section section) {
+    private static Map<String, Detector> detectors(Section root) {
+        Map<String, Detector> detectors = root.namedSections("detectors", ConfigReader::detector);
+        Map<String, String> labels = new HashMap<>();
+        Detector.BUILT_IN.forEach(detector -> labels.put(detector.label(), detector.configName()));
+        detectors.forEach((name, detector) -> {
+            String clash = labels.putIfAbsent(detector.label(), name);
+            if (clash != null) {
+                throw new InvalidConfigException(root.path("detectors") + "." + name + ": its placeholders, such as ["
+                        + detector.label() + "_1], would be the same as those of detector '" + clash + "'");
+            }
+        });
+        return detectors;
+    }
+
+    private static Detector detector(String name, Section section) {
+        section.requireOnly("pattern", "terms", "caseSensitive");
+        if (Detector.builtIn(name).isPresent()) {
+            throw section.invalid("'" + name + "' is a built-in detector; choose another name");
+        }
+        boolean pattern = section.has("pattern");
+        if (pattern == section.has("terms")) {
+            throw section.invalid("set either pattern or terms");
+        }
+        if (pattern && section.has("caseSensitive")) {
+            throw section.invalid("caseSensitive applies only to terms; start a pattern with (?i) to ignore case");
+        }
+        String regex = pattern ? section.text("pattern") : "";
+        List<String> terms = pattern ? List.of() : section.texts("terms");
+        boolean caseSensitive = section.flag("caseSensitive", false);
+        return section.build(() -> {
+            Names.check("detector", name);
+            return pattern ? Detector.pattern(name, regex) : Detector.terms(name, terms, caseSensitive);
+        });
+    }
+
+    private static Policy policy(Section section, Map<String, Detector> detectors) {
         section.requireOnly("guards", "features", "redact", "refuse");
         List<Guard> guards = section.sectionList("guards", ConfigReader::guard);
         Map<String, List<String>> features = section.optionalTextLists("features");
-        Map<String, List<String>> redact = section.optionalTextLists("redact");
-        Map<String, List<String>> refuse = section.optionalTextLists("refuse");
-        return section.build(() -> new Policy(guards, byFeature(features), byDetector(redact), byDetector(refuse)));
+        var redact = byDetector(section, "redact", detectors);
+        var refuse = byDetector(section, "refuse", detectors);
+        return section.build(() -> new Policy(guards, byFeature(features), redact, refuse));
     }
 
-    private static Map<Detector, List<String>> byDetector(Map<String, List<String>> detectors) {
-        Map<Detector, List<String>> byDetector = new EnumMap<>(Detector.class);
-        detectors.forEach((name, dataClasses) -> byDetector.put(Detector.fromConfigName(name), dataClasses));
+    private static Map<Detector, List<String>> byDetector(
+            Section section, String key, Map<String, Detector> detectors) {
+        Map<Detector, List<String>> byDetector = new HashMap<>();
+        section.optionalTextLists(key).forEach((name, dataClasses) -> {
+            Detector detector = detectors.get(name);
+            if (detector == null) {
+                detector = Detector.builtIn(name)
+                        .orElseThrow(() -> section.invalid(
+                                key,
+                                "names no detector '" + name + "'; define it under detectors, or use a built-in"
+                                        + " one: " + Detector.builtInNames()));
+            }
+            byDetector.put(detector, dataClasses);
+        });
         return byDetector;
     }
 

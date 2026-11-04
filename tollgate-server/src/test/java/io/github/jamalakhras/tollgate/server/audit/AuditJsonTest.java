@@ -63,7 +63,7 @@ class AuditJsonTest {
 
         assertThat(line)
                 .startsWith("{\"v\":2,\"type\":\"intent\",")
-                .endsWith(",\"redactions\":{\"values\":{\"email\":2,\"card\":1},\"sentHmac\":\"e7a3" + "5".repeat(60)
+                .endsWith(",\"redactions\":{\"values\":{\"card\":1,\"email\":2},\"sentHmac\":\"e7a3" + "5".repeat(60)
                         + "\"}}");
         assertThat(AuditJson.write(Samples.intent("7c0e")))
                 .startsWith("{\"v\":1,")
@@ -82,8 +82,6 @@ class AuditJsonTest {
         assertThatThrownBy(() ->
                         AuditJson.read(AuditJson.write(Samples.outcome("a")).replace("{\"v\":1,", "{\"v\":2,")))
                 .hasMessage("Unsupported audit record version 2");
-        assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"names\":2")))
-                .hasMessage("detector must be one of secret, email, card, iban, national-id, phone, ip, was names");
         assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"email\":0")))
                 .hasMessage("redactions.email must be at least 1");
         assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"email\":\"2\"")))
@@ -91,7 +89,7 @@ class AuditJsonTest {
         assertThatThrownBy(() -> AuditJson.read(redacted.replace(",\"sentHmac\"", ",\"note\":1,\"sentHmac\"")))
                 .hasMessage("'note' is not part of 'redactions'");
         assertThatThrownBy(
-                        () -> AuditJson.read(redacted.replace("\"values\":{\"email\":2,\"card\":1}", "\"values\":{}")))
+                        () -> AuditJson.read(redacted.replace("\"values\":{\"card\":1,\"email\":2}", "\"values\":{}")))
                 .hasMessage("redactions must count at least one value");
     }
 

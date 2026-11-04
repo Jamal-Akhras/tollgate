@@ -8,7 +8,7 @@ public final class Placeholders {
 
     public static final Placeholders NONE = new Placeholders(Map.of());
 
-    static final Pattern PLACEHOLDER = Pattern.compile("\\[[A-Z_]+_[1-9]\\d*]");
+    static final Pattern PLACEHOLDER = Pattern.compile("\\[[A-Z0-9][A-Z0-9_]*_[1-9]\\d*]");
 
     private final Map<String, String> values;
 

@@ -41,11 +41,14 @@ what was sent, who sent it, what it cost, and why it was allowed.
   numbers, IBANs, phone numbers, national ID numbers and IP addresses with
   placeholders such as `[EMAIL_1]` before a request leaves, and put the real
   values back in the answer, in tool-call arguments and in streams. It can
-  refuse API keys and private keys outright. The audit trail counts what was
-  replaced and proves what was sent, without recording any value. Detection
-  is by pattern and checksum, so a value written in words or a key with an
-  unknown prefix gets through
-  ([ADR 0012](docs/adr/0012-redact-personal-data.md)).
+  refuse API keys and private keys outright. You can add detectors of your
+  own, as a pattern such as `CUST-[0-9]{6}` or a list of terms such as client
+  names, and redact or refuse them the same way. The audit trail counts what
+  was replaced and proves what was sent, without recording any value.
+  Detection is by pattern and checksum, so a value written in words or a key
+  with an unknown prefix gets through
+  ([ADR 0012](docs/adr/0012-redact-personal-data.md),
+  [ADR 0013](docs/adr/0013-custom-detectors.md)).
 - **Budgets with exact money.** The most a call can cost is reserved before
   the provider is called, and the reservation is settled from the provider's
   reported token usage. Near the limit, the answer is shortened to fit rather

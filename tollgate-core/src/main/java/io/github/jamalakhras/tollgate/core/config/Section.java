@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -39,6 +40,10 @@ final class Section {
                 throw new InvalidConfigException(pathOf(key) + " is not a recognised setting");
             }
         }
+    }
+
+    InvalidConfigException invalid(String problem) {
+        return new InvalidConfigException(path + ": " + problem);
     }
 
     InvalidConfigException invalid(String key, String problem) {
@@ -156,6 +161,21 @@ final class Section {
         for (Map.Entry<String, ?> entry : asMap(pathOf(key), value).entrySet()) {
             String childPath = pathOf(key) + "." + entry.getKey();
             sections.put(entry.getKey(), reader.apply(new Section(childPath, asMap(childPath, entry.getValue()))));
+        }
+        return sections;
+    }
+
+    <T> Map<String, T> namedSections(String key, BiFunction<String, Section, T> reader) {
+        Object value = values.get(key);
+        if (value == null) {
+            return Map.of();
+        }
+        Map<String, T> sections = new LinkedHashMap<>();
+        for (Map.Entry<String, ?> entry : asMap(pathOf(key), value).entrySet()) {
+            String childPath = pathOf(key) + "." + entry.getKey();
+            sections.put(
+                    entry.getKey(),
+                    reader.apply(entry.getKey(), new Section(childPath, asMap(childPath, entry.getValue()))));
         }
         return sections;
     }

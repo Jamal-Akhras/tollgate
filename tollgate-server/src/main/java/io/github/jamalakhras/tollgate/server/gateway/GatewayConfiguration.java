@@ -48,7 +48,8 @@ class GatewayConfiguration {
                             providerHttpClient, properties.maxResponseSize().toBytes()),
                     Clock.systemUTC(),
                     properties.maxRequestBytes(),
-                    properties.maxStreamDuration());
+                    properties.maxStreamDuration(),
+                    properties.maxScanTime());
         } catch (UncheckedIOException e) {
             throw new StartupException(e.getMessage() + ": " + reason(Objects.requireNonNull(e.getCause())), e);
         } catch (IllegalStateException e) {
@@ -70,11 +71,13 @@ class GatewayConfiguration {
             ProviderClient client,
             Clock clock,
             int maxRequestBytes,
-            Duration maxStreamDuration) {
+            Duration maxStreamDuration,
+            Duration maxScanTime) {
         InMemoryBudgetStore budgets = new InMemoryBudgetStore(clock);
         AuditLog audit = startAudit(loaded, environment, clock);
         restoreBudgets(loaded, budgets);
-        return new Gateway(loaded, environment, client, budgets, audit, clock, maxRequestBytes, maxStreamDuration);
+        return new Gateway(
+                loaded, environment, client, budgets, audit, clock, maxRequestBytes, maxStreamDuration, maxScanTime);
     }
 
     private static void restoreBudgets(LoadedConfig loaded, InMemoryBudgetStore budgets) {

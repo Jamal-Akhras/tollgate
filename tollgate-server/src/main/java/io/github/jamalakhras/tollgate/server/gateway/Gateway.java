@@ -29,6 +29,7 @@ import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
 import io.github.jamalakhras.tollgate.core.redact.Placeholders;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
+import io.github.jamalakhras.tollgate.core.redact.ScanTimeoutException;
 import io.github.jamalakhras.tollgate.providers.ChatRequest;
 import io.github.jamalakhras.tollgate.providers.InvalidProviderResponseException;
 import io.github.jamalakhras.tollgate.providers.InvalidRequestException;
@@ -80,6 +81,7 @@ final class Gateway implements AutoCloseable {
     private final Clock clock;
     private final int maxRequestBytes;
     private final Duration maxStreamDuration;
+    private final Duration maxScanTime;
     private volatile Snapshot current;
 
     Gateway(
@@ -90,7 +92,8 @@ final class Gateway implements AutoCloseable {
             @Nullable AuditLog audit,
             Clock clock,
             int maxRequestBytes,
-            Duration maxStreamDuration) {
+            Duration maxStreamDuration,
+            Duration maxScanTime) {
         this.environment = environment;
         this.current = new Snapshot(loaded, environment);
         this.client = client;
@@ -99,6 +102,7 @@ final class Gateway implements AutoCloseable {
         this.clock = clock;
         this.maxRequestBytes = maxRequestBytes;
         this.maxStreamDuration = maxStreamDuration;
+        this.maxScanTime = maxScanTime;
     }
 
     Optional<Result> complete(
@@ -171,16 +175,29 @@ final class Gateway implements AutoCloseable {
                 sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
     }
 
-    private static Scanned scan(ChatRequest request, WireFormat endpoint, Admission admission) {
+    private Scanned scan(ChatRequest request, WireFormat endpoint, Admission admission) {
         if (!admission.admitted() || !admission.scans()) {
             return new Scanned(request, admission, null);
         }
-        Redactor redactor = new Redactor(admission.refuse(), admission.redact());
         long started = System.nanoTime();
-        ChatRequest redacted = request.redacted(endpoint, redactor);
-        Decision decision = redactor.refused()
-                .map(detector -> refusal(detector, admission.dataClass()))
-                .orElse(Decision.ALLOW);
+        Redactor redactor = new Redactor(admission.refuse(), admission.redact(), maxScanTime);
+        ChatRequest redacted = request;
+        Decision decision;
+        try {
+            redacted = request.redacted(endpoint, redactor);
+            decision = redactor.refused()
+                    .map(detector -> refusal(detector, admission.dataClass()))
+                    .orElse(Decision.ALLOW);
+        } catch (ScanTimeoutException e) {
+            log.warn(
+                    "The '{}' detector took longer than tollgate.max-scan-time ({}); fix its pattern",
+                    e.detector(),
+                    maxScanTime);
+            decision = Decision.deny(
+                    Refusal.REDACTION_TIMEOUT,
+                    "Tollgate could not finish checking this request for personal data within " + maxScanTime
+                            + ", because the '" + e.detector() + "' detector took too long, so it was not sent");
+        }
         GuardStep step = new GuardStep(PERSONAL_DATA_STEP, decision, Duration.ofNanos(System.nanoTime() - started));
         return new Scanned(redacted, admission.after(step), redactor);
     }
@@ -581,7 +598,7 @@ final class Gateway implements AutoCloseable {
             return;
         }
         Route route = call.route();
-        Map<Detector, Integer> redacted = call.redacted();
+        Map<String, Integer> redacted = call.redacted();
         Redactions redactions =
                 sent == null || redacted.isEmpty() ? null : new Redactions(redacted, trail.hmac(sent.body()));
         Intent intent = new Intent(
@@ -702,7 +719,7 @@ final class Gateway implements AutoCloseable {
             return redactor == null ? Placeholders.NONE : redactor.placeholders();
         }
 
-        Map<Detector, Integer> redacted() {
+        Map<String, Integer> redacted() {
             return redactor == null ? Map.of() : redactor.values();
         }
     }

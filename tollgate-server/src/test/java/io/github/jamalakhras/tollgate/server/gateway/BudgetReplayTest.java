@@ -92,7 +92,8 @@ class BudgetReplayTest {
                 new ProviderClient(http, 1_024 * 1_024),
                 Clock.systemUTC(),
                 1_000_000,
-                Duration.ofMinutes(1));
+                Duration.ofMinutes(1),
+                Duration.ofSeconds(1));
     }
 
     private static HttpStatus call(Gateway gateway) {

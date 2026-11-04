@@ -154,8 +154,14 @@ policies:
     redact:                        # replaced before the call, restored in the answer
       email: [internal, confidential]
       iban: [internal, confidential, restricted]
+      customer-id: [internal, confidential, restricted]
     refuse:                        # never sent
       secret: [public, internal, confidential, restricted]
+      codenames: [public, internal, confidential, restricted]
+
+detectors:                         # your own, next to the built-in ones
+  customer-id: { pattern: "CUST-[0-9]{6}" }
+  codenames: { terms: [Bluebird, Project Falcon] }
 
 audit:                             # required; 'mode: off' must be written out
   mode: sync                       # sync | async | off
@@ -328,7 +334,7 @@ with hardware details for every audit mode.
 | Milestone | Scope |
 |---|---|
 | **M0** (done) | Build, quality gates, CI, money types, server skeleton with port separation, admin API contract |
-| **M1** | OpenAI and Anthropic endpoints that forward the original request (non-streaming) to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); a reviewed price catalog ([ADR 0009](adr/0009-price-catalog.md)); redaction and restore of patterned personal data (emails, phone and card numbers, IBANs, national IDs, IP addresses, secrets), streams included; streaming with usage; first performance report |
+| **M1** | OpenAI and Anthropic endpoints that forward the original request, streamed or not, to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; hashed tenant keys and `keys create`; per-tenant model lists; data classes; size and data-class guards; budget reservations; batch-chained, signed audit and `audit verify`; config reload; Docker image; the hardening in [ADR 0008](adr/0008-harden-the-request-path.md); a reviewed price catalog ([ADR 0009](adr/0009-price-catalog.md)); redaction and restore of patterned personal data (emails, phone and card numbers, IBANs, national IDs, IP addresses, secrets) and detectors of your own, streams included; streaming with usage; first performance report |
 | **M2** | The hold-back window for output guards on streams; name detection and redaction and restore; CEL rules; webhook guards; Postgres ledger and audit; Redis and rate limits; resilience and provider fallback; OpenTelemetry; Spring Boot starter and testkit; first release to Maven Central |
 | **M3** | Studio (simulator, guard editor, shadow mode, maker-checker); cluster config sync; Helm chart; Terraform example |
 | Later | Translation between formats, Responses API, Azure OpenAI and Bedrock, gRPC guards, policy for MCP tool calls, semantic caching, a Python helper package |

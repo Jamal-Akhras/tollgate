@@ -3,9 +3,10 @@ package io.github.jamalakhras.tollgate.core.redact;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.Combinators;
@@ -17,7 +18,13 @@ import net.jqwik.api.constraints.Size;
 
 class RedactionPropertyTest {
 
-    private static final Set<Detector> ALL = EnumSet.allOf(Detector.class);
+    private static final Set<Detector> ALL = Stream.concat(
+                    Detector.BUILT_IN.stream(),
+                    Stream.of(
+                            Detector.pattern("customer-id", "CUST-[0-9]{6}"),
+                            Detector.pattern("account", "account (?<value>[0-9]{8})"),
+                            Detector.terms("codenames", List.of("Bluebird", "Project Falcon"), false)))
+            .collect(Collectors.toSet());
     private static final List<String> VALUES = List.of(
             "jane@example.com",
             "bob.smith+x@mail.example.co.uk",
@@ -32,7 +39,10 @@ class RedactionPropertyTest {
             "8.8.8.8",
             "2a00:1450:4009:81f::200e",
             DetectorTest.OPENAI_KEY,
-            DetectorTest.PRIVATE_KEY);
+            DetectorTest.PRIVATE_KEY,
+            "CUST-004211",
+            "Project   Falcon",
+            "bluebird");
     private static final List<String> FILLER = List.of(
             "Hello",
             "the",
@@ -50,7 +60,10 @@ class RedactionPropertyTest {
             "]",
             "10:30",
             "+",
-            "-----");
+            "-----",
+            "account 12345678",
+            "[CUSTOMER_ID_1]",
+            "Bluebirds");
 
     @Provide
     Arbitrary<String> conversations() {

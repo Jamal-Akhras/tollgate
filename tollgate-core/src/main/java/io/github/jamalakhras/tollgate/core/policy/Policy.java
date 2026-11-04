@@ -4,11 +4,11 @@ import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import org.jspecify.annotations.Nullable;
 
 public record Policy(
@@ -47,7 +47,7 @@ public record Policy(
     }
 
     private static Set<Detector> detectors(Map<Detector, List<String>> byDetector, @Nullable String dataClass) {
-        Set<Detector> detectors = EnumSet.noneOf(Detector.class);
+        Set<Detector> detectors = new TreeSet<>();
         byDetector.forEach((detector, dataClasses) -> {
             if (dataClass != null && dataClasses.contains(dataClass)) {
                 detectors.add(detector);

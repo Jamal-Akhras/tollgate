@@ -10,7 +10,6 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -64,7 +63,7 @@ final class Samples {
                 intent.steps(),
                 intent.decision(),
                 intent.reservation(),
-                new Redactions(Map.of(Detector.EMAIL, 2, Detector.CARD, 1), "e7a3" + "5".repeat(60)));
+                new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
     }
 
     static Intent refused(String id) {

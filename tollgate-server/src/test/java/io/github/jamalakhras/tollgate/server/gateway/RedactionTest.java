@@ -9,7 +9,6 @@ import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.audit.Redactions;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -60,8 +59,7 @@ class RedactionTest extends GatewayTestSupport {
         Intent intent = (Intent) records.getFirst();
         assertThat(intent.redactions())
                 .isEqualTo(new Redactions(
-                        Map.of(Detector.EMAIL, 1, Detector.CARD, 1),
-                        KEYS.hmac(sent().getBytes(StandardCharsets.UTF_8))));
+                        Map.of("email", 1, "card", 1), KEYS.hmac(sent().getBytes(StandardCharsets.UTF_8))));
         assertThat(intent.requestHmac())
                 .isNotEqualTo(Objects.requireNonNull(intent.redactions()).sentHmac());
         assertThat(intent.steps().getLast().guard()).isEqualTo(Gateway.PERSONAL_DATA_STEP);
@@ -114,7 +112,7 @@ class RedactionTest extends GatewayTestSupport {
 
         assertThat(response.statusCode()).isEqualTo(200);
         Intent intent = (Intent) auditRecordsOf(response).getFirst();
-        assertThat(Objects.requireNonNull(intent.redactions()).values()).isEqualTo(Map.of(Detector.EMAIL, 1));
+        assertThat(Objects.requireNonNull(intent.redactions()).values()).isEqualTo(Map.of("email", 1));
     }
 
     @Test
@@ -247,5 +245,51 @@ class RedactionTest extends GatewayTestSupport {
                 .contains("\"thinking\":\"[EMAIL_1]\"")
                 .contains("\"text\":\"Hi jane@example.com\"")
                 .contains("\"input\":{\"to\":\"jane@example.com\"}");
+    }
+
+    @Test
+    void redactsAndRestoresWhatTheConfigsOwnDetectorsFind() throws Exception {
+        PROVIDER.respond(
+                200,
+                "{\"choices\":[{\"message\":{\"content\":\"Refund [CUSTOMER_ID_1] to account"
+                        + " [ACCOUNT_NUMBER_1]\"}}]}");
+
+        HttpResponse<String> response = chat("Customer CUST-004211 wants a refund to account 12345678");
+
+        assertThat(sent()).contains("Customer [CUSTOMER_ID_1] wants a refund to account [ACCOUNT_NUMBER_1]");
+        assertThat(response.body()).contains("Refund CUST-004211 to account 12345678");
+        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        assertThat(Objects.requireNonNull(intent.redactions()).values())
+                .isEqualTo(Map.of("account-number", 1, "customer-id", 1));
+    }
+
+    @Test
+    void refusesATermTheConfigNames() throws Exception {
+        HttpResponse<String> response = chat("When does project falcon launch?");
+
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.body())
+                .contains("This request contains a value matching the 'codenames' detector, which this policy refuses"
+                        + " for data class 'internal'")
+                .doesNotContain("falcon");
+        assertThat(PROVIDER.received()).isEmpty();
+    }
+
+    @Test
+    void refusesARequestWhoseScanRunsOutOfTime() throws Exception {
+        HttpResponse<String> response = post(
+                Endpoints.OPENAI_CHAT,
+                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + "a".repeat(40) + "!\"}]}",
+                "Authorization",
+                "Bearer " + HASTY_KEY.value());
+
+        assertThat(response.statusCode()).isEqualTo(500);
+        assertThat(response.body())
+                .contains("\"code\":\"redaction_timeout\"")
+                .contains("because the 'backtracking' detector took too long, so it was not sent");
+        assertThat(PROVIDER.received()).isEmpty();
+        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        assertThat(intent.allowed()).isFalse();
+        assertThat(intent.steps().getLast().guard()).isEqualTo(Gateway.PERSONAL_DATA_STEP);
     }
 }

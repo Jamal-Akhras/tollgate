@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.money.Prices;
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -36,12 +35,13 @@ class RecordValidationTest {
     @Test
     void requiresRedactionsToCountSomethingAndNameWhatWasSent() {
         assertThatThrownBy(() -> new Redactions(Map.of(), HASH)).hasMessage("redactions must count at least one value");
-        assertThatThrownBy(() -> new Redactions(Map.of(Detector.EMAIL, 0), HASH))
+        assertThatThrownBy(() -> new Redactions(Map.of("email", 0), HASH))
                 .hasMessage("redactions.email must be at least 1");
-        assertThatThrownBy(() -> new Redactions(Map.of(Detector.EMAIL, 1), "AB"))
+        assertThatThrownBy(() -> new Redactions(Map.of("email", 1), "AB"))
                 .hasMessage("sentHmac must be 64 lowercase hex characters");
-        assertThat(new Redactions(Map.of(Detector.IP, 1, Detector.SECRET, 3), HASH).values())
-                .containsExactly(Map.entry(Detector.SECRET, 3), Map.entry(Detector.IP, 1));
+        assertThatThrownBy(() -> new Redactions(Map.of(" ", 1), HASH)).hasMessage("redactions must name each detector");
+        assertThat(new Redactions(Map.of("secret", 3, "codenames", 1, "ip", 1), HASH).values())
+                .containsExactly(Map.entry("codenames", 1), Map.entry("ip", 1), Map.entry("secret", 3));
     }
 
     @Test

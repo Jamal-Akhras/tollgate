@@ -42,6 +42,7 @@ abstract class GatewayTestSupport {
     static final ApiKey FRUGAL_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey PLANNER_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey CLERK_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey HASTY_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -142,6 +143,10 @@ abstract class GatewayTestSupport {
                     dataClass: internal
                     showCosts: true
                     policy: private
+                  hasty:
+                    models: [qwen3]
+                    dataClass: internal
+                    policy: slow
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
@@ -149,6 +154,12 @@ abstract class GatewayTestSupport {
                   - { id: %12$s, tenant: frugal, sha256: %13$s }
                   - { id: %14$s, tenant: planner, sha256: %15$s }
                   - { id: %16$s, tenant: clerk, sha256: %17$s }
+                  - { id: %18$s, tenant: hasty, sha256: %19$s }
+                detectors:
+                  customer-id: { pattern: "CUST-[0-9]{6}" }
+                  account-number: { pattern: "account (?<value>[0-9]{8})" }
+                  codenames: { terms: [Bluebird, Project Falcon] }
+                  backtracking: { pattern: "(.*a){12}b" }
                 policies:
                   default:
                     guards:
@@ -170,8 +181,17 @@ abstract class GatewayTestSupport {
                     redact:
                       email: [internal, confidential]
                       card: [internal, confidential]
+                      customer-id: [internal, confidential]
+                      account-number: [internal, confidential]
                     refuse:
                       secret: [public, internal, confidential]
+                      codenames: [internal, confidential]
+                  slow:
+                    guards:
+                      - type: data-class
+                        regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                    redact:
+                      backtracking: [internal]
                 audit:
                   mode: sync
                   directory: '%8$s'
@@ -195,7 +215,9 @@ abstract class GatewayTestSupport {
                         PLANNER_KEY.id(),
                         PLANNER_KEY.sha256(),
                         CLERK_KEY.id(),
-                        CLERK_KEY.sha256());
+                        CLERK_KEY.sha256(),
+                        HASTY_KEY.id(),
+                        HASTY_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

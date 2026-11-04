@@ -11,7 +11,8 @@ public record GatewayProperties(
         @DefaultValue("tollgate.yaml") Path config,
         @DefaultValue("16MB") DataSize maxRequestSize,
         @DefaultValue("32MB") DataSize maxResponseSize,
-        @DefaultValue("10m") Duration maxStreamDuration) {
+        @DefaultValue("10m") Duration maxStreamDuration,
+        @DefaultValue("200ms") Duration maxScanTime) {
 
     private static final DataSize LARGEST_BODY = DataSize.ofMegabytes(512);
 
@@ -27,6 +28,9 @@ public record GatewayProperties(
         if (maxStreamDuration.isZero() || maxStreamDuration.isNegative()) {
             throw new IllegalArgumentException(
                     "tollgate.max-stream-duration must be positive, was " + maxStreamDuration);
+        }
+        if (maxScanTime.isZero() || maxScanTime.isNegative()) {
+            throw new IllegalArgumentException("tollgate.max-scan-time must be positive, was " + maxScanTime);
         }
     }
 

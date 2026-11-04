@@ -1,15 +1,16 @@
 package io.github.jamalakhras.tollgate.core.redact;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import org.jspecify.annotations.Nullable;
 
@@ -22,13 +23,23 @@ public final class Redactor {
     private final Set<Detector> redact;
     private final Map<String, String> placeholders = new HashMap<>();
     private final Map<String, String> values = new HashMap<>();
-    private final Map<Detector, Integer> issued = new EnumMap<>(Detector.class);
-    private final Map<Detector, Integer> numbers = new EnumMap<>(Detector.class);
+    private final Map<String, Integer> issued = new TreeMap<>();
+    private final Map<Detector, Integer> numbers = new HashMap<>();
+    private final ScanBudget budget;
     private @Nullable Detector refused;
 
     public Redactor(Set<Detector> refuse, Set<Detector> redact) {
-        this.refuse = refuse.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(refuse));
-        this.redact = redact.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(redact));
+        this(refuse, redact, ScanBudget.UNLIMITED);
+    }
+
+    public Redactor(Set<Detector> refuse, Set<Detector> redact, Duration maxScanTime) {
+        this(refuse, redact, ScanBudget.of(maxScanTime));
+    }
+
+    private Redactor(Set<Detector> refuse, Set<Detector> redact, ScanBudget budget) {
+        this.refuse = Collections.unmodifiableSortedSet(new TreeSet<>(refuse));
+        this.redact = Collections.unmodifiableSortedSet(new TreeSet<>(redact));
+        this.budget = budget;
     }
 
     public String redact(String text) {
@@ -75,8 +86,8 @@ public final class Redactor {
         return Optional.ofNullable(refused);
     }
 
-    public Map<Detector, Integer> values() {
-        return Map.copyOf(issued);
+    public Map<String, Integer> values() {
+        return Collections.unmodifiableMap(new TreeMap<>(issued));
     }
 
     public Placeholders placeholders() {
@@ -89,7 +100,7 @@ public final class Redactor {
             return existing;
         }
         if (counted) {
-            issued.merge(detector, 1, Integer::sum);
+            issued.merge(detector.configName(), 1, Integer::sum);
         }
         int number = numbers.merge(detector, 1, Integer::sum);
         String placeholder = "[" + detector.label() + "_" + number + "]";
@@ -98,9 +109,9 @@ public final class Redactor {
         return placeholder;
     }
 
-    private static List<Span> spans(Detector detector, String text) {
+    private List<Span> spans(Detector detector, String text) {
         List<Span> spans = new ArrayList<>();
-        detector.find(text, spans);
+        detector.find(text, spans, budget);
         return spans;
     }
 

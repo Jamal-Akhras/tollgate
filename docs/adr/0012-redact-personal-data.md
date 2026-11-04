@@ -117,11 +117,13 @@ policies:
   trail proves what left the machine.
 - **This is version 2 of the record format,** for intents with redactions
   only. The binary encoding starts with version byte 2 and, after the
-  reservation, adds the number of detectors, each detector's config name and
-  count in the order of the table above, and the 32-byte `sentHmac`. In JSON:
+  reservation, adds the number of detectors, each detector's name and count
+  in name order, and the 32-byte `sentHmac`. Names rather than a fixed list
+  let operators add their own detectors
+  ([ADR 0013](0013-custom-detectors.md)). In JSON:
 
   ```json
-  {"v":2,"type":"intent",…,"reservation":null,"redactions":{"values":{"email":2,"card":1},"sentHmac":"e7a3…"}}
+  {"v":2,"type":"intent",…,"reservation":null,"redactions":{"values":{"card":1,"email":2},"sentHmac":"e7a3…"}}
   ```
 
   Every other record keeps version 1, so earlier trails still verify, and

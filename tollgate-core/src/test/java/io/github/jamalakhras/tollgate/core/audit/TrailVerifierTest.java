@@ -2,7 +2,6 @@ package io.github.jamalakhras.tollgate.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,7 +96,7 @@ class TrailVerifierTest {
                         redacted.steps(),
                         redacted.decision(),
                         redacted.reservation(),
-                        new Redactions(Map.of(Detector.EMAIL, 1), Records.SENT_HMAC)));
+                        new Redactions(Map.of("email", 1), Records.SENT_HMAC)));
 
         assertThat(Trails.verify(trail).intact()).isFalse();
     }

@@ -9,7 +9,6 @@ import io.github.jamalakhras.tollgate.core.redact.Placeholders;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -27,7 +26,7 @@ class AnswerRestorerTest {
     private static final Placeholders PLACEHOLDERS = placeholders();
 
     private static Placeholders placeholders() {
-        Redactor redactor = new Redactor(Set.of(), EnumSet.allOf(Detector.class));
+        Redactor redactor = new Redactor(Set.of(), Set.copyOf(Detector.BUILT_IN));
         redactor.redact(JANE + " bob@example.org 4111111111111111");
         return redactor.placeholders();
     }

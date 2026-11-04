@@ -6,7 +6,6 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
-import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -59,7 +58,7 @@ final class Records {
                 intent.steps(),
                 intent.decision(),
                 intent.reservation(),
-                new Redactions(Map.of(Detector.CARD, 1, Detector.EMAIL, 2), SENT_HMAC));
+                new Redactions(Map.of("card", 1, "email", 2), SENT_HMAC));
     }
 
     static Intent refused(String id) {

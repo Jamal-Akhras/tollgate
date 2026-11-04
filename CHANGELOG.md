@@ -62,6 +62,12 @@ versions may change the extension interfaces.
   with `403`. Intents with redactions record how many values of each kind
   were replaced and an HMAC of what was sent, as version 2 of the audit
   record format; every other record stays at version 1.
+- Detectors of your own under `detectors:`, as a regular expression or a list
+  of terms, used in `redact` and `refuse` like the built-in ones
+  ([ADR 0013](docs/adr/0013-custom-detectors.md)). A named group `value`
+  limits what a pattern replaces, terms match whole words in any case, and
+  `tollgate.max-scan-time` (200 ms by default) refuses a request with `500`
+  `redaction_timeout` rather than let a slow pattern hold it.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

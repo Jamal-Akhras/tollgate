@@ -59,6 +59,8 @@ final class GatewayException extends RuntimeException {
                 new GatewayException(HttpStatus.CONTENT_TOO_LARGE, "request_too_large", denial.message(), null);
             case BUDGET_EXCEEDED ->
                 new GatewayException(HttpStatus.TOO_MANY_REQUESTS, BUDGET_EXCEEDED, denial.message(), null);
+            case REDACTION_TIMEOUT ->
+                new GatewayException(HttpStatus.INTERNAL_SERVER_ERROR, "redaction_timeout", denial.message(), null);
         };
     }
 
