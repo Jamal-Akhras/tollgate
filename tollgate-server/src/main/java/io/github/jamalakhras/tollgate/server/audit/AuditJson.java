@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.audit;
 import io.github.jamalakhras.tollgate.core.audit.AuditEntry;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.audit.Redactions;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
@@ -10,6 +11,7 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,8 +19,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Currency;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -38,11 +42,13 @@ public final class AuditJson {
             .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
             .build();
     private static final int VERSION = 1;
+    private static final int REDACTED_VERSION = 2;
 
     private AuditJson() {}
 
     public static String write(AuditEntry entry) {
-        ObjectNode line = JSON.createObjectNode().put("v", VERSION);
+        boolean redacted = entry instanceof Intent intent && intent.redactions() != null;
+        ObjectNode line = JSON.createObjectNode().put("v", redacted ? REDACTED_VERSION : VERSION);
         switch (entry) {
             case Intent intent -> writeIntent(line, intent);
             case Outcome outcome -> writeOutcome(line, outcome);
@@ -60,12 +66,15 @@ public final class AuditJson {
         }
         Fields fields = Fields.of("the line", root);
         long version = fields.whole("v");
+        String type = fields.text("type");
+        if (version == REDACTED_VERSION && type.equals("intent")) {
+            return readIntent(fields, true);
+        }
         if (version != VERSION) {
             throw new IllegalArgumentException("Unsupported audit record version " + version);
         }
-        String type = fields.text("type");
         return switch (type) {
-            case "intent" -> readIntent(fields);
+            case "intent" -> readIntent(fields, false);
             case "outcome" -> readOutcome(fields);
             case "seal" -> readSeal(fields);
             default -> throw new IllegalArgumentException("Unknown line type '" + type + "'");
@@ -94,6 +103,13 @@ public final class AuditJson {
         line.set("decision", decision(intent.decision()));
         Money reservation = intent.reservation();
         line.set("reservation", reservation == null ? line.nullNode() : money(reservation));
+        Redactions redactions = intent.redactions();
+        if (redactions != null) {
+            ObjectNode written = line.putObject("redactions");
+            ObjectNode values = written.putObject("values");
+            redactions.values().forEach((detector, count) -> values.put(detector.configName(), count));
+            written.put("sentHmac", redactions.sentHmac());
+        }
     }
 
     private static void writeOutcome(ObjectNode line, Outcome outcome) {
@@ -146,8 +162,8 @@ public final class AuditJson {
                 .put("currency", money.currency().getCurrencyCode());
     }
 
-    private static Intent readIntent(Fields fields) {
-        fields.requireExactly(
+    private static Intent readIntent(Fields fields, boolean redacted) {
+        List<String> names = new ArrayList<>(List.of(
                 "v",
                 "type",
                 "id",
@@ -163,7 +179,11 @@ public final class AuditJson {
                 "requestHmac",
                 "steps",
                 "decision",
-                "reservation");
+                "reservation"));
+        if (redacted) {
+            names.add("redactions");
+        }
+        fields.requireExactly(names.toArray(String[]::new));
         List<GuardStep> steps = new ArrayList<>();
         for (Fields step : fields.list("steps")) {
             step.requireExactly("guard", "decision", "nanos");
@@ -184,7 +204,20 @@ public final class AuditJson {
                 fields.text("requestHmac"),
                 steps,
                 readDecision(fields.child("decision")),
-                fields.optionalChild("reservation", AuditJson::readMoney)));
+                fields.optionalChild("reservation", AuditJson::readMoney),
+                redacted ? readRedactions(fields.child("redactions")) : null));
+    }
+
+    private static Redactions readRedactions(Fields fields) {
+        fields.requireExactly("values", "sentHmac");
+        Fields values = fields.child("values");
+        Map<Detector, Integer> counts = new EnumMap<>(Detector.class);
+        for (String name : values.node().propertyNames()) {
+            counts.put(
+                    values.build(() -> Detector.fromConfigName(name)),
+                    values.build(() -> Math.toIntExact(values.whole(name))));
+        }
+        return fields.build(() -> new Redactions(counts, fields.text("sentHmac")));
     }
 
     private static Outcome readOutcome(Fields fields) {

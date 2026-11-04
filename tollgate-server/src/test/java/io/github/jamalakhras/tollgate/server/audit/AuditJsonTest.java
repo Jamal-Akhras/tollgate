@@ -25,7 +25,12 @@ class AuditJsonTest {
 
     static Stream<AuditEntry> entries() {
         return Stream.of(
-                Samples.intent("a"), Samples.refused("b"), Samples.outcome("a"), Samples.unreachable("c"), SEAL);
+                Samples.intent("a"),
+                Samples.refused("b"),
+                Samples.redacted("d"),
+                Samples.outcome("a"),
+                Samples.unreachable("c"),
+                SEAL);
     }
 
     @ParameterizedTest
@@ -50,6 +55,44 @@ class AuditJsonTest {
                         + "\"message\":\"Confidential data stays on local models\"},\"reservation\":null}");
         assertThat(AuditJson.write(Samples.outcome("7c0e")))
                 .contains("\"cost\":{\"amount\":\"0.006996000\",\"currency\":\"USD\"}");
+    }
+
+    @Test
+    void writesARedactedIntentAsVersion2() {
+        String line = AuditJson.write(Samples.redacted("7c0e"));
+
+        assertThat(line)
+                .startsWith("{\"v\":2,\"type\":\"intent\",")
+                .endsWith(",\"redactions\":{\"values\":{\"email\":2,\"card\":1},\"sentHmac\":\"e7a3" + "5".repeat(60)
+                        + "\"}}");
+        assertThat(AuditJson.write(Samples.intent("7c0e")))
+                .startsWith("{\"v\":1,")
+                .doesNotContain("redactions");
+    }
+
+    @Test
+    void keepsRedactionsAndTheirVersionTogether() {
+        String redacted = AuditJson.write(Samples.redacted("a"));
+        String plain = AuditJson.write(Samples.intent("a"));
+
+        assertThatThrownBy(() -> AuditJson.read(redacted.replace("{\"v\":2,", "{\"v\":1,")))
+                .hasMessage("'redactions' is not part of the line");
+        assertThatThrownBy(() -> AuditJson.read(plain.replace("{\"v\":1,", "{\"v\":2,")))
+                .hasMessage("'redactions' is missing from the line");
+        assertThatThrownBy(() ->
+                        AuditJson.read(AuditJson.write(Samples.outcome("a")).replace("{\"v\":1,", "{\"v\":2,")))
+                .hasMessage("Unsupported audit record version 2");
+        assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"names\":2")))
+                .hasMessage("detector must be one of secret, email, card, iban, national-id, phone, ip, was names");
+        assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"email\":0")))
+                .hasMessage("redactions.email must be at least 1");
+        assertThatThrownBy(() -> AuditJson.read(redacted.replace("\"email\":2", "\"email\":\"2\"")))
+                .hasMessage("'email' must be a whole number");
+        assertThatThrownBy(() -> AuditJson.read(redacted.replace(",\"sentHmac\"", ",\"note\":1,\"sentHmac\"")))
+                .hasMessage("'note' is not part of 'redactions'");
+        assertThatThrownBy(
+                        () -> AuditJson.read(redacted.replace("\"values\":{\"email\":2,\"card\":1}", "\"values\":{}")))
+                .hasMessage("redactions must count at least one value");
     }
 
     @Test

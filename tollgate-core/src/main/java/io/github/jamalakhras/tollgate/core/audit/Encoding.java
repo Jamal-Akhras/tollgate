@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 final class Encoding {
 
     static final int VERSION = 1;
+    static final int REDACTED_VERSION = 2;
 
     private static final int INTENT = 1;
     private static final int OUTCOME = 2;
@@ -32,7 +33,8 @@ final class Encoding {
     }
 
     private void intent(Intent intent) {
-        header(INTENT);
+        Redactions redactions = intent.redactions();
+        header(redactions == null ? VERSION : REDACTED_VERSION, INTENT);
         text(intent.id());
         instant(intent.time());
         text(intent.tenant());
@@ -56,10 +58,18 @@ final class Encoding {
         if (reservation != null) {
             money(reservation);
         }
+        if (redactions != null) {
+            u32(redactions.values().size());
+            redactions.values().forEach((detector, count) -> {
+                text(detector.configName());
+                u32(count);
+            });
+            sha256(redactions.sentHmac());
+        }
     }
 
     private void outcome(Outcome outcome) {
-        header(OUTCOME);
+        header(VERSION, OUTCOME);
         text(outcome.id());
         instant(outcome.time());
         text(outcome.result().code());
@@ -86,7 +96,7 @@ final class Encoding {
     }
 
     private void seal(Seal seal) {
-        header(SEAL);
+        header(VERSION, SEAL);
         i64(seal.batch());
         u32(seal.records());
         instant(seal.time());
@@ -96,8 +106,8 @@ final class Encoding {
         text(seal.hmacKey());
     }
 
-    private void header(int type) {
-        bytes.write(VERSION);
+    private void header(int version, int type) {
+        bytes.write(version);
         bytes.write(type);
     }
 

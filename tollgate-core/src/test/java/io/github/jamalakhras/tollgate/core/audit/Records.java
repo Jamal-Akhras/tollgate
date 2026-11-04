@@ -6,9 +6,11 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 final class Records {
 
@@ -16,6 +18,7 @@ final class Records {
     static final String CONFIG_VERSION = "3f1c" + "0".repeat(56) + "9ab2";
     static final String REQUEST_HMAC = "a91b" + "1".repeat(60);
     static final String RESPONSE_HMAC = "55d0" + "2".repeat(60);
+    static final String SENT_HMAC = "e7a3" + "5".repeat(60);
 
     private Records() {}
 
@@ -37,6 +40,26 @@ final class Records {
                         new GuardStep("data-class", Decision.ALLOW, Duration.ofNanos(3_400))),
                 Decision.ALLOW,
                 Prices.usd("0.1523"));
+    }
+
+    static Intent redacted(String id) {
+        Intent intent = intent(id);
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                intent.steps(),
+                intent.decision(),
+                intent.reservation(),
+                new Redactions(Map.of(Detector.CARD, 1, Detector.EMAIL, 2), SENT_HMAC));
     }
 
     static Intent refused(String id) {

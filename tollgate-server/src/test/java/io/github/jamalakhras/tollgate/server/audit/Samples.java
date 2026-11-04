@@ -3,18 +3,21 @@ package io.github.jamalakhras.tollgate.server.audit;
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.audit.Redactions;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 
 final class Samples {
 
@@ -42,6 +45,26 @@ final class Samples {
                 List.of(new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100))),
                 Decision.ALLOW,
                 usd("0.1523"));
+    }
+
+    static Intent redacted(String id) {
+        Intent intent = intent(id);
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                intent.steps(),
+                intent.decision(),
+                intent.reservation(),
+                new Redactions(Map.of(Detector.EMAIL, 2, Detector.CARD, 1), "e7a3" + "5".repeat(60)));
     }
 
     static Intent refused(String id) {

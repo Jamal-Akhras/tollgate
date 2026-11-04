@@ -2,10 +2,12 @@ package io.github.jamalakhras.tollgate.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
@@ -65,6 +67,39 @@ class TrailVerifierTest {
 
         assertThat(Trails.messages(Trails.verify(trail).failures()))
                 .containsExactly("Batch 1 does not match the records it seals");
+    }
+
+    @Test
+    void verifiesATrailThatMixesRecordVersions() {
+        List<AuditRecord> records = new ArrayList<>(Trails.requests(3));
+        records.add(Records.redacted("redacted-1"));
+        records.add(Records.outcome("redacted-1"));
+        List<AuditEntry> trail = Trails.sealed(records, 3);
+
+        assertThat(Trails.verify(trail).intact()).isTrue();
+
+        int at = trail.indexOf(Records.redacted("redacted-1"));
+        Intent redacted = (Intent) trail.get(at);
+        trail.set(
+                at,
+                new Intent(
+                        redacted.id(),
+                        redacted.time(),
+                        redacted.tenant(),
+                        redacted.key(),
+                        redacted.endpoint(),
+                        redacted.model(),
+                        redacted.provider(),
+                        redacted.upstream(),
+                        redacted.dataClass(),
+                        redacted.configVersion(),
+                        redacted.requestHmac(),
+                        redacted.steps(),
+                        redacted.decision(),
+                        redacted.reservation(),
+                        new Redactions(Map.of(Detector.EMAIL, 1), Records.SENT_HMAC)));
+
+        assertThat(Trails.verify(trail).intact()).isFalse();
     }
 
     @Test

@@ -23,7 +23,8 @@ public record Intent(
         String requestHmac,
         List<GuardStep> steps,
         Decision decision,
-        @Nullable Money reservation)
+        @Nullable Money reservation,
+        @Nullable Redactions redactions)
         implements AuditRecord {
 
     public Intent {
@@ -33,6 +34,39 @@ public record Intent(
         Digests.requireSha256("configVersion", configVersion);
         Digests.requireSha256("requestHmac", requestHmac);
         steps = List.copyOf(steps);
+    }
+
+    public Intent(
+            String id,
+            Instant time,
+            String tenant,
+            String key,
+            WireFormat endpoint,
+            String model,
+            String provider,
+            String upstream,
+            @Nullable String dataClass,
+            String configVersion,
+            String requestHmac,
+            List<GuardStep> steps,
+            Decision decision,
+            @Nullable Money reservation) {
+        this(
+                id,
+                time,
+                tenant,
+                key,
+                endpoint,
+                model,
+                provider,
+                upstream,
+                dataClass,
+                configVersion,
+                requestHmac,
+                steps,
+                decision,
+                reservation,
+                null);
     }
 
     public boolean allowed() {

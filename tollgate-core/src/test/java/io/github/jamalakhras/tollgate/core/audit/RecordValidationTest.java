@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.money.Prices;
+import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -29,6 +31,17 @@ class RecordValidationTest {
     @ValueSource(ints = {0, 99, 600})
     void rejectsNumbersThatAreNotHttpStatusCodes(int status) {
         assertThatThrownBy(() -> withStatus(status)).hasMessage("status must be an HTTP status code, was " + status);
+    }
+
+    @Test
+    void requiresRedactionsToCountSomethingAndNameWhatWasSent() {
+        assertThatThrownBy(() -> new Redactions(Map.of(), HASH)).hasMessage("redactions must count at least one value");
+        assertThatThrownBy(() -> new Redactions(Map.of(Detector.EMAIL, 0), HASH))
+                .hasMessage("redactions.email must be at least 1");
+        assertThatThrownBy(() -> new Redactions(Map.of(Detector.EMAIL, 1), "AB"))
+                .hasMessage("sentHmac must be 64 lowercase hex characters");
+        assertThat(new Redactions(Map.of(Detector.IP, 1, Detector.SECRET, 3), HASH).values())
+                .containsExactly(Map.entry(Detector.SECRET, 3), Map.entry(Detector.IP, 1));
     }
 
     @Test

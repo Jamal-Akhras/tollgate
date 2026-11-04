@@ -64,6 +64,24 @@ class EncodingTest {
     void startsEveryRecordWithTheVersionAndItsType() {
         assertThat(Encoding.of(Records.intent("a"))).startsWith(1, 1);
         assertThat(Encoding.of(Records.outcome("a"))).startsWith(1, 2);
+        assertThat(Encoding.of(Records.redacted("a"))).startsWith(2, 1);
+    }
+
+    @Test
+    void encodesRedactionsAsVersion2WithTheCountsInDetectorOrderAndTheSentHmac() {
+        byte[] plain = Encoding.of(Records.intent("a"));
+        byte[] email = "email".getBytes(StandardCharsets.UTF_8);
+        byte[] card = "card".getBytes(StandardCharsets.UTF_8);
+        ByteBuffer expected = ByteBuffer.allocate(plain.length + 4 + 4 + email.length + 4 + 4 + card.length + 4 + 32);
+        expected.put((byte) 2).put(plain, 1, plain.length - 1);
+        expected.putInt(2);
+        expected.putInt(email.length).put(email).putInt(2);
+        expected.putInt(card.length).put(card).putInt(1);
+        expected.put(Digests.HEX.parseHex(Records.SENT_HMAC));
+
+        assertThat(Encoding.of(Records.redacted("a"))).isEqualTo(expected.array());
+        assertThat(sha256Of(Records.redacted("7c0e9a51-2f4b-4d0e-9a3c-1b2d3e4f5a6b")))
+                .isEqualTo("199e35f18058156b19c0dba5a709044cd8e0b12654b5062abdacf9769280281a");
     }
 
     @Test
