@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
@@ -26,7 +27,6 @@ final class Patterns {
     private static final Pattern EMAIL = Pattern.compile("(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}+@"
             + "(?:[A-Za-z0-9-]{1,63}\\.){1,10}[A-Za-z]{2,63}(?![A-Za-z0-9-]|\\.[A-Za-z0-9])");
     private static final Pattern DIGIT_RUN = Pattern.compile("(?<![\\w.])\\d++(?:[ -]\\d++)*+");
-    private static final Pattern IBAN_START = Pattern.compile("(?<![A-Za-z0-9])[A-Z]{2}\\d{2}");
     private static final Pattern NATIONAL_INSURANCE = Pattern.compile("(?<![A-Za-z0-9])(?!BG|GB|NK|KN|TN|NT|ZZ)"
             + "[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z] ?\\d{2} ?\\d{2} ?\\d{2} ?[A-D](?![A-Za-z0-9])");
     private static final Pattern SOCIAL_SECURITY =
@@ -52,6 +52,9 @@ final class Patterns {
                     + "SC31 SD18 SE24 SI19 SK24 SM27 SO23 ST25 SV28 TL23 TN24 TR26 "
                     + "UA29 VA22 VG24 XK20 YE30");
 
+    private static final List<String> SECRET_PREFIXES =
+            List.of("sk-", "gh", "github_pat_", "glpat-", "xox", "AKIA", "ASIA", "AIza", "tg_");
+    private static final int MAX_LOCAL_PART = 64;
     private static final int[] DOUBLED = {0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
     private static final int MIN_CARD_DIGITS = 13;
     private static final int MAX_CARD_DIGITS = 19;
@@ -71,7 +74,10 @@ final class Patterns {
     }
 
     static void secrets(String text, List<Span> spans) {
-        all(SECRET, text, spans);
+        all(SECRET, text, spans, secretStarts(text));
+        if (text.indexOf("-----BEGIN ") < 0) {
+            return;
+        }
         Matcher begin = PRIVATE_KEY.matcher(text);
         int from = 0;
         while (begin.find(from)) {
@@ -83,14 +89,30 @@ final class Patterns {
     }
 
     static void emails(String text, List<Span> spans) {
-        if (text.indexOf('@') >= 0) {
-            all(EMAIL, text, spans);
+        Matcher matcher = null;
+        int at = text.indexOf('@');
+        while (at >= 0) {
+            int start = at;
+            while (start > 0 && at - start <= MAX_LOCAL_PART && isLocalPart(text.charAt(start - 1))) {
+                start--;
+            }
+            int next = at + 1;
+            if (start < at && (start == 0 || !isLocalPart(text.charAt(start - 1)))) {
+                if (matcher == null) {
+                    matcher = bounded(EMAIL.matcher(text));
+                }
+                matcher.region(start, text.length());
+                if (matcher.lookingAt()) {
+                    spans.add(new Span(matcher.start(), matcher.end()));
+                    next = matcher.end();
+                }
+            }
+            at = text.indexOf('@', next);
         }
     }
 
     static void cards(String text, List<Span> spans) {
-        Matcher run = DIGIT_RUN.matcher(text);
-        while (run.find()) {
+        for (MatchResult run : matches(DIGIT_RUN, text, digitStarts(text, "."))) {
             List<Span> groups = digitGroups(text, run.start(), run.end());
             if (continues(text, run.end())) {
                 groups.removeLast();
@@ -106,14 +128,16 @@ final class Patterns {
     }
 
     static void ibans(String text, List<Span> spans) {
-        Matcher start = IBAN_START.matcher(text);
-        while (start.find()) {
-            Integer length = IBAN_LENGTHS.get(text.substring(start.start(), start.start() + 2));
+        for (int start = 0; start + 4 <= text.length(); start++) {
+            if (!startsIban(text, start)) {
+                continue;
+            }
+            Integer length = IBAN_LENGTHS.get(text.substring(start, start + 2));
             if (length == null) {
                 continue;
             }
-            StringBuilder iban = new StringBuilder(text.substring(start.start(), start.end()));
-            int at = start.end();
+            StringBuilder iban = new StringBuilder(text.substring(start, start + 4));
+            int at = start + 4;
             while (iban.length() < length && at < text.length()) {
                 char c = text.charAt(at);
                 if (c == ' ' && at + 1 < text.length() && isUpperAlphanumeric(text.charAt(at + 1))) {
@@ -127,19 +151,18 @@ final class Patterns {
             }
             boolean bounded = at == text.length() || !Character.isLetterOrDigit(text.charAt(at));
             if (iban.length() == length && bounded && mod97(iban) == 1) {
-                spans.add(new Span(start.start(), at));
+                spans.add(new Span(start, at));
             }
         }
     }
 
     static void nationalIds(String text, List<Span> spans) {
-        all(NATIONAL_INSURANCE, text, spans);
-        all(SOCIAL_SECURITY, text, spans);
+        all(NATIONAL_INSURANCE, text, spans, upperPairStarts(text));
+        all(SOCIAL_SECURITY, text, spans, digitStarts(text, "-"));
     }
 
     static void phones(String text, List<Span> spans) {
-        Matcher international = INTERNATIONAL_PHONE.matcher(text);
-        while (international.find()) {
+        for (MatchResult international : matches(INTERNATIONAL_PHONE, text, charStarts(text, '+', "+"))) {
             List<Span> groups = digitGroups(text, international.start(), international.end());
             if (continues(text, international.end())) {
                 groups.removeLast();
@@ -160,8 +183,10 @@ final class Patterns {
                 spans.add(new Span(international.start(), end));
             }
         }
-        Matcher national = NATIONAL_PHONE.matcher(text);
-        while (national.find()) {
+        List<Integer> nationalStarts = digitStarts(text, "+.-");
+        nationalStarts.addAll(charStarts(text, '(', "+.-"));
+        nationalStarts.sort(null);
+        for (MatchResult national : matches(NATIONAL_PHONE, text, nationalStarts)) {
             long digits = national.group().chars().filter(Patterns::isDigit).count();
             if (digits >= MIN_NATIONAL_DIGITS && digits <= MAX_NATIONAL_DIGITS) {
                 spans.add(new Span(national.start(), national.end()));
@@ -170,15 +195,13 @@ final class Patterns {
     }
 
     static void ips(String text, List<Span> spans) {
-        Matcher v4 = IPV4.matcher(text);
-        while (v4.find()) {
+        for (MatchResult v4 : matches(IPV4, text, digitStarts(text, "."))) {
             if (isPublicV4(v4.group())) {
                 spans.add(new Span(v4.start(), v4.end()));
             }
         }
         if (text.indexOf(':') >= 0) {
-            Matcher v6 = IPV6.matcher(text);
-            while (v6.find()) {
+            for (MatchResult v6 : matches(IPV6, text, hexStarts(text))) {
                 String candidate = v6.group();
                 if (candidate.endsWith(":") && !candidate.endsWith("::")) {
                     candidate = candidate.substring(0, candidate.length() - 1);
@@ -191,11 +214,127 @@ final class Patterns {
         }
     }
 
-    private static void all(Pattern pattern, String text, List<Span> spans) {
-        Matcher matcher = pattern.matcher(text);
-        while (matcher.find()) {
-            spans.add(new Span(matcher.start(), matcher.end()));
+    private static void all(Pattern pattern, String text, List<Span> spans, List<Integer> starts) {
+        for (MatchResult match : matches(pattern, text, starts)) {
+            spans.add(new Span(match.start(), match.end()));
         }
+    }
+
+    private static List<MatchResult> matches(Pattern pattern, String text, List<Integer> starts) {
+        if (starts.isEmpty()) {
+            return List.of();
+        }
+        List<MatchResult> matches = new ArrayList<>();
+        Matcher matcher = bounded(pattern.matcher(text));
+        int next = 0;
+        for (int at : starts) {
+            if (at < next) {
+                continue;
+            }
+            matcher.region(at, text.length());
+            if (matcher.lookingAt()) {
+                matches.add(matcher.toMatchResult());
+                next = matcher.end();
+            }
+        }
+        return matches;
+    }
+
+    private static List<Integer> digitStarts(String text, String alsoExcluded) {
+        List<Integer> starts = new ArrayList<>();
+        for (int at = 0; at < text.length(); at++) {
+            if (isDigit(text.charAt(at)) && after(text, at, alsoExcluded)) {
+                starts.add(at);
+            }
+        }
+        return starts;
+    }
+
+    private static List<Integer> charStarts(String text, char c, String alsoExcluded) {
+        List<Integer> starts = new ArrayList<>();
+        for (int at = text.indexOf(c); at >= 0; at = text.indexOf(c, at + 1)) {
+            if (after(text, at, alsoExcluded)) {
+                starts.add(at);
+            }
+        }
+        return starts;
+    }
+
+    private static List<Integer> upperPairStarts(String text) {
+        List<Integer> starts = new ArrayList<>();
+        for (int at = 0; at + 1 < text.length(); at++) {
+            if (isUpper(text.charAt(at)) && isUpper(text.charAt(at + 1)) && afterAlphanumeric(text, at)) {
+                starts.add(at);
+            }
+        }
+        return starts;
+    }
+
+    private static List<Integer> hexStarts(String text) {
+        List<Integer> starts = new ArrayList<>();
+        for (int at = 0; at < text.length(); at++) {
+            if (isHexOrColon(text.charAt(at)) && after(text, at, ":.")) {
+                starts.add(at);
+            }
+        }
+        return starts;
+    }
+
+    private static List<Integer> secretStarts(String text) {
+        List<Integer> starts = new ArrayList<>();
+        for (String prefix : SECRET_PREFIXES) {
+            for (int at = text.indexOf(prefix); at >= 0; at = text.indexOf(prefix, at + 1)) {
+                if (after(text, at, "_-")) {
+                    starts.add(at);
+                }
+            }
+        }
+        starts.sort(null);
+        return starts;
+    }
+
+    private static Matcher bounded(Matcher matcher) {
+        return matcher.useTransparentBounds(true).useAnchoringBounds(false);
+    }
+
+    private static boolean after(String text, int at, String alsoExcluded) {
+        if (at == 0) {
+            return true;
+        }
+        char previous = text.charAt(at - 1);
+        return !isWordCharacter(previous) && alsoExcluded.indexOf(previous) < 0;
+    }
+
+    private static boolean afterAlphanumeric(String text, int at) {
+        return at == 0 || !isAsciiAlphanumeric(text.charAt(at - 1));
+    }
+
+    private static boolean startsIban(String text, int at) {
+        return isUpper(text.charAt(at))
+                && isUpper(text.charAt(at + 1))
+                && isDigit(text.charAt(at + 2))
+                && isDigit(text.charAt(at + 3))
+                && afterAlphanumeric(text, at);
+    }
+
+    private static boolean isLocalPart(char c) {
+        return isAsciiAlphanumeric(c) || "._%+-".indexOf(c) >= 0;
+    }
+
+    private static boolean isHexOrColon(char c) {
+        return isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == ':';
+    }
+
+    private static boolean isWordCharacter(char c) {
+        return isAsciiAlphanumeric(c) || c == '_';
+    }
+
+    private static boolean isAsciiAlphanumeric(char c) {
+        return isUpper(c) || (c >= 'a' && c <= 'z') || isDigit(c);
+    }
+
+    private static boolean isUpper(char c) {
+        return c >= 'A' && c <= 'Z';
     }
 
     private static List<Span> digitGroups(String text, int start, int end) {
