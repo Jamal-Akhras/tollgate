@@ -333,6 +333,13 @@
 
   <profiles>
     <profile>
+      <id>benchmarks</id>
+      <modules>
+        <module>tollgate-benchmarks</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>mutation</id>
       <build>
         <pluginManagement>
