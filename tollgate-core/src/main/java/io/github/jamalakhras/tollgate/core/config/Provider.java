@@ -17,7 +17,8 @@ public record Provider(
         @Nullable String region,
         Duration timeout,
         List<String> extraFields,
-        @Nullable String catalog) {
+        @Nullable String catalog,
+        @Nullable Long concurrent) {
 
     private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]");
     private static final Map<String, String> CATALOG_HOSTS = Map.ofEntries(
@@ -54,6 +55,9 @@ public record Provider(
         if (timeout.isZero() || timeout.isNegative()) {
             throw new IllegalArgumentException("timeout must be positive");
         }
+        if (concurrent != null && concurrent <= 0) {
+            throw new IllegalArgumentException("concurrent must be positive, was " + concurrent);
+        }
         baseUrl = URI.create(baseUrl.toString().replaceAll("/+$", ""));
         extraFields = List.copyOf(extraFields);
         for (String field : extraFields) {
@@ -65,7 +69,7 @@ public record Provider(
 
     public Provider(
             WireFormat format, URI baseUrl, @Nullable SecretRef apiKey, @Nullable String region, Duration timeout) {
-        this(format, baseUrl, apiKey, region, timeout, List.of(), null);
+        this(format, baseUrl, apiKey, region, timeout, List.of(), null, null);
     }
 
     public Optional<String> priceCatalog() {

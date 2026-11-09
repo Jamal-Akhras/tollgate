@@ -73,6 +73,10 @@ versions may change the extension interfaces.
   gets `429` `rate_limited` with `Retry-After` before its request is read.
   These refusals are counted in the `tollgate.limits.refused` metric rather
   than audited, and each instance enforces the limits on its own.
+- `concurrent` on a provider caps the calls in flight to it across all tenants
+  ([ADR 0016](docs/adr/0016-provider-fallback.md)). A call over the limit gets
+  `503` `provider_busy` at once, is not audited, and is counted in the
+  `tollgate.providers.busy` metric.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

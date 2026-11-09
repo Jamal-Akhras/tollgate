@@ -81,6 +81,10 @@ what was sent, who sent it, what it cost, and why it was allowed.
   OpenAI and Anthropic SDKs already retry. Each Tollgate instance enforces the
   limits on its own for now
   ([ADR 0015](docs/adr/0015-tenant-rate-limits.md)).
+- **Limits per provider.** `concurrent: 2` on a provider caps the calls in
+  flight to it across all tenants, so a local model is never sent more than
+  it can serve. Extra calls get `503` `provider_busy` at once instead of
+  waiting ([ADR 0016](docs/adr/0016-provider-fallback.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.
@@ -261,7 +265,7 @@ WantedBy=multi-user.target
   shows the address each port listens on.
 - **Memory:** each call in flight holds its request and answer, up to
   `tollgate.max-request-size` (16 MB) and `tollgate.max-response-size`
-  (32 MB). A slow model lets calls pile up, so give each tenant a
+  (32 MB). A slow model lets calls pile up, so give its provider a
   `concurrent` limit, and set `-Xmx` to about half the machine's or
   container's memory. `-XX:+ExitOnOutOfMemoryError` with `Restart=on-failure`
   turns running out into a clean restart.

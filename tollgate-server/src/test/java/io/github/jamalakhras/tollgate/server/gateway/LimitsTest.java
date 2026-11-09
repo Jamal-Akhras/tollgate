@@ -26,6 +26,16 @@ class LimitsTest extends GatewayTestSupport {
                 "Bearer " + key.value());
     }
 
+    private HttpResponse<String> gpu(boolean dryRun) throws Exception {
+        return post(
+                Endpoints.OPENAI_CHAT,
+                "{\"model\":\"gpu-model\",\"messages\":[]}",
+                "Authorization",
+                "Bearer " + CODER_KEY.value(),
+                Gateway.DRY_RUN_HEADER,
+                Boolean.toString(dryRun));
+    }
+
     private static double refused(String tenant, String limit) {
         Counter counter = Metrics.globalRegistry
                 .find(Gateway.LIMITS_REFUSED_METRIC)
@@ -113,6 +123,51 @@ class LimitsTest extends GatewayTestSupport {
         }
         PROVIDER.delay(Duration.ZERO);
         assertThat(chat(SINGLE_KEY).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void refusesACallWhileItsProviderHasTooManyInFlight() throws Exception {
+        PROVIDER.respond(200, ANSWER.formatted(5, 5));
+        PROVIDER.delay(Duration.ofSeconds(1));
+        try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<HttpResponse<String>> first = threads.submit(() -> gpu(false));
+            while (PROVIDER.received().isEmpty()) {
+                Thread.onSpinWait();
+            }
+
+            HttpResponse<String> refused = gpu(false);
+
+            assertThat(refused.statusCode()).isEqualTo(503);
+            assertThat(refused.headers().firstValue("Retry-After")).isEmpty();
+            assertThat(refused.body())
+                    .contains("\"code\":\"provider_busy\"")
+                    .contains("The model 'gpu-model' is answering as many calls as it can at once");
+            assertThat(auditRecordsOf(refused)).isEmpty();
+            Counter busy = Metrics.globalRegistry
+                    .find(Gateway.PROVIDERS_BUSY_METRIC)
+                    .tag("provider", "gpu")
+                    .counter();
+            assertThat(busy).isNotNull().extracting(Counter::count).isEqualTo(1.0);
+            assertThat(gpu(true).statusCode()).isEqualTo(200);
+            assertThat(first.get().statusCode()).isEqualTo(200);
+        }
+        assertThat(PROVIDER.received()).hasSize(1);
+        PROVIDER.delay(Duration.ZERO);
+        PROVIDER.respond(200, """
+                data: {"id":"c","model":"qwen3:32b","choices":[{"delta":{"content":"Hi"}}]}
+
+                data: [DONE]
+
+                """);
+        assertThat(post(
+                                Endpoints.OPENAI_CHAT,
+                                "{\"model\":\"gpu-model\",\"stream\":true,\"messages\":[]}",
+                                "Authorization",
+                                "Bearer " + CODER_KEY.value())
+                        .statusCode())
+                .isEqualTo(200);
+        PROVIDER.respond(200, ANSWER.formatted(5, 5));
+        assertThat(gpu(false).statusCode()).isEqualTo(200);
     }
 
     @Test

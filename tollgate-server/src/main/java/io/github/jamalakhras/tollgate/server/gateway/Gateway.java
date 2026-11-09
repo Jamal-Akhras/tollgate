@@ -20,6 +20,7 @@ import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.Tenant;
 import io.github.jamalakhras.tollgate.core.config.TenantKey;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.limit.Concurrency;
 import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.limit.RateLimiter;
 import io.github.jamalakhras.tollgate.core.money.Money;
@@ -74,9 +75,10 @@ final class Gateway implements AutoCloseable {
     static final String DRY_RUN_HEADER = "X-Tollgate-Dry-Run";
     static final String PERSONAL_DATA_STEP = "personal-data";
     static final String LIMITS_REFUSED_METRIC = "tollgate.limits.refused";
+    static final String PROVIDERS_BUSY_METRIC = "tollgate.providers.busy";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final Duration LIMIT_WARNING_INTERVAL = Duration.ofMinutes(1);
+    private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
 
@@ -89,7 +91,8 @@ final class Gateway implements AutoCloseable {
     private final Duration maxStreamDuration;
     private final Duration maxScanTime;
     private final RateLimiter limiter = new RateLimiter(System::nanoTime);
-    private final Map<String, Long> limitWarnings = new ConcurrentHashMap<>();
+    private final Concurrency providerCalls = new Concurrency();
+    private final Map<String, Long> warnings = new ConcurrentHashMap<>();
     private volatile Snapshot current;
 
     Gateway(
@@ -138,14 +141,32 @@ final class Gateway implements AutoCloseable {
     private GatewayException rateLimited(String tenant, RateLimiter.Limited limited) {
         String limit = limited.limit().configName();
         Metrics.counter(LIMITS_REFUSED_METRIC, "tenant", tenant, "limit", limit).increment();
-        long now = System.nanoTime();
-        String warning = tenant + "." + limit;
-        Long warned = limitWarnings.get(warning);
-        if (warned == null || now - warned >= LIMIT_WARNING_INTERVAL.toNanos()) {
-            limitWarnings.put(warning, now);
+        if (firstWarningThisMinute("tenant." + tenant + "." + limit)) {
             log.warn("Tenant '{}' is over its {} limit of {}", tenant, limit, limited.value());
         }
         return GatewayException.rateLimited(limited.message(), limited.retryAfterSeconds());
+    }
+
+    private Concurrency.Slot occupy(Route route) {
+        Long limit = route.provider().concurrent();
+        return providerCalls.take(route.providerName(), limit).orElseThrow(() -> {
+            Metrics.counter(PROVIDERS_BUSY_METRIC, "provider", route.providerName())
+                    .increment();
+            if (firstWarningThisMinute("provider." + route.providerName())) {
+                log.warn("Provider '{}' is at its limit of {} concurrent calls", route.providerName(), limit);
+            }
+            return GatewayException.providerBusy(route.model());
+        });
+    }
+
+    private boolean firstWarningThisMinute(String warning) {
+        long now = System.nanoTime();
+        Long warned = warnings.get(warning);
+        if (warned != null && now - warned < WARNING_INTERVAL.toNanos()) {
+            return false;
+        }
+        warnings.put(warning, now);
+        return true;
     }
 
     private Optional<Result> call(
@@ -188,35 +209,40 @@ final class Gateway implements AutoCloseable {
                     requestBody,
                     new Decision.Deny(Refusal.POLICY_DENIED, "Dry runs are only for tenants with showCosts: true"));
         }
-        Budgeted budgeted = reserve(call, requestBody, scanned.request(), dryRun);
-        Map<String, String> headers = headers(route, budgeted, showCosts);
-        if (dryRun) {
-            return Optional.of(dryRun(call, requestBody, budgeted, headers));
-        }
-        Reservation reservation = budgeted.reservation();
+        Concurrency.Slot slot = dryRun ? Concurrency.Slot.NONE : occupy(route);
         try {
-            recordIntent(
-                    call,
-                    requestBody,
-                    Decision.ALLOW,
-                    reservation == null ? null : reservation.amount(),
-                    budgeted.forwarded());
-        } catch (GatewayException e) {
-            if (reservation != null) {
-                budgets.settle(reservation, nothing(route));
+            Budgeted budgeted = reserve(call, requestBody, scanned.request(), dryRun);
+            Map<String, String> headers = headers(route, budgeted, showCosts);
+            if (dryRun) {
+                return Optional.of(dryRun(call, requestBody, budgeted, headers));
             }
-            throw e;
+            Reservation reservation = budgeted.reservation();
+            try {
+                recordIntent(
+                        call,
+                        requestBody,
+                        Decision.ALLOW,
+                        reservation == null ? null : reservation.amount(),
+                        budgeted.forwarded());
+            } catch (GatewayException e) {
+                if (reservation != null) {
+                    budgets.settle(reservation, nothing(route));
+                }
+                throw e;
+            }
+            if (request.isStreaming()) {
+                stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
+                return Optional.empty();
+            }
+            Sent sent = send(call, budgeted.forwarded(), reservation, clientHeaders);
+            if (showCosts) {
+                headers.put(COST_HEADER, sent.charge().toString());
+            }
+            return Optional.of(new Result(
+                    sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
+        } finally {
+            slot.close();
         }
-        if (request.isStreaming()) {
-            stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
-            return Optional.empty();
-        }
-        Sent sent = send(call, budgeted.forwarded(), reservation, clientHeaders);
-        if (showCosts) {
-            headers.put(COST_HEADER, sent.charge().toString());
-        }
-        return Optional.of(new Result(
-                sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
     }
 
     private Scanned scan(ChatRequest request, WireFormat endpoint, Admission admission) {

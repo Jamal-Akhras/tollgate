@@ -30,6 +30,7 @@ class ProviderTest {
                 null,
                 Duration.ofSeconds(5),
                 fields,
+                null,
                 null);
         fields.add("num_ctx");
 
@@ -51,7 +52,8 @@ class ProviderTest {
                                 null,
                                 Duration.ofSeconds(5),
                                 List.of(),
-                                "openrouter")
+                                "openrouter",
+                                null)
                         .priceCatalog())
                 .contains("openrouter");
     }
@@ -66,6 +68,7 @@ class ProviderTest {
                         null,
                         Duration.ofSeconds(5),
                         List.of("top_k", field),
+                        null,
                         null))
                 .hasMessageStartingWith("extraFields must not include '" + field + "': ");
     }

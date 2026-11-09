@@ -614,6 +614,17 @@ class ConfigReaderTest {
                 .hasMessage("audit: secrets must be references such as ${env:PROVIDER_API_KEY}, never values");
     }
 
+    @Test
+    void readsAProvidersConcurrentLimit() {
+        GatewayConfig config = ConfigReader.read(with("providers.ollama.concurrent", 2));
+
+        assertThat(entry(config.providers(), "ollama").concurrent()).isEqualTo(2L);
+        assertThat(entry(ConfigReader.read(document()).providers(), "ollama").concurrent())
+                .isNull();
+        assertThatThrownBy(() -> ConfigReader.read(with("providers.ollama.concurrent", 0)))
+                .hasMessage("providers.ollama: concurrent must be positive, was 0");
+    }
+
     @ParameterizedTest
     @CsvSource({"500ms, PT0.5S", "45s, PT45S", "2m, PT2M"})
     void readsDurations(String value, Duration expected) {
@@ -633,6 +644,7 @@ class ConfigReaderTest {
             providers.ollama.baseUrl         | ftp://host/v1   | providers.ollama: baseUrl must be an absolute http or https URL, was ftp://host/v1
             providers.ollama.timeout         | 10 seconds      | providers.ollama.timeout must be a duration such as 500ms, 30s or 2m, was 10 seconds
             providers.ollama.timeout         | 0s              | providers.ollama: timeout must be positive
+            providers.ollama.concurrent      | two             | providers.ollama.concurrent must be a whole number, was two
             providers.anthropic.apiKey       | sk-ant-12345    | providers.anthropic: secrets must be references such as ${env:PROVIDER_API_KEY}, never values
             providers.ollama.apiKey          | ${env:OLLAMA}   | providers.ollama: an API key may only be sent over https, except to this machine
             models.qwen3.provider            | vllm            | models.qwen3.provider: no provider named 'vllm'

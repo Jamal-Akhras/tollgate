@@ -104,6 +104,14 @@ final class GatewayException extends RuntimeException {
                 : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null);
     }
 
+    static GatewayException providerBusy(String model) {
+        return new GatewayException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "provider_busy",
+                "The model '" + model + "' is answering as many calls as it can at once; try again shortly",
+                null);
+    }
+
     static GatewayException providerError(
             int providerStatus, @Nullable String providerMessage, @Nullable String retryAfter) {
         if (providerStatus >= 500) {

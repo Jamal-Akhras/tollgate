@@ -72,7 +72,7 @@ public final class ConfigReader {
     }
 
     private static Provider provider(Section section, PriceCatalog catalog) {
-        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout", "extraFields", "catalog");
+        section.requireOnly("format", "baseUrl", "apiKey", "region", "timeout", "extraFields", "catalog", "concurrent");
         String apiKey = section.optionalText("apiKey");
         String named = section.optionalText("catalog");
         if (named != null && !catalog.covers(named)) {
@@ -85,7 +85,8 @@ public final class ConfigReader {
                 section.optionalText("region"),
                 section.duration("timeout", DEFAULT_TIMEOUT),
                 section.texts("extraFields"),
-                named));
+                named,
+                section.optionalWholeNumber("concurrent")));
     }
 
     private static Model model(

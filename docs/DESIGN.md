@@ -95,7 +95,7 @@ an admin handler from the gateway port.
 6. **Audit intent.** Record the decision before any provider is called.
 7. **Call the provider,** with a timeout, a per-provider concurrency limit and
    a circuit breaker. Fall back to another provider only before the first byte
-   reaches the client.
+   reaches the client ([ADR 0016](adr/0016-provider-fallback.md)).
 8. **Post-call guards:** output PII and structural validation.
 9. **Restore** redacted values in the response, including streams. The
    mapping lives in memory for that request only.
@@ -118,7 +118,7 @@ dataClasses: [public, internal, confidential, restricted]   # least to most stri
 
 providers:
   anthropic: { format: anthropic, baseUrl: https://api.anthropic.com, apiKey: ${env:ANTHROPIC_API_KEY}, region: us }
-  ollama:    { format: openai, baseUrl: http://gpu-box:11434/v1, region: local }
+  ollama:    { format: openai, baseUrl: http://gpu-box:11434/v1, region: local, concurrent: 2 }
 
 models:
   claude-sonnet:

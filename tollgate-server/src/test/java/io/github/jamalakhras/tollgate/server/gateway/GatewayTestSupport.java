@@ -90,6 +90,7 @@ abstract class GatewayTestSupport {
                   anthropic: { format: anthropic, baseUrl: "%1$s", apiKey: "${env:PROVIDER_KEY}", region: us }
                   slow: { format: openai, baseUrl: "%1$s/v1", timeout: 300ms, region: local }
                   offline: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }
+                  gpu: { format: openai, baseUrl: "%1$s/v1", region: local, concurrent: 1 }
                 models:
                   qwen3:
                     provider: ollama
@@ -114,6 +115,7 @@ abstract class GatewayTestSupport {
                     price: { input: 0, output: 1, reasoning: 4, cacheRead: 0, cacheWrite: 0 }
                   slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
+                  gpu-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s }
                   metered-model:
                     provider: ollama
                     upstream: "qwen3:32b"
@@ -137,7 +139,7 @@ abstract class GatewayTestSupport {
                     budget: { limit: 0.50, period: total }
                     showCosts: true
                   coder:
-                    models: [qwen3, claude-sonnet, thinking-model]
+                    models: [qwen3, claude-sonnet, thinking-model, gpu-model]
                     dataClass: internal
                     showCosts: true
                     policy: coding
