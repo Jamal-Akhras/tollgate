@@ -164,6 +164,23 @@ class AuditLogTest {
     }
 
     @Test
+    void stopsWhenTheWriterDiesOfAnError() throws Exception {
+        OutOfMemoryError outOfMemory = new OutOfMemoryError("Java heap space");
+        sink.crashWith(outOfMemory);
+        try (AuditLog log = start(false, LIMITS)) {
+            log.writer().setUncaughtExceptionHandler((thread, e) -> {});
+            log.append(Records.refused("a"));
+            log.writer().join(5_000);
+
+            assertThat(log.writer().isAlive()).isFalse();
+            assertThat(log.healthy()).isFalse();
+            assertThatThrownBy(() -> log.append(Records.refused("b")))
+                    .hasMessage("The audit trail stopped after a write failed")
+                    .hasCause(outOfMemory);
+        }
+    }
+
+    @Test
     void stopsWhenTheWriterIsInterrupted() throws Exception {
         try (AuditLog log = start(true, LIMITS)) {
             log.writer().interrupt();

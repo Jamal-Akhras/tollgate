@@ -15,6 +15,7 @@ final class MemorySink implements AuditSink {
     private final CountDownLatch writing = new CountDownLatch(1);
     private volatile CountDownLatch gate = new CountDownLatch(0);
     private volatile @Nullable IOException failure;
+    private volatile @Nullable Error crash;
     private volatile boolean closed;
 
     MemorySink() {
@@ -43,6 +44,10 @@ final class MemorySink implements AuditSink {
         if (failed != null) {
             throw failed;
         }
+        Error crashed = crash;
+        if (crashed != null) {
+            throw crashed;
+        }
         synchronized (writes) {
             writes.add(List.copyOf(entries));
         }
@@ -69,6 +74,10 @@ final class MemorySink implements AuditSink {
 
     void failWith(IOException failure) {
         this.failure = failure;
+    }
+
+    void crashWith(Error crash) {
+        this.crash = crash;
     }
 
     boolean closed() {

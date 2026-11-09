@@ -25,7 +25,7 @@ public final class AuditLog implements AutoCloseable {
     private final Limits limits;
     private final BlockingQueue<Pending> queue;
     private final Thread writer;
-    private volatile @Nullable Exception failure;
+    private volatile @Nullable Throwable failure;
     private volatile boolean closed;
     private long batchOpened;
 
@@ -60,7 +60,7 @@ public final class AuditLog implements AutoCloseable {
     }
 
     public void append(AuditRecord record) {
-        Exception failed = failure;
+        Throwable failed = failure;
         if (failed != null) {
             throw new AuditUnavailableException("The audit trail stopped after a write failed", failed);
         }
@@ -158,6 +158,9 @@ public final class AuditLog implements AutoCloseable {
             fail(taken, e);
         } catch (IOException | RuntimeException e) {
             fail(taken, e);
+        } catch (Error e) {
+            fail(taken, e);
+            throw e;
         }
     }
 
@@ -175,7 +178,7 @@ public final class AuditLog implements AutoCloseable {
         return limits.batchAge().toNanos() - (System.nanoTime() - batchOpened);
     }
 
-    private void fail(List<Pending> taken, Exception cause) {
+    private void fail(List<Pending> taken, Throwable cause) {
         failure = cause;
         List<Pending> waiting = new ArrayList<>(taken);
         queue.drainTo(waiting);
