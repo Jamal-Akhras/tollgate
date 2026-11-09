@@ -71,6 +71,8 @@ an admin handler from the gateway port.
 
 1. **Authenticate.** Look the API key up by its short ID and compare hashes in
    constant time. Keys are stored only as hashes and shown once at creation.
+   A tenant over its request, token or concurrency limit is refused here,
+   before the body is read ([ADR 0015](adr/0015-tenant-rate-limits.md)).
 2. **Resolve.** Find the tenant and the data class. The tenant's default data
    class applies; a request header may make it stricter, never looser.
 3. **Pin the policy.** Choose the route's policy and record the config version
@@ -85,7 +87,7 @@ an admin handler from the gateway port.
    - custom guards
 
    The tenant's model list was already checked in step 2.
-5. **Rate limit and reserve budget.** Reserve the most the call can cost. The
+5. **Reserve budget.** Reserve the most the call can cost. The
    request's size in bytes bounds its input tokens. The gateway lowers
    `max_tokens` to the model's cap, and fills it in only when the tenant has a
    budget, so a budgeted call's output is bounded too. Without a budget, a
@@ -136,6 +138,7 @@ tenants:
     models: [claude-sonnet, qwen3]
     policy: default
     budget: { limit: 50.00, period: monthly }
+    limits: { requestsPerMinute: 60, tokensPerMinute: 200000, concurrent: 8 }
 
 keys:
   - { id: k7Qm2xPa, tenant: support-bot, sha256: 3f1c…9ab2 }

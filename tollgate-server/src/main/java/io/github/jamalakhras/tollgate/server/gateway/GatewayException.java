@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.gateway;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import java.util.OptionalLong;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -48,6 +49,15 @@ final class GatewayException extends RuntimeException {
                 "request_too_large",
                 "The request body is larger than the limit of " + maxBytes + " bytes",
                 null);
+    }
+
+    static GatewayException rateLimited(String message, OptionalLong retryAfterSeconds) {
+        return new GatewayException(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "rate_limited",
+                message,
+                null,
+                retryAfterSeconds.isPresent() ? Long.toString(retryAfterSeconds.getAsLong()) : null);
     }
 
     static GatewayException refused(Decision.Deny denial) {

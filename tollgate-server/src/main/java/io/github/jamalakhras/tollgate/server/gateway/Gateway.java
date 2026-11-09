@@ -20,6 +20,8 @@ import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.Tenant;
 import io.github.jamalakhras.tollgate.core.config.TenantKey;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.limit.Limits;
+import io.github.jamalakhras.tollgate.core.limit.RateLimiter;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.Usage;
@@ -39,6 +41,7 @@ import io.github.jamalakhras.tollgate.providers.ProviderStream;
 import io.github.jamalakhras.tollgate.providers.ProviderUnavailableException;
 import io.github.jamalakhras.tollgate.providers.StreamRewriter;
 import io.github.jamalakhras.tollgate.providers.UsageReader;
+import io.micrometer.core.instrument.Metrics;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -52,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -69,8 +73,10 @@ final class Gateway implements AutoCloseable {
     static final String COST_HEADER = "X-Tollgate-Cost";
     static final String DRY_RUN_HEADER = "X-Tollgate-Dry-Run";
     static final String PERSONAL_DATA_STEP = "personal-data";
+    static final String LIMITS_REFUSED_METRIC = "tollgate.limits.refused";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final Duration LIMIT_WARNING_INTERVAL = Duration.ofMinutes(1);
 
     private static final Logger log = LoggerFactory.getLogger(Gateway.class);
 
@@ -82,6 +88,8 @@ final class Gateway implements AutoCloseable {
     private final int maxRequestBytes;
     private final Duration maxStreamDuration;
     private final Duration maxScanTime;
+    private final RateLimiter limiter = new RateLimiter(System::nanoTime);
+    private final Map<String, Long> limitWarnings = new ConcurrentHashMap<>();
     private volatile Snapshot current;
 
     Gateway(
@@ -114,6 +122,41 @@ final class Gateway implements AutoCloseable {
             StreamTarget target) {
         Snapshot snapshot = current;
         TenantKey caller = snapshot.authenticate(credential);
+        try (RateLimiter.Permit permit = admit(snapshot, caller.tenant())) {
+            return call(traceId, snapshot, caller, permit, endpoint, body, clientHeaders, target);
+        }
+    }
+
+    private RateLimiter.Permit admit(Snapshot snapshot, String tenant) {
+        Tenant settings = snapshot.config().tenants().get(tenant);
+        return switch (limiter.admit(tenant, settings == null ? Limits.NONE : settings.limits())) {
+            case RateLimiter.Permit permit -> permit;
+            case RateLimiter.Limited limited -> throw rateLimited(tenant, limited);
+        };
+    }
+
+    private GatewayException rateLimited(String tenant, RateLimiter.Limited limited) {
+        String limit = limited.limit().configName();
+        Metrics.counter(LIMITS_REFUSED_METRIC, "tenant", tenant, "limit", limit).increment();
+        long now = System.nanoTime();
+        String warning = tenant + "." + limit;
+        Long warned = limitWarnings.get(warning);
+        if (warned == null || now - warned >= LIMIT_WARNING_INTERVAL.toNanos()) {
+            limitWarnings.put(warning, now);
+            log.warn("Tenant '{}' is over its {} limit of {}", tenant, limit, limited.value());
+        }
+        return GatewayException.rateLimited(limited.message(), limited.retryAfterSeconds());
+    }
+
+    private Optional<Result> call(
+            String traceId,
+            Snapshot snapshot,
+            TenantKey caller,
+            RateLimiter.Permit permit,
+            WireFormat endpoint,
+            InputStream body,
+            Function<String, @Nullable String> clientHeaders,
+            StreamTarget target) {
         byte[] requestBody = read(body);
         ChatRequest request = parse(requestBody);
         GatewayConfig config = snapshot.config();
@@ -132,7 +175,8 @@ final class Gateway implements AutoCloseable {
                         clientHeaders.apply(ANTHROPIC_BETA_HEADER),
                         route.provider().extraFields()));
         Scanned scanned = scan(request, endpoint, admission);
-        Call call = new Call(traceId, snapshot, caller, endpoint, route, scanned.admission(), scanned.redactor());
+        Call call =
+                new Call(traceId, snapshot, caller, permit, endpoint, route, scanned.admission(), scanned.redactor());
         if (call.admission().decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);
         }
@@ -344,6 +388,7 @@ final class Gateway implements AutoCloseable {
             if (reservation != null) {
                 budgets.settle(reservation, charge);
             }
+            usage.ifPresent(used -> call.permit().charge(used.totalTokens()));
             ProviderResponse answered = response;
             recordOutcome(
                     call,
@@ -451,6 +496,7 @@ final class Gateway implements AutoCloseable {
             if (reservation != null) {
                 budgets.settle(reservation, charge);
             }
+            usage.ifPresent(used -> call.permit().charge(used.totalTokens()));
             String streamed = opened && fingerprint != null ? fingerprint.hex() : null;
             recordOutcome(
                     call, result, status, usage, charge, Duration.between(started, clock.instant()), trail -> streamed);
@@ -710,6 +756,7 @@ final class Gateway implements AutoCloseable {
             String traceId,
             Snapshot snapshot,
             TenantKey caller,
+            RateLimiter.Permit permit,
             WireFormat endpoint,
             Route route,
             Admission admission,

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
+import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
@@ -179,6 +180,34 @@ class ConfigReaderTest {
         assertThat(entry(config.tenants(), "support-bot").budget())
                 .isEqualTo(new Budget(Money.of(new BigDecimal(50), Currency.getInstance("GBP")), Period.MONTHLY));
         assertThat(entry(config.models(), "claude-sonnet").price().currency()).isEqualTo(Currency.getInstance("GBP"));
+    }
+
+    @Test
+    void readsTenantLimits() {
+        GatewayConfig config = ConfigReader.read(with(
+                "tenants.support-bot.limits",
+                Map.of("requestsPerMinute", 60, "tokensPerMinute", 200_000, "concurrent", 8)));
+
+        assertThat(entry(config.tenants(), "support-bot").limits()).isEqualTo(new Limits(60L, 200_000L, 8L));
+        assertThat(entry(
+                                ConfigReader.read(with("tenants.support-bot.limits", Map.of("concurrent", 4)))
+                                        .tenants(),
+                                "support-bot")
+                        .limits())
+                .isEqualTo(new Limits(null, null, 4L));
+        assertThat(entry(ConfigReader.read(document()).tenants(), "support-bot").limits())
+                .isEqualTo(Limits.NONE);
+    }
+
+    @Test
+    void reportsLimitProblems() {
+        assertThatThrownBy(() -> ConfigReader.read(with("tenants.support-bot.limits", Map.of("concurrent", 0))))
+                .hasMessage("tenants.support-bot.limits: concurrent must be positive, was 0");
+        assertThatThrownBy(() ->
+                        ConfigReader.read(with("tenants.support-bot.limits", Map.of("requestsPerMinute", "lots"))))
+                .hasMessage("tenants.support-bot.limits.requestsPerMinute must be a whole number, was lots");
+        assertThatThrownBy(() -> ConfigReader.read(with("tenants.support-bot.limits", Map.of("perHour", 10))))
+                .hasMessage("tenants.support-bot.limits.perHour is not a recognised setting");
     }
 
     @Test
@@ -597,7 +626,7 @@ class ConfigReaderTest {
             provders                         | x               | provders is not a recognised setting
             providers.ollama.zone            | eu              | providers.ollama.zone is not a recognised setting
             models.qwen3.region              | eu              | models.qwen3.region is not a recognised setting
-            tenants.support-bot.limits       | 50              | tenants.support-bot.limits is not a recognised setting
+            tenants.support-bot.quota        | 50              | tenants.support-bot.quota is not a recognised setting
             policies.default.mode            | monitor         | policies.default.mode is not a recognised setting
             providers.ollama.format          | grpc            | providers.ollama: format must be one of openai, anthropic, was grpc
             providers.ollama.baseUrl         | not a url       | providers.ollama.baseUrl is not a valid URL: not a url

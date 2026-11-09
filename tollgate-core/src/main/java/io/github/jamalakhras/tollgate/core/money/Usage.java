@@ -7,4 +7,8 @@ public record Usage(long inputTokens, long outputTokens, long cacheReadTokens, l
             throw new IllegalArgumentException("Token counts must not be negative");
         }
     }
+
+    public long totalTokens() {
+        return inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
+    }
 }

@@ -43,6 +43,9 @@ abstract class GatewayTestSupport {
     static final ApiKey PLANNER_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey CLERK_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey HASTY_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey RATIONED_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey THRIFTY_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey SINGLE_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -147,6 +150,18 @@ abstract class GatewayTestSupport {
                     models: [qwen3]
                     dataClass: internal
                     policy: slow
+                  rationed:
+                    models: [qwen3]
+                    dataClass: internal
+                    limits: { requestsPerMinute: 2 }
+                  thrifty:
+                    models: [qwen3]
+                    dataClass: internal
+                    limits: { tokensPerMinute: 100 }
+                  single:
+                    models: [qwen3]
+                    dataClass: internal
+                    limits: { concurrent: 1 }
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
@@ -155,6 +170,9 @@ abstract class GatewayTestSupport {
                   - { id: %14$s, tenant: planner, sha256: %15$s }
                   - { id: %16$s, tenant: clerk, sha256: %17$s }
                   - { id: %18$s, tenant: hasty, sha256: %19$s }
+                  - { id: %20$s, tenant: rationed, sha256: %21$s }
+                  - { id: %22$s, tenant: thrifty, sha256: %23$s }
+                  - { id: %24$s, tenant: single, sha256: %25$s }
                 detectors:
                   customer-id: { pattern: "CUST-[0-9]{6}" }
                   account-number: { pattern: "account (?<value>[0-9]{8})" }
@@ -217,7 +235,13 @@ abstract class GatewayTestSupport {
                         CLERK_KEY.id(),
                         CLERK_KEY.sha256(),
                         HASTY_KEY.id(),
-                        HASTY_KEY.sha256());
+                        HASTY_KEY.sha256(),
+                        RATIONED_KEY.id(),
+                        RATIONED_KEY.sha256(),
+                        THRIFTY_KEY.id(),
+                        THRIFTY_KEY.sha256(),
+                        SINGLE_KEY.id(),
+                        SINGLE_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

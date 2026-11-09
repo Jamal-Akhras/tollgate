@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.core.config;
 
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
+import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.money.ContextTier;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
@@ -164,14 +165,24 @@ public final class ConfigReader {
     }
 
     private static Tenant tenant(Section section, Currency currency) {
-        section.requireOnly("models", "dataClass", "policy", "budget", "showCosts");
+        section.requireOnly("models", "dataClass", "policy", "budget", "showCosts", "limits");
         Budget budget = section.optionalChild("budget", child -> budget(child, currency));
+        Limits limits = section.optionalChild("limits", ConfigReader::limits);
         return section.build(() -> new Tenant(
                 section.texts("models"),
                 section.optionalText("dataClass"),
                 section.optionalText("policy"),
                 budget,
-                section.flag("showCosts", false)));
+                section.flag("showCosts", false),
+                limits == null ? Limits.NONE : limits));
+    }
+
+    private static Limits limits(Section section) {
+        section.requireOnly("requestsPerMinute", "tokensPerMinute", "concurrent");
+        return section.build(() -> new Limits(
+                section.optionalWholeNumber("requestsPerMinute"),
+                section.optionalWholeNumber("tokensPerMinute"),
+                section.optionalWholeNumber("concurrent")));
     }
 
     private static Budget budget(Section section, Currency currency) {

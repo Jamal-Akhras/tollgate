@@ -68,6 +68,11 @@ versions may change the extension interfaces.
   limits what a pattern replaces, terms match whole words in any case, and
   `tollgate.max-scan-time` (200 ms by default) refuses a request with `500`
   `redaction_timeout` rather than let a slow pattern hold it.
+- Limits per tenant on requests a minute, tokens a minute and calls at a time
+  ([ADR 0015](docs/adr/0015-tenant-rate-limits.md)). A tenant over a limit
+  gets `429` `rate_limited` with `Retry-After` before its request is read.
+  These refusals are counted in the `tollgate.limits.refused` metric rather
+  than audited, and each instance enforces the limits on its own.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

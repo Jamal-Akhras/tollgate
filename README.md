@@ -75,6 +75,12 @@ what was sent, who sent it, what it cost, and why it was allowed.
   comment line that clients ignore. Add `X-Tollgate-Dry-Run: true` to get the
   estimate, after every policy and budget check, without calling the model
   or spending anything ([ADR 0011](docs/adr/0011-report-costs.md)).
+- **Limits per tenant.** `limits: { requestsPerMinute: 60, tokensPerMinute:
+  200000, concurrent: 8 }` stops one application from starving the others or
+  a local GPU. A tenant over a limit gets `429` with `Retry-After`, which the
+  OpenAI and Anthropic SDKs already retry. Each Tollgate instance enforces the
+  limits on its own for now
+  ([ADR 0015](docs/adr/0015-tenant-rate-limits.md)).
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.
@@ -133,6 +139,7 @@ tenants:
     models: [qwen3]
     dataClass: internal
     # budget: { limit: 5.00, period: monthly }  for a priced model
+    # limits: { requestsPerMinute: 60, concurrent: 4 }
 
 keys:
   - { id: …, tenant: my-app, sha256: … }
@@ -252,6 +259,12 @@ WantedBy=multi-user.target
   is resolved next to the config file, and `/etc/tollgate` is not writable.
 - **Start it** with `systemctl enable --now tollgate`. `journalctl -u tollgate`
   shows the address each port listens on.
+- **Memory:** each call in flight holds its request and answer, up to
+  `tollgate.max-request-size` (16 MB) and `tollgate.max-response-size`
+  (32 MB). A slow model lets calls pile up, so give each tenant a
+  `concurrent` limit, and set `-Xmx` to about half the machine's or
+  container's memory. `-XX:+ExitOnOutOfMemoryError` with `Restart=on-failure`
+  turns running out into a clean restart.
 
 ## Operating it
 

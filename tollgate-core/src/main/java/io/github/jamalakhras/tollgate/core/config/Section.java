@@ -120,6 +120,11 @@ final class Section {
         return values.get(key) == null ? fallback : wholeNumber(key);
     }
 
+    @Nullable
+    Long optionalWholeNumber(String key) {
+        return values.get(key) == null ? null : wholeNumber(key);
+    }
+
     long wholeNumber(String key) {
         Object value = values.get(key);
         if (value == null) {
