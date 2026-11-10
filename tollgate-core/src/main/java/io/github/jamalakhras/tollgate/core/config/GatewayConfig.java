@@ -54,6 +54,9 @@ public record GatewayConfig(
                         + model.getValue().provider() + "'");
             }
         }
+        for (var model : models.entrySet()) {
+            checkFallback(model.getKey(), model.getValue(), models, providers);
+        }
         for (var tenant : tenants.entrySet()) {
             checkTenant(tenant.getKey(), tenant.getValue(), dataClasses, models, providers, policies);
         }
@@ -84,11 +87,21 @@ public record GatewayConfig(
         if (caller == null || target == null || !caller.mayUse(model)) {
             return Optional.empty();
         }
-        Provider provider = providers.get(target.provider());
-        if (provider == null) {
+        return Optional.of(routeTo(model, target));
+    }
+
+    private Route routeTo(String model, @Nullable Model target) {
+        Provider provider = target == null ? null : providers.get(target.provider());
+        if (target == null || provider == null) {
             throw new IllegalStateException("Model " + model + " has no provider");
         }
-        return Optional.of(new Route(model, target, target.provider(), provider));
+        return new Route(model, target, target.provider(), provider);
+    }
+
+    public List<Route> fallbacks(Route route) {
+        return route.definition().fallback().stream()
+                .map(model -> routeTo(model, models.get(model)))
+                .toList();
     }
 
     public List<Route> routes(String tenant) {
@@ -187,8 +200,17 @@ public record GatewayConfig(
                         + "' has no data-class guard, so data class '" + dataClass + "' would not be enforced");
             }
         }
+        List<String> served = new ArrayList<>(tenant.models());
+        for (String model : tenant.models()) {
+            Model definition = models.get(model);
+            if (definition != null) {
+                definition.fallback().stream()
+                        .filter(fallback -> !served.contains(fallback))
+                        .forEach(served::add);
+            }
+        }
         if (tenant.budget() != null) {
-            for (String model : tenant.models()) {
+            for (String model : served) {
                 Model definition = models.get(model);
                 if (definition != null && definition.maxOutputTokens() == null) {
                     throw new IllegalArgumentException("tenants." + name + ".budget needs models." + model
@@ -201,7 +223,7 @@ public record GatewayConfig(
                 && !applied.features()
                         .getOrDefault(Feature.WEB_SEARCH, List.of())
                         .isEmpty()) {
-            for (String model : tenant.models()) {
+            for (String model : served) {
                 Model definition = models.get(model);
                 if (definition == null) {
                     continue;
@@ -211,6 +233,31 @@ public record GatewayConfig(
                     throw new IllegalArgumentException("tenants." + name + " may use web search, so models." + model
                             + " needs price.webSearch and maxWebSearches");
                 }
+            }
+        }
+    }
+
+    private static void checkFallback(
+            String name, Model model, Map<String, Model> models, Map<String, Provider> providers) {
+        Set<String> named = new HashSet<>();
+        for (String fallback : model.fallback()) {
+            String path = "models." + name + ".fallback";
+            Model target = models.get(fallback);
+            if (target == null) {
+                throw new IllegalArgumentException(path + ": no model named '" + fallback + "'");
+            }
+            if (fallback.equals(name)) {
+                throw new IllegalArgumentException(path + " must not name the model itself");
+            }
+            if (!named.add(fallback)) {
+                throw new IllegalArgumentException(path + " names '" + fallback + "' more than once");
+            }
+            Provider own = providers.get(model.provider());
+            Provider other = providers.get(target.provider());
+            if (own != null && other != null && own.format() != other.format()) {
+                throw new IllegalArgumentException(path + ": '" + fallback + "' uses the "
+                        + other.format().configName() + " format and '" + name + "' the "
+                        + own.format().configName() + " format, and Tollgate does not translate between them");
             }
         }
     }

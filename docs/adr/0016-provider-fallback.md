@@ -86,7 +86,12 @@ invalid response, which may already have been billed.
 - **There are no retries on the same provider.** OpenAI's and Anthropic's
   SDKs already retry, and retrying inside Tollgate as well would multiply the
   attempts and hold more calls open.
-- **The last failure is what the client sees,** in the same form as today.
+- **The client sees the last provider failure,** in the same form as today.
+  A fallback refused by the policy or the budget is audited but not
+  returned, so a confidential request whose only fallback is in the cloud
+  gets the local provider's error, not a `403`.
+- **Dry runs estimate the requested model only.** They call no provider, so
+  nothing can fail over.
 
 ### A circuit breaker for each provider
 
@@ -124,8 +129,11 @@ when someone needs different ones.
 - **Calls skipped by a breaker or a concurrency limit are not audited** when
   nothing was sent, like ADR 0015's refusals. A request whose every model was
   skipped this way leaves no audit record.
-- **The metric `tollgate.fallbacks`,** tagged with the model, the provider it
-  moved on from and the reason, counts each time Tollgate moves on.
+- **The metric `tollgate.fallbacks`,** tagged with the requested model, the
+  provider it moved on from and the reason, counts each time Tollgate moves
+  on. The reason is the error code the client would otherwise have seen, such
+  as `provider_unavailable` or `provider_busy`, or the refusal that skipped a
+  fallback. Each move is also logged.
 - **The metric `tollgate.providers.busy`,** tagged with the provider, counts
   calls refused because the provider had no slot left, and a warning is
   logged at most once a minute per provider.

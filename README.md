@@ -81,10 +81,17 @@ what was sent, who sent it, what it cost, and why it was allowed.
   OpenAI and Anthropic SDKs already retry. Each Tollgate instance enforces the
   limits on its own for now
   ([ADR 0015](docs/adr/0015-tenant-rate-limits.md)).
-- **Limits per provider.** `concurrent: 2` on a provider caps the calls in
-  flight to it across all tenants, so a local model is never sent more than
-  it can serve. Extra calls get `503` `provider_busy` at once instead of
-  waiting ([ADR 0016](docs/adr/0016-provider-fallback.md)).
+- **Fallback and limits per provider**
+  ([ADR 0016](docs/adr/0016-provider-fallback.md)).
+  - **Fallback:** `fallback: [qwen3-cloud]` on a model names models to try,
+    in order, when its provider can't be reached, times out, is busy, or
+    answers `401`, `403`, `408`, `429` or `5xx`. Each fallback is checked by
+    the tenant's policy again, so confidential data never falls back to a
+    region it may not go to. Streams fall back only before the first byte.
+  - **Limits:** `concurrent: 2` on a provider caps the calls in flight to it
+    across all tenants, so a local model is never sent more than it can
+    serve. Extra calls go to a fallback, or get `503` `provider_busy` at
+    once instead of waiting.
 - **A tamper-evident audit trail:**
   - Every decision is recorded before the provider is called, and every
     outcome after.

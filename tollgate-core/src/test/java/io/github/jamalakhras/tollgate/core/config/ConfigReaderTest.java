@@ -615,6 +615,20 @@ class ConfigReaderTest {
     }
 
     @Test
+    void readsAModelsFallbacks() {
+        Map<String, Object> document = with("models.qwen3.fallback", List.of("backup"));
+        parentOf(document, "models.backup")
+                .put("backup", Map.of("provider", "ollama", "upstream", "qwen3:8b", "price", "free"));
+        GatewayConfig config = ConfigReader.read(document);
+
+        assertThat(entry(config.models(), "qwen3").fallback()).containsExactly("backup");
+        assertThat(entry(ConfigReader.read(document()).models(), "qwen3").fallback())
+                .isEmpty();
+        assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.fallback", List.of("gpt-5"))))
+                .hasMessage("models.qwen3.fallback: no model named 'gpt-5'");
+    }
+
+    @Test
     void readsAProvidersConcurrentLimit() {
         GatewayConfig config = ConfigReader.read(with("providers.ollama.concurrent", 2));
 

@@ -91,6 +91,7 @@ abstract class GatewayTestSupport {
                   slow: { format: openai, baseUrl: "%1$s/v1", timeout: 300ms, region: local }
                   offline: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }
                   gpu: { format: openai, baseUrl: "%1$s/v1", region: local, concurrent: 1 }
+                  cloud: { format: openai, baseUrl: "%1$s/v1", region: us }
                 models:
                   qwen3:
                     provider: ollama
@@ -116,6 +117,10 @@ abstract class GatewayTestSupport {
                   slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
                   gpu-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s }
+                  cloud-model: { provider: cloud, upstream: "qwen3:235b", price: %5$s }
+                  sturdy-model: { provider: offline, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
+                  backed-model: { provider: ollama, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
+                  spill-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
                   metered-model:
                     provider: ollama
                     upstream: "qwen3:32b"
@@ -139,7 +144,7 @@ abstract class GatewayTestSupport {
                     budget: { limit: 0.50, period: total }
                     showCosts: true
                   coder:
-                    models: [qwen3, claude-sonnet, thinking-model, gpu-model]
+                    models: [qwen3, claude-sonnet, thinking-model, gpu-model, sturdy-model, backed-model, spill-model]
                     dataClass: internal
                     showCosts: true
                     policy: coding

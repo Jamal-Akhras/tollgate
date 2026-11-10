@@ -76,6 +76,7 @@ final class Gateway implements AutoCloseable {
     static final String PERSONAL_DATA_STEP = "personal-data";
     static final String LIMITS_REFUSED_METRIC = "tollgate.limits.refused";
     static final String PROVIDERS_BUSY_METRIC = "tollgate.providers.busy";
+    static final String FALLBACKS_METRIC = "tollgate.fallbacks";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
@@ -186,16 +187,8 @@ final class Gateway implements AutoCloseable {
         if (route.provider().format() != endpoint) {
             throw GatewayException.wrongEndpoint(route.model(), route.provider().format());
         }
-        Admission admission = config.admit(
-                caller.tenant(),
-                route,
-                clientHeaders.apply(DATA_CLASS_HEADER),
-                requestBody.length,
-                request.review(
-                        endpoint,
-                        clientHeaders.apply(ANTHROPIC_BETA_HEADER),
-                        route.provider().extraFields()));
-        Scanned scanned = scan(request, endpoint, admission);
+        Scanned scanned =
+                scan(request, endpoint, admission(config, caller, route, request, requestBody.length, clientHeaders));
         Call call =
                 new Call(traceId, snapshot, caller, permit, endpoint, route, scanned.admission(), scanned.redactor());
         if (call.admission().decision() instanceof Decision.Deny denial) {
@@ -209,13 +202,89 @@ final class Gateway implements AutoCloseable {
                     requestBody,
                     new Decision.Deny(Refusal.POLICY_DENIED, "Dry runs are only for tenants with showCosts: true"));
         }
-        Concurrency.Slot slot = dryRun ? Concurrency.Slot.NONE : occupy(route);
+        if (dryRun) {
+            Budgeted budgeted = reserve(call, requestBody, scanned.request(), true);
+            return Optional.of(dryRun(call, requestBody, budgeted, headers(route, budgeted, showCosts)));
+        }
+        GatewayException failure;
         try {
-            Budgeted budgeted = reserve(call, requestBody, scanned.request(), dryRun);
-            Map<String, String> headers = headers(route, budgeted, showCosts);
-            if (dryRun) {
-                return Optional.of(dryRun(call, requestBody, budgeted, headers));
+            return attempt(call, requestBody, request, scanned.request(), clientHeaders, target, showCosts);
+        } catch (GatewayException e) {
+            if (!e.fallsBack()) {
+                throw e;
             }
+            failure = e;
+        }
+        Call failed = call;
+        String reason = failure.code();
+        int attempts = 1;
+        for (Route fallback : config.fallbacks(route)) {
+            String provider = failed.route().providerName();
+            Metrics.counter(FALLBACKS_METRIC, "model", route.model(), "provider", provider, "reason", reason)
+                    .increment();
+            log.info(
+                    "Request {} moves on from provider {} ({}) to model {}",
+                    traceId,
+                    provider,
+                    reason,
+                    fallback.model());
+            Admission admission = admission(config, caller, fallback, request, requestBody.length, clientHeaders);
+            GuardStep step = scanned.step();
+            if (admission.admitted() && step != null) {
+                admission = admission.after(step);
+            }
+            Call next = call.fallback(traceId + "." + ++attempts, fallback, admission);
+            failed = next;
+            if (next.admission().decision() instanceof Decision.Deny denial) {
+                refuse(next, requestBody, denial);
+                reason = denial.refusal().code();
+                continue;
+            }
+            try {
+                return attempt(next, requestBody, request, scanned.request(), clientHeaders, target, showCosts);
+            } catch (GatewayException e) {
+                if (e.fallsBack()) {
+                    failure = e;
+                } else if (!e.code().equals(GatewayException.BUDGET_EXCEEDED)) {
+                    throw e;
+                }
+                reason = e.code();
+            }
+        }
+        throw failure;
+    }
+
+    private static Admission admission(
+            GatewayConfig config,
+            TenantKey caller,
+            Route route,
+            ChatRequest request,
+            long size,
+            Function<String, @Nullable String> clientHeaders) {
+        return config.admit(
+                caller.tenant(),
+                route,
+                clientHeaders.apply(DATA_CLASS_HEADER),
+                size,
+                request.review(
+                        route.provider().format(),
+                        clientHeaders.apply(ANTHROPIC_BETA_HEADER),
+                        route.provider().extraFields()));
+    }
+
+    private Optional<Result> attempt(
+            Call call,
+            byte[] requestBody,
+            ChatRequest request,
+            ChatRequest scanned,
+            Function<String, @Nullable String> clientHeaders,
+            StreamTarget target,
+            boolean showCosts) {
+        Route route = call.route();
+        Concurrency.Slot slot = occupy(route);
+        try {
+            Budgeted budgeted = reserve(call, requestBody, scanned, false);
+            Map<String, String> headers = headers(route, budgeted, showCosts);
             Reservation reservation = budgeted.reservation();
             try {
                 recordIntent(
@@ -247,7 +316,7 @@ final class Gateway implements AutoCloseable {
 
     private Scanned scan(ChatRequest request, WireFormat endpoint, Admission admission) {
         if (!admission.admitted() || !admission.scans()) {
-            return new Scanned(request, admission, null);
+            return new Scanned(request, admission, null, null);
         }
         long started = System.nanoTime();
         Redactor redactor = new Redactor(admission.refuse(), admission.redact(), maxScanTime);
@@ -269,13 +338,14 @@ final class Gateway implements AutoCloseable {
                             + ", because the '" + e.detector() + "' detector took too long, so it was not sent");
         }
         GuardStep step = new GuardStep(PERSONAL_DATA_STEP, decision, Duration.ofNanos(System.nanoTime() - started));
-        return new Scanned(redacted, admission.after(step), redactor);
+        return new Scanned(redacted, admission.after(step), redactor, step);
     }
 
     private record Scanned(
             ChatRequest request,
             Admission admission,
-            @Nullable Redactor redactor) {}
+            @Nullable Redactor redactor,
+            @Nullable GuardStep step) {}
 
     private static Decision refusal(Detector detector, @Nullable String dataClass) {
         String forClass = dataClass == null ? "" : " for data class '" + dataClass + "'";
@@ -787,6 +857,10 @@ final class Gateway implements AutoCloseable {
             Route route,
             Admission admission,
             @Nullable Redactor redactor) {
+
+        Call fallback(String traceId, Route route, Admission admission) {
+            return new Call(traceId, snapshot, caller, permit, endpoint, route, admission, redactor);
+        }
 
         Placeholders placeholders() {
             return redactor == null ? Placeholders.NONE : redactor.placeholders();

@@ -77,6 +77,16 @@ versions may change the extension interfaces.
   ([ADR 0016](docs/adr/0016-provider-fallback.md)). A call over the limit gets
   `503` `provider_busy` at once, is not audited, and is counted in the
   `tollgate.providers.busy` metric.
+- Models can name fallbacks with `fallback:`, tried in order when the provider
+  can't be reached, times out, is busy, or answers `401`, `403`, `408`, `429`
+  or `5xx` ([ADR 0016](docs/adr/0016-provider-fallback.md)).
+  - **Policy:** each fallback is checked by the tenant's policy and budget
+    again, and a refused one is skipped.
+  - **Formats:** a fallback must use the same format as the model it backs up.
+  - **Streams:** they fall back only before the first byte reaches the client.
+  - **Audit:** each attempt is its own intent and outcome, with the trace ID
+    followed by `.2`, `.3` and so on.
+  - **Metric:** `tollgate.fallbacks` counts each move to the next model.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

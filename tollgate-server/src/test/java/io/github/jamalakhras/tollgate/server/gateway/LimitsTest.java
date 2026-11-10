@@ -36,6 +36,14 @@ class LimitsTest extends GatewayTestSupport {
                 Boolean.toString(dryRun));
     }
 
+    private static double busy(String provider) {
+        Counter counter = Metrics.globalRegistry
+                .find(Gateway.PROVIDERS_BUSY_METRIC)
+                .tag("provider", provider)
+                .counter();
+        return counter == null ? 0 : counter.count();
+    }
+
     private static double refused(String tenant, String limit) {
         Counter counter = Metrics.globalRegistry
                 .find(Gateway.LIMITS_REFUSED_METRIC)
@@ -129,6 +137,7 @@ class LimitsTest extends GatewayTestSupport {
     void refusesACallWhileItsProviderHasTooManyInFlight() throws Exception {
         PROVIDER.respond(200, ANSWER.formatted(5, 5));
         PROVIDER.delay(Duration.ofSeconds(1));
+        double before = busy("gpu");
         try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<HttpResponse<String>> first = threads.submit(() -> gpu(false));
             while (PROVIDER.received().isEmpty()) {
@@ -143,11 +152,7 @@ class LimitsTest extends GatewayTestSupport {
                     .contains("\"code\":\"provider_busy\"")
                     .contains("The model 'gpu-model' is answering as many calls as it can at once");
             assertThat(auditRecordsOf(refused)).isEmpty();
-            Counter busy = Metrics.globalRegistry
-                    .find(Gateway.PROVIDERS_BUSY_METRIC)
-                    .tag("provider", "gpu")
-                    .counter();
-            assertThat(busy).isNotNull().extracting(Counter::count).isEqualTo(1.0);
+            assertThat(busy("gpu")).isEqualTo(before + 1);
             assertThat(gpu(true).statusCode()).isEqualTo(200);
             assertThat(first.get().statusCode()).isEqualTo(200);
         }

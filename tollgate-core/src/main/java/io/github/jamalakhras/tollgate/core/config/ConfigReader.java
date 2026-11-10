@@ -91,7 +91,7 @@ public final class ConfigReader {
 
     private static Model model(
             Section section, Currency currency, Map<String, Provider> providers, PriceCatalog catalog) {
-        section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches");
+        section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches", "fallback");
         String provider = section.text("provider");
         String upstream = section.text("upstream");
         String priceCatalog =
@@ -103,7 +103,9 @@ public final class ConfigReader {
                                 + priceCatalog + " price catalog has no model " + upstream));
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
         long maxWebSearches = section.optionalWholeNumber("maxWebSearches", 0);
-        return section.build(() -> new Model(provider, upstream, price, maxOutputTokens, maxWebSearches, priceCatalog));
+        List<String> fallback = section.texts("fallback");
+        return section.build(
+                () -> new Model(provider, upstream, price, maxOutputTokens, maxWebSearches, priceCatalog, fallback));
     }
 
     private static String priceCatalog(

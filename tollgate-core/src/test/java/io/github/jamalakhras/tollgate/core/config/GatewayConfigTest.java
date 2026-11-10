@@ -19,6 +19,7 @@ import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,8 @@ class GatewayConfigTest {
     private static final List<String> DATA_CLASSES = List.of("public", "internal", "confidential");
     private static final Provider OLLAMA = provider("local");
     private static final Provider ANTHROPIC = provider("us");
+    private static final Provider MESSAGES = new Provider(
+            WireFormat.ANTHROPIC, URI.create("https://api.example.com"), null, "us", Duration.ofSeconds(30));
     private static final ModelPrice FREE = Prices.perMillion("0", "0", "0", "0");
     private static final OutputTokens OUTPUT = new OutputTokens(1_024, 4_096);
     private static final Model QWEN = new Model("ollama", "qwen3:32b", FREE, OUTPUT);
@@ -391,6 +394,66 @@ class GatewayConfigTest {
         assertThatThrownBy(() -> config(tenants))
                 .hasMessage("tenants.support-bot.budget needs models.llama.maxOutputTokens, so that the most a call"
                         + " can cost is known");
+    }
+
+    private static GatewayConfig withFallback(Model model, Map<String, Tenant> tenants) {
+        Map<String, Model> models = new HashMap<>(MODELS);
+        models.put("sturdy", model);
+        return new GatewayConfig(
+                DATA_CLASSES,
+                Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC, "messages", MESSAGES),
+                models,
+                tenants,
+                List.of(),
+                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT),
+                AuditSettings.DISABLED);
+    }
+
+    private static Model sturdy(String... fallback) {
+        return new Model("ollama", "qwen3:32b", FREE, OUTPUT, 0, null, List.of(fallback));
+    }
+
+    @Test
+    void routesToAModelsFallbacksInOrder() {
+        Model sturdy = sturdy("claude-sonnet", "qwen3");
+        GatewayConfig config = withFallback(sturdy, Map.of());
+
+        assertThat(config.fallbacks(new GatewayConfig.Route("sturdy", sturdy, "ollama", OLLAMA)))
+                .containsExactly(
+                        new GatewayConfig.Route(
+                                "claude-sonnet",
+                                new Model("anthropic", "claude-sonnet-4-5", FREE, OUTPUT),
+                                "anthropic",
+                                ANTHROPIC),
+                        new GatewayConfig.Route("qwen3", QWEN, "ollama", OLLAMA));
+        assertThat(this.config.fallbacks(
+                        this.config.route("support-bot", "qwen3").orElseThrow()))
+                .isEmpty();
+    }
+
+    @Test
+    void checksTheModelsAFallbackNames() {
+        assertThatThrownBy(() -> withFallback(sturdy("gpt-5"), Map.of()))
+                .hasMessage("models.sturdy.fallback: no model named 'gpt-5'");
+        assertThatThrownBy(() -> withFallback(sturdy("sturdy"), Map.of()))
+                .hasMessage("models.sturdy.fallback must not name the model itself");
+        assertThatThrownBy(() -> withFallback(sturdy("qwen3", "qwen3"), Map.of()))
+                .hasMessage("models.sturdy.fallback names 'qwen3' more than once");
+        assertThatThrownBy(() -> withFallback(
+                        new Model("messages", "claude-sonnet-4-5", FREE, OUTPUT, 0, null, List.of("qwen3")), Map.of()))
+                .hasMessage("models.sturdy.fallback: 'qwen3' uses the openai format and 'sturdy' the anthropic"
+                        + " format, and Tollgate does not translate between them");
+    }
+
+    @Test
+    void holdsAFallbackToWhatTheTenantRequiresOfItsModels() {
+        var budget = new Budget(Prices.usd("10"), Period.MONTHLY);
+        var tenants = Map.of("support-bot", new Tenant(List.of("sturdy"), "public", null, budget));
+
+        assertThatThrownBy(() -> withFallback(sturdy("llama"), tenants))
+                .hasMessage("tenants.support-bot.budget needs models.llama.maxOutputTokens, so that the most a call"
+                        + " can cost is known");
+        assertThat(withFallback(sturdy("qwen3"), tenants).tenants()).containsKey("support-bot");
     }
 
     @Test

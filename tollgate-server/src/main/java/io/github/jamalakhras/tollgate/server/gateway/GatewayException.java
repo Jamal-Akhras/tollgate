@@ -20,6 +20,7 @@ final class GatewayException extends RuntimeException {
     private final String code;
     private final @Nullable String param;
     private final @Nullable String retryAfter;
+    private final boolean fallsBack;
 
     private GatewayException(HttpStatus status, String code, String message, @Nullable String param) {
         this(status, code, message, param, null);
@@ -27,11 +28,22 @@ final class GatewayException extends RuntimeException {
 
     private GatewayException(
             HttpStatus status, String code, String message, @Nullable String param, @Nullable String retryAfter) {
+        this(status, code, message, param, retryAfter, false);
+    }
+
+    private GatewayException(
+            HttpStatus status,
+            String code,
+            String message,
+            @Nullable String param,
+            @Nullable String retryAfter,
+            boolean fallsBack) {
         super(message);
         this.status = status;
         this.code = code;
         this.param = param;
         this.retryAfter = retryAfter;
+        this.fallsBack = fallsBack;
     }
 
     static GatewayException invalidApiKey() {
@@ -100,8 +112,8 @@ final class GatewayException extends RuntimeException {
 
     static GatewayException providerUnavailable(String message, boolean timedOut) {
         return timedOut
-                ? new GatewayException(HttpStatus.GATEWAY_TIMEOUT, "provider_timeout", message, null)
-                : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null);
+                ? new GatewayException(HttpStatus.GATEWAY_TIMEOUT, "provider_timeout", message, null, null, true)
+                : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null, null, true);
     }
 
     static GatewayException providerBusy(String model) {
@@ -109,14 +121,21 @@ final class GatewayException extends RuntimeException {
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "provider_busy",
                 "The model '" + model + "' is answering as many calls as it can at once; try again shortly",
-                null);
+                null,
+                null,
+                true);
     }
 
     static GatewayException providerError(
             int providerStatus, @Nullable String providerMessage, @Nullable String retryAfter) {
         if (providerStatus >= 500) {
             return new GatewayException(
-                    HttpStatus.BAD_GATEWAY, "provider_error", "The provider could not complete the request", null);
+                    HttpStatus.BAD_GATEWAY,
+                    "provider_error",
+                    "The provider could not complete the request",
+                    null,
+                    null,
+                    true);
         }
         HttpStatus status = HttpStatus.resolve(providerStatus);
         if (status == null) {
@@ -128,12 +147,13 @@ final class GatewayException extends RuntimeException {
                     "provider_rate_limited",
                     "The provider is limiting requests; try again later",
                     null,
-                    retryAfter);
+                    retryAfter,
+                    true);
         }
         String message = providerMessage != null && PASSED_ON.contains(providerStatus)
                 ? providerMessage
                 : "The provider refused the request";
-        return new GatewayException(status, "provider_error", message, null);
+        return new GatewayException(status, "provider_error", message, null, null, providerStatus == 408);
     }
 
     static GatewayException providerInvalidResponse(String message) {
@@ -145,7 +165,9 @@ final class GatewayException extends RuntimeException {
                 HttpStatus.BAD_GATEWAY,
                 "provider_auth_failed",
                 "The provider rejected Tollgate's credentials; an operator needs to check the provider key",
-                null);
+                null,
+                null,
+                true);
     }
 
     HttpStatus status() {
@@ -164,5 +186,9 @@ final class GatewayException extends RuntimeException {
     @Nullable
     String retryAfter() {
         return retryAfter;
+    }
+
+    boolean fallsBack() {
+        return fallsBack;
     }
 }
