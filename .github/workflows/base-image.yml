@@ -37,16 +37,18 @@ jobs:
           PINNED: ${{ steps.digest.outputs.pinned }}
         run: |
           branch="base-image/${CURRENT:7:12}"
-          if git ls-remote --exit-code --heads origin "$branch"; then
+          if [[ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]]; then
             echo "A pull request for $CURRENT already exists"
             exit 0
           fi
-          sed -i "s/$PINNED/$CURRENT/" tollgate-server/pom.xml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git commit -am "Update the distroless base image"
-          git push origin "$branch"
+          if ! git ls-remote --exit-code --heads origin "$branch"; then
+            sed -i "s/$PINNED/$CURRENT/" tollgate-server/pom.xml
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git commit -am "Update the distroless base image"
+            git push origin "$branch"
+          fi
           gh pr create --base main --head "$branch" \
             --title "Update the distroless base image" \
             --body "gcr.io/distroless/java25-debian13:nonroot moved from $PINNED to $CURRENT."
