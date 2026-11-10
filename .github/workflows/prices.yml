@@ -40,15 +40,17 @@ jobs:
           COMMIT: ${{ steps.convert.outputs.commit }}
         run: |
           branch="prices/${COMMIT:0:12}"
-          if git ls-remote --exit-code --heads origin "$branch"; then
+          if [[ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]]; then
             echo "A pull request for models.dev $COMMIT already exists"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git commit -am "Update the price catalog from models.dev"
-          git push origin "$branch"
+          if ! git ls-remote --exit-code --heads origin "$branch"; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git commit -am "Update the price catalog from models.dev"
+            git push origin "$branch"
+          fi
           gh pr create --base main --head "$branch" \
             --title "Update the price catalog from models.dev" \
             --body "Prices from models.dev at anomalyco/models.dev@$COMMIT. Review every changed line before merging: these prices size every reservation and settle every budget."
