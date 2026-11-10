@@ -17,7 +17,7 @@
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
     <image.name>ghcr.io/jamal-akhras/tollgate</image.name>
-    <base.image>gcr.io/distroless/java25-debian13:nonroot@sha256:5d3177252775d4b01603470fe21c015393019089904f68724bd37242e4bc6e6d</base.image>
+    <base.image>gcr.io/distroless/java25-debian13:nonroot@sha256:8ac5525549d14b8ddd34562f9fc8e6ba4840c995363a1507b17cadf8bb7ab57e</base.image>
     <coverage.line.minimum>0.85</coverage.line.minimum>
     <coverage.branch.minimum>0.80</coverage.branch.minimum>
   </properties>
