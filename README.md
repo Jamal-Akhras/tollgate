@@ -286,7 +286,7 @@ WantedBy=multi-user.target
 |---|---|
 | 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` |
 | 8081 | The admin API and its [OpenAPI contract](docs/api/admin-openapi.json), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every call needs the admin token |
-| 9090 | Health probes. Readiness reports down if the audit trail cannot be written |
+| 9090 | Health probes and Prometheus metrics at `/actuator/prometheus`. Readiness reports down if the audit trail cannot be written |
 
 - **Who can connect:**
   - The gateway and admin ports listen only on `127.0.0.1` unless
@@ -295,6 +295,22 @@ WantedBy=multi-user.target
     decides what the host exposes.
   - Tollgate speaks plain HTTP. For clients on other machines, put a
     TLS-terminating proxy in front of it.
+  - Port 9090 listens on all interfaces, and its metrics name your tenants
+    and models and show their spend. Keep it on a private network, or bind
+    it with `MANAGEMENT_SERVER_ADDRESS=127.0.0.1`.
+
+- **Metrics** ([ADR 0017](docs/adr/0017-metrics-traces-and-usage.md)), for
+  each tenant, model and provider:
+  - `tollgate_requests_total` by result or refusal code
+  - `gen_ai_client_token_usage` by token type, and `tollgate_cost_total`
+  - `gen_ai_client_operation_duration_seconds` for each provider call, and
+    `tollgate_stream_first_event_seconds` for streams
+  - `tollgate_budget_spent` and `tollgate_budget_available`, and
+    `tollgate_providers_in_flight`
+  - `tollgate_limits_refused_total`, `tollgate_providers_busy_total` and
+    `tollgate_fallbacks_total`
+
+  Prompts, answers and key IDs never appear in metrics.
 
 - **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
   least 32 characters, for example the output of `openssl rand -hex 32`.

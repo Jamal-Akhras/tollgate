@@ -68,12 +68,16 @@ class ConcurrencyTest {
     }
 
     @Test
-    void neverRefusesWithoutALimit() {
+    void neverRefusesWithoutALimitButStillCounts() {
+        List<Slot> slots = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
-            assertThat(concurrency.take("ollama", null)).contains(Slot.NONE);
+            slots.add(concurrency.take("ollama", null).orElseThrow());
         }
-        Slot.NONE.close();
-        taken("ollama", 1L).close();
+
+        assertThat(concurrency.inFlight("ollama")).isEqualTo(100);
+        slots.forEach(Slot::close);
+        assertThat(concurrency.inFlight("ollama")).isZero();
+        assertThat(concurrency.inFlight("anthropic")).isZero();
     }
 
     @Test

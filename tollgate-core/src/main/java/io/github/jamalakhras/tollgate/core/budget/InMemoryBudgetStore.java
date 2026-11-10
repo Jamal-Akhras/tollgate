@@ -46,6 +46,7 @@ public final class InMemoryBudgetStore implements BudgetStore {
         ledgers.computeIfAbsent(tenant, name -> new Ledger()).restore(budget, cost.nanos(), settledAt, clock.instant());
     }
 
+    @Override
     public Money spent(String tenant, Budget budget) {
         Ledger ledger = ledgers.get(tenant);
         long nanos = ledger == null ? 0 : ledger.spent(budget, clock.instant());

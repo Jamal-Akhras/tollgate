@@ -87,6 +87,12 @@ versions may change the extension interfaces.
   - **Audit:** each attempt is its own intent and outcome, with the trace ID
     followed by `.2`, `.3` and so on.
   - **Metric:** `tollgate.fallbacks` counts each move to the next model.
+- Prometheus metrics at `/actuator/prometheus` on the management port
+  ([ADR 0017](docs/adr/0017-metrics-traces-and-usage.md)): requests by result,
+  tokens by type and cost for each tenant, model and provider, provider
+  latency, time to a stream's first event, budget spent and available, and
+  calls in flight to each provider. The token and latency metrics use the
+  OpenTelemetry GenAI names.
 - A circuit breaker for each provider. After five failures in a row, calls
   skip the provider for 30 seconds and go to a fallback, or get `503`
   `provider_unavailable` with `Retry-After` at once. Then one call tries the

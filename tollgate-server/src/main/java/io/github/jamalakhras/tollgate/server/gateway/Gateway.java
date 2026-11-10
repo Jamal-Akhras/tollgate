@@ -95,6 +95,7 @@ final class Gateway implements AutoCloseable {
     private final RateLimiter limiter = new RateLimiter(System::nanoTime);
     private final Concurrency providerCalls = new Concurrency();
     private final CircuitBreakers breakers = new CircuitBreakers(System::nanoTime);
+    private final GatewayMetrics metrics = new GatewayMetrics(Metrics.globalRegistry);
     private final Map<String, Long> warnings = new ConcurrentHashMap<>();
     private volatile Snapshot current;
 
@@ -117,6 +118,7 @@ final class Gateway implements AutoCloseable {
         this.maxRequestBytes = maxRequestBytes;
         this.maxStreamDuration = maxStreamDuration;
         this.maxScanTime = maxScanTime;
+        metrics.watch(current.config(), budgets, providerCalls);
     }
 
     Optional<Result> complete(
@@ -465,6 +467,7 @@ final class Gateway implements AutoCloseable {
             throw new ReloadRejected(ReloadRejected.INVALID_CONFIG, String.valueOf(e.getMessage()));
         }
         current = after;
+        metrics.watch(after.config(), budgets, providerCalls);
         log.info(
                 "Reloaded {}: config version {} replaces {}",
                 next.path(),
@@ -579,10 +582,15 @@ final class Gateway implements AutoCloseable {
             target.open(headers);
             opened = true;
             List<String> event = stream.nextEvent(remaining(deadline));
+            boolean first = true;
             while (event != null) {
                 Optional<byte[]> relayed = rewriter.rewrite(event);
                 if (relayed.isPresent()) {
                     target.write(relayed.get());
+                    if (first) {
+                        first = false;
+                        metrics.firstEvent(route, Duration.between(started, clock.instant()));
+                    }
                     if (fingerprint != null) {
                         fingerprint.add(relayed.get());
                     }
@@ -772,6 +780,7 @@ final class Gateway implements AutoCloseable {
     }
 
     private GatewayException refuse(Call call, byte[] requestBody, Decision.Deny denial) {
+        metrics.refused(call.caller().tenant(), call.route(), denial.refusal().code());
         recordIntent(call, requestBody, denial, null, null);
         return GatewayException.refused(denial);
     }
@@ -822,6 +831,7 @@ final class Gateway implements AutoCloseable {
             Money cost,
             Duration duration,
             Function<AuditLog, @Nullable String> responseHmac) {
+        metrics.finished(call.caller().tenant(), call.route(), result, usage, cost, duration);
         AuditLog trail = audit;
         if (trail == null) {
             return;
