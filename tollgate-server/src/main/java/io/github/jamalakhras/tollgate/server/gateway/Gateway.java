@@ -44,6 +44,8 @@ import io.github.jamalakhras.tollgate.providers.ProviderUnavailableException;
 import io.github.jamalakhras.tollgate.providers.StreamRewriter;
 import io.github.jamalakhras.tollgate.providers.UsageReader;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -59,6 +61,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +95,7 @@ final class Gateway implements AutoCloseable {
     private final int maxRequestBytes;
     private final Duration maxStreamDuration;
     private final Duration maxScanTime;
+    private final Tracer tracer;
     private final RateLimiter limiter = new RateLimiter(System::nanoTime);
     private final Concurrency providerCalls = new Concurrency();
     private final CircuitBreakers breakers = new CircuitBreakers(System::nanoTime);
@@ -108,7 +112,8 @@ final class Gateway implements AutoCloseable {
             Clock clock,
             int maxRequestBytes,
             Duration maxStreamDuration,
-            Duration maxScanTime) {
+            Duration maxScanTime,
+            Tracer tracer) {
         this.environment = environment;
         this.current = new Snapshot(loaded, environment);
         this.client = client;
@@ -118,6 +123,7 @@ final class Gateway implements AutoCloseable {
         this.maxRequestBytes = maxRequestBytes;
         this.maxStreamDuration = maxStreamDuration;
         this.maxScanTime = maxScanTime;
+        this.tracer = tracer;
         metrics.watch(current.config(), budgets, providerCalls);
     }
 
@@ -130,6 +136,11 @@ final class Gateway implements AutoCloseable {
             StreamTarget target) {
         Snapshot snapshot = current;
         TenantKey caller = snapshot.authenticate(credential);
+        Span request = tracer.currentSpan();
+        if (request != null) {
+            request.tag("tollgate.trace_id", traceId);
+            request.tag("tollgate.tenant", caller.tenant());
+        }
         try (RateLimiter.Permit permit = admit(snapshot, caller.tenant())) {
             return call(traceId, snapshot, caller, permit, endpoint, body, clientHeaders, target);
         }
@@ -212,8 +223,9 @@ final class Gateway implements AutoCloseable {
         if (route.provider().format() != endpoint) {
             throw GatewayException.wrongEndpoint(route.model(), route.provider().format());
         }
-        Scanned scanned =
-                scan(request, endpoint, admission(config, caller, route, request, requestBody.length, clientHeaders));
+        Admission admission = traced(
+                "tollgate.guards", () -> admission(config, caller, route, request, requestBody.length, clientHeaders));
+        Scanned scanned = traced("tollgate.redaction", () -> scan(request, endpoint, admission));
         Call call =
                 new Call(traceId, snapshot, caller, permit, endpoint, route, scanned.admission(), scanned.redactor());
         if (call.admission().decision() instanceof Decision.Deny denial) {
@@ -253,12 +265,14 @@ final class Gateway implements AutoCloseable {
                     provider,
                     reason,
                     fallback.model());
-            Admission admission = admission(config, caller, fallback, request, requestBody.length, clientHeaders);
+            Admission checked = traced(
+                    "tollgate.guards",
+                    () -> admission(config, caller, fallback, request, requestBody.length, clientHeaders));
             GuardStep step = scanned.step();
-            if (admission.admitted() && step != null) {
-                admission = admission.after(step);
+            if (checked.admitted() && step != null) {
+                checked = checked.after(step);
             }
-            Call next = call.fallback(traceId + "." + ++attempts, fallback, admission);
+            Call next = call.fallback(traceId + "." + ++attempts, fallback, checked);
             failed = next;
             if (next.admission().decision() instanceof Decision.Deny denial) {
                 refuse(next, requestBody, denial);
@@ -326,7 +340,7 @@ final class Gateway implements AutoCloseable {
         Route route = call.route();
         Concurrency.Slot slot = occupy(route);
         try {
-            Budgeted budgeted = reserve(call, requestBody, scanned, false);
+            Budgeted budgeted = traced("tollgate.budget", () -> reserve(call, requestBody, scanned, false));
             Map<String, String> headers = headers(route, budgeted, showCosts);
             Reservation reservation = budgeted.reservation();
             try {
@@ -499,6 +513,7 @@ final class Gateway implements AutoCloseable {
         ProviderResponse response = null;
         Optional<Usage> usage = Optional.empty();
         Instant started = clock.instant();
+        Span span = providerSpan(call);
         try {
             response = client.send(
                     route.provider(),
@@ -528,11 +543,12 @@ final class Gateway implements AutoCloseable {
             log.warn("Provider {} is unavailable: {}", route.providerName(), e.getMessage());
             throw GatewayException.providerUnavailable(String.valueOf(e.getMessage()), e.timedOut());
         } finally {
+            ProviderResponse answered = response;
+            endProviderSpan(span, result, answered == null ? null : answered.status(), usage);
             if (reservation != null) {
                 budgets.settle(reservation, charge);
             }
             usage.ifPresent(used -> call.permit().charge(used.totalTokens()));
-            ProviderResponse answered = response;
             recordOutcome(
                     call,
                     result,
@@ -564,6 +580,7 @@ final class Gateway implements AutoCloseable {
         long deadline = System.nanoTime() + maxStreamDuration.toNanos();
         ProviderStream stream = null;
         boolean opened = false;
+        Span span = providerSpan(call);
         try {
             stream = client.stream(
                     route.provider(),
@@ -641,6 +658,7 @@ final class Gateway implements AutoCloseable {
             Thread.currentThread().interrupt();
             result = Outcome.Result.INTERRUPTED;
         } finally {
+            endProviderSpan(span, result, status, usage);
             if (stream != null) {
                 stream.close();
             }
@@ -652,6 +670,61 @@ final class Gateway implements AutoCloseable {
             recordOutcome(
                     call, result, status, usage, charge, Duration.between(started, clock.instant()), trail -> streamed);
         }
+    }
+
+    private <T> T traced(String name, Supplier<T> work) {
+        Span span = tracer.nextSpan().name(name).start();
+        Tracer.SpanInScope scope = tracer.withSpan(span);
+        try {
+            return work.get();
+        } catch (GatewayException e) {
+            span.tag("tollgate.refused", e.code());
+            throw e;
+        } catch (RuntimeException e) {
+            span.error(e);
+            throw e;
+        } finally {
+            scope.close();
+            span.end();
+        }
+    }
+
+    private void appendTraced(AuditLog trail, AuditRecord record) {
+        Span span = tracer.nextSpan().name("tollgate.audit").start();
+        try {
+            trail.append(record);
+        } catch (RuntimeException e) {
+            span.error(e);
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private Span providerSpan(Call call) {
+        Route route = call.route();
+        return tracer.spanBuilder()
+                .name("chat " + route.upstream())
+                .kind(Span.Kind.CLIENT)
+                .tag("gen_ai.operation.name", "chat")
+                .tag("gen_ai.provider.name", route.providerName())
+                .tag("gen_ai.request.model", route.upstream())
+                .tag("tollgate.model", route.model())
+                .tag("tollgate.trace_id", call.traceId())
+                .start();
+    }
+
+    private static void endProviderSpan(
+            Span span, Outcome.Result result, @Nullable Integer status, Optional<Usage> usage) {
+        span.tag("tollgate.result", result.code());
+        if (status != null) {
+            span.tag("http.response.status_code", status.toString());
+        }
+        usage.ifPresent(used -> {
+            span.tag("gen_ai.usage.input_tokens", Long.toString(used.inputTokens()));
+            span.tag("gen_ai.usage.output_tokens", Long.toString(used.outputTokens()));
+        });
+        span.end();
     }
 
     private static Duration remaining(long deadline) {
@@ -816,7 +889,7 @@ final class Gateway implements AutoCloseable {
                 reservation,
                 redactions);
         try {
-            trail.append(intent);
+            appendTraced(trail, intent);
         } catch (AuditUnavailableException e) {
             log.error("Refused request {} because its audit record could not be written", call.traceId(), e);
             throw GatewayException.auditUnavailable();
@@ -846,7 +919,7 @@ final class Gateway implements AutoCloseable {
                 duration,
                 responseHmac.apply(trail));
         try {
-            trail.append(outcome);
+            appendTraced(trail, outcome);
         } catch (AuditUnavailableException e) {
             log.error("The outcome of request {} could not be written to the audit trail", call.traceId(), e);
         }

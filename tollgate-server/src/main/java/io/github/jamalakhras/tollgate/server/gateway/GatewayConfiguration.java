@@ -7,6 +7,7 @@ import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
 import io.github.jamalakhras.tollgate.server.StartupException;
 import io.github.jamalakhras.tollgate.server.audit.JsonLinesAuditSink;
+import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
@@ -20,6 +21,7 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -39,7 +41,11 @@ class GatewayConfiguration {
     }
 
     @Bean(destroyMethod = "close")
-    Gateway gateway(GatewayProperties properties, HttpClient providerHttpClient, Environment environment) {
+    Gateway gateway(
+            GatewayProperties properties,
+            HttpClient providerHttpClient,
+            Environment environment,
+            ObjectProvider<Tracer> tracer) {
         try {
             return start(
                     ConfigFile.read(properties.config()),
@@ -49,7 +55,8 @@ class GatewayConfiguration {
                     Clock.systemUTC(),
                     properties.maxRequestBytes(),
                     properties.maxStreamDuration(),
-                    properties.maxScanTime());
+                    properties.maxScanTime(),
+                    tracer.getIfAvailable(() -> Tracer.NOOP));
         } catch (UncheckedIOException e) {
             throw new StartupException(e.getMessage() + ": " + reason(Objects.requireNonNull(e.getCause())), e);
         } catch (IllegalStateException e) {
@@ -72,12 +79,22 @@ class GatewayConfiguration {
             Clock clock,
             int maxRequestBytes,
             Duration maxStreamDuration,
-            Duration maxScanTime) {
+            Duration maxScanTime,
+            Tracer tracer) {
         InMemoryBudgetStore budgets = new InMemoryBudgetStore(clock);
         AuditLog audit = startAudit(loaded, environment, clock);
         restoreBudgets(loaded, budgets);
         return new Gateway(
-                loaded, environment, client, budgets, audit, clock, maxRequestBytes, maxStreamDuration, maxScanTime);
+                loaded,
+                environment,
+                client,
+                budgets,
+                audit,
+                clock,
+                maxRequestBytes,
+                maxStreamDuration,
+                maxScanTime,
+                tracer);
     }
 
     private static void restoreBudgets(LoadedConfig loaded, InMemoryBudgetStore budgets) {

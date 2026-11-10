@@ -48,8 +48,9 @@ own rule: prompts and answers never leave as text.
 ### Traces, off until an endpoint is set
 
 - **OpenTelemetry through Micrometer Tracing,** exported over OTLP when
-  `management.otlp.tracing.endpoint` is set. Spring Boot's sampling setting
-  applies, at 10% by default.
+  `management.opentelemetry.tracing.export.otlp.endpoint` is set. Spring
+  Boot's sampling setting applies, at 10% by default. Spring Boot's OTLP
+  metrics export is switched off, so metrics stay pull-only.
 - **One span per request,** joined to the client's trace when it sends
   `traceparent`, with child spans for the guards, the redaction scan, the
   budget, each audit write and each provider attempt.

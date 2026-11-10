@@ -312,6 +312,15 @@ WantedBy=multi-user.target
 
   Prompts, answers and key IDs never appear in metrics.
 
+- **Traces:** set
+  `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://collector:4318/v1/traces`
+  to send OpenTelemetry traces, sampled at 10% unless
+  `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` says otherwise. Each request's
+  span joins the client's trace when it sends `traceparent`, and has child
+  spans for the guards, the redaction scan, the budget, each audit write and
+  each provider attempt, with the GenAI token counts. Spans never carry
+  prompts or answers, and providers never receive `traceparent`.
+
 - **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
   least 32 characters, for example the output of `openssl rand -hex 32`.
   - **Without it**, the admin API answers `503`.

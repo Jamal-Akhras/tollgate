@@ -93,6 +93,10 @@ versions may change the extension interfaces.
   latency, time to a stream's first event, budget spent and available, and
   calls in flight to each provider. The token and latency metrics use the
   OpenTelemetry GenAI names.
+- OpenTelemetry traces over OTLP, off until an endpoint is set. A request's
+  span joins the client's trace and has a child span for each step and each
+  provider attempt. Spans never carry prompts or answers, and `traceparent`
+  is never sent to providers.
 - A circuit breaker for each provider. After five failures in a row, calls
   skip the provider for 30 seconds and go to a fallback, or get `503`
   `provider_unavailable` with `Retry-After` at once. Then one call tries the

@@ -16,6 +16,7 @@ import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
+import io.micrometer.tracing.Tracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -84,7 +85,8 @@ class AuditFailureTest {
                 Clock.systemUTC(),
                 1_000_000,
                 Duration.ofMinutes(1),
-                Duration.ofSeconds(1));
+                Duration.ofSeconds(1),
+                Tracer.NOOP);
     }
 
     private static final StreamTarget NOT_STREAMED = new StreamTarget() {
