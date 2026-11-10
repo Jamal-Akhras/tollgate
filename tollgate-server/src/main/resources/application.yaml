@@ -19,6 +19,17 @@ management:
     metrics:
       export:
         enabled: false
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[gen_ai.client.operation.duration]": true
+        "[tollgate.stream.first_event]": true
+      minimum-expected-value:
+        "[gen_ai.client.operation.duration]": 10ms
+        "[tollgate.stream.first_event]": 10ms
+      maximum-expected-value:
+        "[gen_ai.client.operation.duration]": 10m
+        "[tollgate.stream.first_event]": 2m
   endpoints:
     web:
       exposure:

@@ -310,7 +310,11 @@ WantedBy=multi-user.target
   - `tollgate_limits_refused_total`, `tollgate_providers_busy_total` and
     `tollgate_fallbacks_total`
 
-  Prompts, answers and key IDs never appear in metrics.
+  Prompts, answers and key IDs never appear in metrics. To see them, import
+  [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into Grafana and
+  pick your Prometheus data source: calls, refusals, spend, budgets, tokens,
+  provider latency, fallbacks and calls in flight, filtered by tenant, model
+  and provider.
 
 - **Traces:** set
   `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://collector:4318/v1/traces`

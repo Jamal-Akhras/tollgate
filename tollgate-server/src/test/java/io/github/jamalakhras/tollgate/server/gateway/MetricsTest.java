@@ -60,6 +60,8 @@ class MetricsTest extends GatewayTestSupport {
                         + "provider=\"ollama\",result=\"responded\"} [1-9]")
                 .containsPattern("tollgate_budget_spent\\{currency=\"USD\",tenant=\"metered\"} ")
                 .containsPattern("tollgate_budget_available\\{currency=\"USD\",tenant=\"metered\"} ")
-                .contains("tollgate_providers_in_flight{provider=\"ollama\"} 0.0");
+                .contains("tollgate_providers_in_flight{provider=\"ollama\"} 0.0")
+                .containsPattern("gen_ai_client_operation_duration_seconds_bucket\\{model=\"qwen3\","
+                        + "provider=\"ollama\",result=\"responded\",le=\"[0-9.]+\"}");
     }
 }

@@ -92,7 +92,9 @@ versions may change the extension interfaces.
   tokens by type and cost for each tenant, model and provider, provider
   latency, time to a stream's first event, budget spent and available, and
   calls in flight to each provider. The token and latency metrics use the
-  OpenTelemetry GenAI names.
+  OpenTelemetry GenAI names, and provider latency and time to first event
+  have histogram buckets for percentiles.
+- A Grafana dashboard in `docs/grafana/tollgate.json` for those metrics.
 - OpenTelemetry traces over OTLP, off until an endpoint is set. A request's
   span joins the client's trace and has a child span for each step and each
   provider attempt. Spans never carry prompts or answers, and `traceparent`
