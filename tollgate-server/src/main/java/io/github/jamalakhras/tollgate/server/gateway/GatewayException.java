@@ -116,6 +116,17 @@ final class GatewayException extends RuntimeException {
                 : new GatewayException(HttpStatus.BAD_GATEWAY, "provider_unavailable", message, null, null, true);
     }
 
+    static GatewayException providerFailing(String model, long retryAfterSeconds) {
+        return new GatewayException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "provider_unavailable",
+                "The model '" + model + "' is unavailable because its provider keeps failing; Tollgate will try it"
+                        + " again in " + retryAfterSeconds + (retryAfterSeconds == 1 ? " second" : " seconds"),
+                null,
+                Long.toString(retryAfterSeconds),
+                true);
+    }
+
     static GatewayException providerBusy(String model) {
         return new GatewayException(
                 HttpStatus.SERVICE_UNAVAILABLE,

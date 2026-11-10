@@ -87,6 +87,10 @@ versions may change the extension interfaces.
   - **Audit:** each attempt is its own intent and outcome, with the trace ID
     followed by `.2`, `.3` and so on.
   - **Metric:** `tollgate.fallbacks` counts each move to the next model.
+- A circuit breaker for each provider. After five failures in a row, calls
+  skip the provider for 30 seconds and go to a fallback, or get `503`
+  `provider_unavailable` with `Retry-After` at once. Then one call tries the
+  provider again, and an answer closes the breaker.
 - A signed, batch-chained audit trail. Records are hashed from a fixed binary
   encoding into RFC 6962 Merkle trees. Each root is chained to the one before
   and signed with Ed25519, and prompts are kept only as HMACs. Writes are

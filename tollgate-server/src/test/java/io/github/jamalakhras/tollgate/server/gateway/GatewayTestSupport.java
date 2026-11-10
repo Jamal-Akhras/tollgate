@@ -92,6 +92,8 @@ abstract class GatewayTestSupport {
                   offline: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }
                   gpu: { format: openai, baseUrl: "%1$s/v1", region: local, concurrent: 1 }
                   cloud: { format: openai, baseUrl: "%1$s/v1", region: us }
+                  down: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }
+                  broken: { format: openai, baseUrl: "http://127.0.0.1:%2$d/v1", region: local }
                 models:
                   qwen3:
                     provider: ollama
@@ -118,7 +120,9 @@ abstract class GatewayTestSupport {
                   offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
                   gpu-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s }
                   cloud-model: { provider: cloud, upstream: "qwen3:235b", price: %5$s }
-                  sturdy-model: { provider: offline, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
+                  sturdy-model: { provider: down, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
+                  broken-model: { provider: broken, upstream: "qwen3:32b", price: %5$s }
+                  mended-model: { provider: broken, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
                   backed-model: { provider: ollama, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
                   spill-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
                   metered-model:
@@ -144,7 +148,7 @@ abstract class GatewayTestSupport {
                     budget: { limit: 0.50, period: total }
                     showCosts: true
                   coder:
-                    models: [qwen3, claude-sonnet, thinking-model, gpu-model, sturdy-model, backed-model, spill-model]
+                    models: [qwen3, claude-sonnet, thinking-model, gpu-model, sturdy-model, backed-model, spill-model, broken-model, mended-model]
                     dataClass: internal
                     showCosts: true
                     policy: coding

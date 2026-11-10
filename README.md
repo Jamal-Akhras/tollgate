@@ -88,6 +88,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
     answers `401`, `403`, `408`, `429` or `5xx`. Each fallback is checked by
     the tenant's policy again, so confidential data never falls back to a
     region it may not go to. Streams fall back only before the first byte.
+  - **Circuit breaker:** after five failures in a row, calls skip a provider
+    for 30 seconds instead of waiting for it to time out, then one call
+    tries it again.
   - **Limits:** `concurrent: 2` on a provider caps the calls in flight to it
     across all tenants, so a local model is never sent more than it can
     serve. Extra calls go to a fallback, or get `503` `provider_busy` at

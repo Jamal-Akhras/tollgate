@@ -53,7 +53,7 @@ class FallbackTest extends GatewayTestSupport {
     @Test
     void answersFromTheFallbackWhenTheProviderCannotBeReached() throws Exception {
         PROVIDER.respond(200, ANSWER);
-        double before = fallbacks("sturdy-model", "offline", "provider_unavailable");
+        double before = fallbacks("sturdy-model", "down", "provider_unavailable");
 
         HttpResponse<String> response = chat("sturdy-model");
 
@@ -66,7 +66,7 @@ class FallbackTest extends GatewayTestSupport {
         List<AuditRecord> first = auditRecordsOf(trace);
         assertThat(first.getFirst()).isInstanceOfSatisfying(Intent.class, intent -> {
             assertThat(intent.model()).isEqualTo("sturdy-model");
-            assertThat(intent.provider()).isEqualTo("offline");
+            assertThat(intent.provider()).isEqualTo("down");
         });
         assertThat(first.get(1))
                 .isInstanceOfSatisfying(
@@ -80,7 +80,7 @@ class FallbackTest extends GatewayTestSupport {
         assertThat(second.get(1))
                 .isInstanceOfSatisfying(
                         Outcome.class, outcome -> assertThat(outcome.result()).isEqualTo(Outcome.Result.RESPONDED));
-        assertThat(fallbacks("sturdy-model", "offline", "provider_unavailable")).isEqualTo(before + 1);
+        assertThat(fallbacks("sturdy-model", "down", "provider_unavailable")).isEqualTo(before + 1);
     }
 
     @Test

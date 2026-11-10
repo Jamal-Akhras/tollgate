@@ -96,7 +96,8 @@ invalid response, which may already have been billed.
 ### A circuit breaker for each provider
 
 - **Five failures in a row open it.** A failure is a provider that can't be
-  reached, times out or answers with a `5xx`.
+  reached, times out or answers with a `5xx`. Any other answer resets the
+  count, and an invalid response counts as neither.
 - **While it is open,** calls skip the provider without waiting. With no
   fallback left, they get `503` `provider_unavailable` at once, with
   `Retry-After` set to when the breaker will next let a call through.

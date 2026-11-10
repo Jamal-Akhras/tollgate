@@ -20,6 +20,7 @@ import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.Tenant;
 import io.github.jamalakhras.tollgate.core.config.TenantKey;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.limit.CircuitBreakers;
 import io.github.jamalakhras.tollgate.core.limit.Concurrency;
 import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.limit.RateLimiter;
@@ -93,6 +94,7 @@ final class Gateway implements AutoCloseable {
     private final Duration maxScanTime;
     private final RateLimiter limiter = new RateLimiter(System::nanoTime);
     private final Concurrency providerCalls = new Concurrency();
+    private final CircuitBreakers breakers = new CircuitBreakers(System::nanoTime);
     private final Map<String, Long> warnings = new ConcurrentHashMap<>();
     private volatile Snapshot current;
 
@@ -158,6 +160,27 @@ final class Gateway implements AutoCloseable {
             }
             return GatewayException.providerBusy(route.model());
         });
+    }
+
+    private CircuitBreakers.Pass admitTo(Route route) {
+        return switch (breakers.admit(route.providerName())) {
+            case CircuitBreakers.Pass pass -> pass;
+            case CircuitBreakers.Open open ->
+                throw GatewayException.providerFailing(route.model(), open.retryAfterSeconds());
+        };
+    }
+
+    private static void report(Route route, CircuitBreakers.Pass breaker, boolean answered) {
+        switch (answered ? breaker.succeeded() : breaker.failed()) {
+            case OPENED ->
+                log.warn(
+                        "Provider '{}' failed {} times in a row; calls skip it for {}",
+                        route.providerName(),
+                        CircuitBreakers.FAILURES,
+                        CircuitBreakers.OPEN);
+            case CLOSED -> log.info("Provider '{}' is answering again", route.providerName());
+            case NONE -> {}
+        }
     }
 
     private boolean firstWarningThisMinute(String warning) {
@@ -281,6 +304,24 @@ final class Gateway implements AutoCloseable {
             StreamTarget target,
             boolean showCosts) {
         Route route = call.route();
+        CircuitBreakers.Pass breaker = admitTo(route);
+        try {
+            return reserveAndSend(call, breaker, requestBody, request, scanned, clientHeaders, target, showCosts);
+        } finally {
+            breaker.close();
+        }
+    }
+
+    private Optional<Result> reserveAndSend(
+            Call call,
+            CircuitBreakers.Pass breaker,
+            byte[] requestBody,
+            ChatRequest request,
+            ChatRequest scanned,
+            Function<String, @Nullable String> clientHeaders,
+            StreamTarget target,
+            boolean showCosts) {
+        Route route = call.route();
         Concurrency.Slot slot = occupy(route);
         try {
             Budgeted budgeted = reserve(call, requestBody, scanned, false);
@@ -300,10 +341,10 @@ final class Gateway implements AutoCloseable {
                 throw e;
             }
             if (request.isStreaming()) {
-                stream(call, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
+                stream(call, breaker, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
                 return Optional.empty();
             }
-            Sent sent = send(call, budgeted.forwarded(), reservation, clientHeaders);
+            Sent sent = send(call, breaker, budgeted.forwarded(), reservation, clientHeaders);
             if (showCosts) {
                 headers.put(COST_HEADER, sent.charge().toString());
             }
@@ -445,6 +486,7 @@ final class Gateway implements AutoCloseable {
 
     private Sent send(
             Call call,
+            CircuitBreakers.Pass breaker,
             ChatRequest.Forwarded forwarded,
             @Nullable Reservation reservation,
             Function<String, @Nullable String> clientHeaders) {
@@ -460,6 +502,7 @@ final class Gateway implements AutoCloseable {
                     call.snapshot().providerKeys().get(route.providerName()),
                     forwarded.body(),
                     clientHeaders);
+            report(route, breaker, response.status() < 500);
             result = Outcome.Result.RESPONDED;
             if (succeeded(response)) {
                 usage = UsageReader.read(call.endpoint(), response.body());
@@ -474,6 +517,7 @@ final class Gateway implements AutoCloseable {
             log.warn("Provider {} sent an invalid response: {}", route.providerName(), e.getMessage());
             throw GatewayException.providerInvalidResponse(String.valueOf(e.getMessage()));
         } catch (ProviderUnavailableException e) {
+            report(route, breaker, false);
             result = e.timedOut() ? Outcome.Result.TIMED_OUT : Outcome.Result.UNREACHABLE;
             if (!e.timedOut()) {
                 charge = nothing(route);
@@ -499,6 +543,7 @@ final class Gateway implements AutoCloseable {
 
     private void stream(
             Call call,
+            CircuitBreakers.Pass breaker,
             Budgeted budgeted,
             Function<String, @Nullable String> clientHeaders,
             StreamTarget target,
@@ -523,6 +568,7 @@ final class Gateway implements AutoCloseable {
                     budgeted.forwarded().body(),
                     clientHeaders);
             status = stream.status();
+            report(route, breaker, stream.status() < 500);
             result = Outcome.Result.RESPONDED;
             if (!succeeded(stream.status())) {
                 charge = nothing(route);
@@ -573,6 +619,7 @@ final class Gateway implements AutoCloseable {
             endEarly(call, target, deadline, e);
         } catch (ProviderUnavailableException e) {
             if (!opened) {
+                report(route, breaker, false);
                 result = e.timedOut() ? Outcome.Result.TIMED_OUT : Outcome.Result.UNREACHABLE;
                 if (!e.timedOut()) {
                     charge = nothing(route);
