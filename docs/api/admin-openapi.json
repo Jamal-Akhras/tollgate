@@ -22,8 +22,34 @@
   }, {
     "description" : "About this running instance",
     "name" : "Instance"
+  }, {
+    "description" : "What each tenant used and spent",
+    "name" : "Usage"
   } ],
   "paths" : {
+    "/admin/v1/budgets" : {
+      "get" : {
+        "description" : "The current period of every tenant with a budget, live from this instance.",
+        "operationId" : "budgets",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BudgetState"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Show each budget",
+        "tags" : [ "Usage" ]
+      }
+    },
     "/admin/v1/config/reload" : {
       "post" : {
         "description" : "Reads tollgate.yaml again, validates it and swaps it in atomically. Requests already running finish under the configuration they started with. An invalid file never replaces the running configuration.",
@@ -82,6 +108,72 @@
         "summary" : "Identify this Tollgate instance",
         "tags" : [ "Instance" ]
       }
+    },
+    "/admin/v1/usage" : {
+      "get" : {
+        "description" : "Counts calls, refusals, tokens and cost from the signed audit trail, by the day each request arrived in UTC. Each provider attempt is a call, so a request that fell back to another model counts twice. Dry runs are not counted.",
+        "operationId" : "usage",
+        "parameters" : [ {
+          "description" : "The first day included, such as 2026-11-01. Defaults to the first of this month",
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "description" : "The first day not included. Defaults to tomorrow",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        }, {
+          "description" : "tenant, model, key or day",
+          "in" : "query",
+          "name" : "by",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "tenant"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UsageReport"
+                }
+              }
+            },
+            "description" : "The usage in the period"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "A date or grouping is not valid"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off, so there is nothing to sum"
+          }
+        },
+        "summary" : "Sum the audit trail",
+        "tags" : [ "Usage" ]
+      }
     }
   },
   "components" : {
@@ -113,6 +205,41 @@
         },
         "required" : [ "service", "version" ]
       },
+      "BudgetState" : {
+        "type" : "object",
+        "properties" : {
+          "available" : {
+            "type" : "string",
+            "example" : "37.605"
+          },
+          "currency" : {
+            "type" : "string",
+            "example" : "USD"
+          },
+          "limit" : {
+            "type" : "string",
+            "example" : "50"
+          },
+          "period" : {
+            "type" : "string",
+            "example" : "monthly"
+          },
+          "reserved" : {
+            "type" : "string",
+            "description" : "Held for calls in flight",
+            "example" : "0.05"
+          },
+          "spent" : {
+            "type" : "string",
+            "example" : "12.345"
+          },
+          "tenant" : {
+            "type" : "string",
+            "example" : "support-bot"
+          }
+        },
+        "required" : [ "available", "currency", "limit", "period", "reserved", "spent", "tenant" ]
+      },
       "ReloadResult" : {
         "type" : "object",
         "properties" : {
@@ -127,6 +254,81 @@
           }
         },
         "required" : [ "changed", "version" ]
+      },
+      "Row" : {
+        "type" : "object",
+        "properties" : {
+          "calls" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "cost" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "refused" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "tokens" : {
+            "$ref" : "#/components/schemas/Tokens"
+          },
+          "unfinished" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "Tokens" : {
+        "type" : "object",
+        "properties" : {
+          "cacheRead" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "cacheWrite" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "input" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "output" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "UsageReport" : {
+        "type" : "object",
+        "properties" : {
+          "by" : {
+            "type" : "string"
+          },
+          "from" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Row"
+            }
+          },
+          "to" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
       }
     },
     "securitySchemes" : {

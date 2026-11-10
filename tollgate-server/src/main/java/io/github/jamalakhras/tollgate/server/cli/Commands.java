@@ -4,6 +4,7 @@ import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
+import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.Names;
@@ -13,7 +14,9 @@ import io.github.jamalakhras.tollgate.core.money.PriceCatalog;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
 import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.server.audit.AuditDirectory;
+import io.github.jamalakhras.tollgate.server.audit.UsageReport;
 import io.github.jamalakhras.tollgate.server.gateway.ConfigFile;
+import io.github.jamalakhras.tollgate.server.gateway.LoadedConfig;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
@@ -22,10 +25,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public final class Commands {
 
@@ -41,6 +48,8 @@ public final class Commands {
               java -jar tollgate.jar audit verify --public-key <key> <directory> Verify an audit trail
               java -jar tollgate.jar prices show <provider> <model>             Show a model's price in the catalog
               java -jar tollgate.jar prices pin <tollgate.yaml>                 Print the catalog prices a config uses
+              java -jar tollgate.jar usage <tollgate.yaml> [--from <day>] [--to <day>] [--by tenant|model|key|day]
+                                                                                Sum the audit trail
             """;
 
     private final PrintStream out;
@@ -75,6 +84,9 @@ public final class Commands {
         }
         if (args.size() == 3 && args.subList(0, 2).equals(List.of("prices", "pin"))) {
             return pinPrices(Path.of(args.get(2)));
+        }
+        if (args.size() >= 2 && args.size() % 2 == 0 && args.getFirst().equals("usage")) {
+            return usage(Path.of(args.get(1)), args.subList(2, args.size()));
         }
         err.print(USAGE);
         return USAGE_ERROR;
@@ -205,6 +217,82 @@ public final class Commands {
             return FAILED;
         }
         out.println("The audit trail is intact.");
+        return 0;
+    }
+
+    private int usage(Path config, List<String> options) {
+        Map<String, String> chosen = new HashMap<>();
+        for (int i = 0; i < options.size(); i += 2) {
+            String name = options.get(i);
+            if (!List.of("--from", "--to", "--by").contains(name) || chosen.put(name, options.get(i + 1)) != null) {
+                err.print(USAGE);
+                return USAGE_ERROR;
+            }
+        }
+        LoadedConfig loaded;
+        try {
+            loaded = ConfigFile.read(config);
+        } catch (IllegalStateException | UncheckedIOException e) {
+            err.println(e.getMessage());
+            return FAILED;
+        }
+        if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
+            err.println("The usage report sums the audit trail, and audit.mode is off in " + config);
+            return FAILED;
+        }
+        Path directory = loaded.resolve(audit.directory());
+        UsageReport report;
+        try {
+            report = UsageReport.of(
+                    directory,
+                    chosen.get("--from"),
+                    chosen.get("--to"),
+                    chosen.getOrDefault("--by", "tenant"),
+                    Clock.systemUTC());
+        } catch (IllegalArgumentException e) {
+            err.println(e.getMessage());
+            return USAGE_ERROR;
+        } catch (IOException | IllegalStateException e) {
+            err.println("Could not read the audit trail in " + directory + ": " + e.getMessage());
+            return FAILED;
+        }
+        out.printf(
+                "Usage from %s up to %s, by %s:%n%n",
+                report.from().atZone(ZoneOffset.UTC).toLocalDate(),
+                report.to().atZone(ZoneOffset.UTC).toLocalDate(),
+                report.by());
+        int width = report.rows().stream()
+                .mapToInt(row -> row.key().length())
+                .reduce(report.by().length(), Math::max);
+        String line = "%-" + width + "s %8s %8s %10s %14s %14s %12s %12s  %s%n";
+        out.printf(
+                line,
+                report.by(),
+                "calls",
+                "refused",
+                "unfinished",
+                "input tokens",
+                "output tokens",
+                "cache read",
+                "cache write",
+                "cost");
+        for (UsageReport.Row row : report.rows()) {
+            UsageReport.Tokens tokens = row.tokens();
+            String cost = row.cost().entrySet().stream()
+                    .map(amount -> amount.getValue() + " " + amount.getKey())
+                    .collect(Collectors.joining(", "));
+            out.printf(
+                    line,
+                    row.key(),
+                    row.calls(),
+                    row.refused().values().stream().mapToLong(Long::longValue).sum(),
+                    row.unfinished(),
+                    tokens.input(),
+                    tokens.output(),
+                    tokens.cacheRead(),
+                    tokens.cacheWrite(),
+                    cost.isEmpty() ? "-" : cost);
+        }
         return 0;
     }
 

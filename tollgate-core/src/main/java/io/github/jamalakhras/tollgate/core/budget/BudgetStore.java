@@ -14,5 +14,7 @@ public interface BudgetStore {
 
     Money spent(String tenant, Budget budget);
 
+    Money reserved(String tenant, Budget budget);
+
     void restore(String tenant, Budget budget, Money cost, Instant settledAt);
 }

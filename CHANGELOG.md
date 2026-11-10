@@ -97,6 +97,11 @@ versions may change the extension interfaces.
   span joins the client's trace and has a child span for each step and each
   provider attempt. Spans never carry prompts or answers, and `traceparent`
   is never sent to providers.
+- A usage report summed from the audit trail, on the admin port at
+  `GET /admin/v1/usage` and on the command line as `tollgate usage`: calls,
+  refusals by code, tokens and cost by tenant, model, key or day.
+  `GET /admin/v1/budgets` shows each budget's spent, reserved and available
+  amounts.
 - A circuit breaker for each provider. After five failures in a row, calls
   skip the provider for 30 seconds and go to a fallback, or get `503`
   `provider_unavailable` with `Retry-After` at once. Then one call tries the

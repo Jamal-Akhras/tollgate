@@ -5,7 +5,7 @@ import java.nio.file.Path;
 
 public record LoadedConfig(Path path, GatewayConfig config, String version) {
 
-    Path resolve(String relativePath) {
+    public Path resolve(String relativePath) {
         return path.toAbsolutePath().resolveSibling(relativePath).normalize();
     }
 }

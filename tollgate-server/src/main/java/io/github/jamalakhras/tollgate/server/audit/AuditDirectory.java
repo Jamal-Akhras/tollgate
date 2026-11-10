@@ -6,8 +6,10 @@ import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -107,12 +109,14 @@ public final class AuditDirectory {
     }
 
     private static void read(Path file, Lines lines) throws IOException {
-        boolean torn = !endsWithNewline(file);
         var decoder = StandardCharsets.UTF_8
                 .newDecoder()
                 .onMalformedInput(CodingErrorAction.REPLACE)
                 .onUnmappableCharacter(CodingErrorAction.REPLACE);
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(file), decoder))) {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+            long size = channel.size();
+            boolean torn = !endsWithNewline(channel, size);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(upTo(channel, size), decoder));
             long number = 0;
             String line = reader.readLine();
             while (line != null) {
@@ -124,15 +128,45 @@ public final class AuditDirectory {
         }
     }
 
-    private static boolean endsWithNewline(Path file) throws IOException {
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
-            if (channel.size() == 0) {
-                return true;
-            }
-            ByteBuffer last = ByteBuffer.allocate(1);
-            channel.read(last, channel.size() - 1);
-            return last.get(0) == '\n';
+    private static boolean endsWithNewline(FileChannel channel, long size) throws IOException {
+        if (size == 0) {
+            return true;
         }
+        ByteBuffer last = ByteBuffer.allocate(1);
+        channel.read(last, size - 1);
+        return last.get(0) == '\n';
+    }
+
+    private static InputStream upTo(FileChannel channel, long size) {
+        InputStream in = Channels.newInputStream(channel);
+        return new InputStream() {
+
+            private long left = size;
+
+            @Override
+            public int read() throws IOException {
+                if (left <= 0) {
+                    return -1;
+                }
+                int b = in.read();
+                if (b >= 0) {
+                    left--;
+                }
+                return b;
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) throws IOException {
+                if (left <= 0) {
+                    return -1;
+                }
+                int read = in.read(buffer, offset, (int) Math.min(length, left));
+                if (read > 0) {
+                    left -= read;
+                }
+                return read;
+            }
+        };
     }
 
     private static Optional<Seal> sealIn(String text) {

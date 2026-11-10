@@ -330,6 +330,13 @@ WantedBy=multi-user.target
   `curl -X POST -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" http://127.0.0.1:8081/admin/v1/config/reload`.
   A broken file returns `422` and leaves the running config in place. A
   change to the `audit` section returns `409`, because it needs a restart.
+- **Usage and budgets:**
+  `curl -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" "http://127.0.0.1:8081/admin/v1/usage?from=2026-11-01&by=tenant"`
+  sums the audit trail: calls, refusals by code, tokens and cost, by
+  `tenant`, `model`, `key` or `day`. The numbers are the ones `audit verify`
+  vouches for. `java -jar tollgate.jar usage tollgate.yaml --by model` prints
+  the same table, and `/admin/v1/budgets` shows each budget's spent, reserved
+  and available amounts.
 - **Audit modes:**
   - In `sync` mode, the default, each record is fsynced before the request
     moves on, and concurrent requests share fsyncs.

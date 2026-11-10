@@ -182,6 +182,43 @@ class CommandsTest {
                 .contains("publicKey is not valid base64");
     }
 
+    private Path usageConfig(String audit) throws IOException {
+        return Files.writeString(trail.resolve("tollgate.yaml"), "audit: " + audit + System.lineSeparator());
+    }
+
+    @Test
+    void sumsTheAuditTrailFromTheCommandLine() throws Exception {
+        writeTrail();
+        Path config = usageConfig("{ mode: sync, directory: ., publicKey: " + AUDIT_KEYS.publicKey()
+                + ", signingKey: \"${env:SIGNING}\", hmacKey: \"${env:HMAC}\" }");
+
+        int status = commands.run(
+                List.of("usage", config.toString(), "--from", "1970-01-01", "--to", "1970-01-02", "--by", "tenant"));
+
+        assertThat(status).isZero();
+        assertThat(out.toString(StandardCharsets.UTF_8))
+                .contains("Usage from 1970-01-01 up to 1970-01-02, by tenant:")
+                .containsPattern("support-bot +0 +2 +0 +0 +0 +0 +0 +-");
+    }
+
+    @Test
+    void explainsWhyItCannotSumTheTrail() throws Exception {
+        assertThat(commands.run(List.of("usage", usageConfig("{ mode: off }").toString())))
+                .isEqualTo(Commands.FAILED);
+        assertThat(commands.run(List.of("usage", "tollgate.yaml", "--by"))).isEqualTo(Commands.USAGE_ERROR);
+        assertThat(commands.run(List.of("usage", "tollgate.yaml", "--within", "1d")))
+                .isEqualTo(Commands.USAGE_ERROR);
+        Path config = usageConfig("{ mode: sync, directory: missing, publicKey: " + AUDIT_KEYS.publicKey()
+                + ", signingKey: \"${env:SIGNING}\", hmacKey: \"${env:HMAC}\" }");
+        assertThat(commands.run(List.of("usage", config.toString(), "--by", "week")))
+                .isEqualTo(Commands.USAGE_ERROR);
+        assertThat(commands.run(List.of("usage", config.toString()))).isEqualTo(Commands.FAILED);
+        assertThat(err.toString(StandardCharsets.UTF_8))
+                .contains("audit.mode is off")
+                .contains("by must be one of tenant, model, key, day, was week")
+                .contains("Could not read the audit trail");
+    }
+
     private void writeTrail() throws IOException {
         AuditKeys keys = AuditKeys.of(AUDIT_KEYS.publicKey(), AUDIT_KEYS.signingKey(), AUDIT_KEYS.hmacKey());
         Decision denial = Decision.deny(Refusal.POLICY_DENIED, "No");

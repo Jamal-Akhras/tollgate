@@ -12,6 +12,7 @@ import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.BudgetStore;
 import io.github.jamalakhras.tollgate.core.budget.Reservation;
 import io.github.jamalakhras.tollgate.core.config.Admission;
+import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig.Route;
 import io.github.jamalakhras.tollgate.core.config.OutputTokens;
@@ -50,6 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -488,6 +490,21 @@ final class Gateway implements AutoCloseable {
                 next.version(),
                 before.loaded().version());
         return new Reload(next.version(), true);
+    }
+
+    GatewayConfig config() {
+        return current.config();
+    }
+
+    BudgetStore budgetStore() {
+        return budgets;
+    }
+
+    Optional<Path> auditDirectory() {
+        Snapshot snapshot = current;
+        return snapshot.config().audit() instanceof AuditSettings.Enabled enabled
+                ? Optional.of(snapshot.loaded().resolve(enabled.directory()))
+                : Optional.empty();
     }
 
     boolean auditHealthy() {

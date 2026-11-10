@@ -53,6 +53,13 @@ public final class InMemoryBudgetStore implements BudgetStore {
         return new Money(nanos, budget.limit().currency());
     }
 
+    @Override
+    public Money reserved(String tenant, Budget budget) {
+        Ledger ledger = ledgers.get(tenant);
+        long nanos = ledger == null ? 0 : ledger.reserved();
+        return new Money(nanos, budget.limit().currency());
+    }
+
     private static final class Ledger {
 
         private Instant periodStart = Instant.MIN;
@@ -85,6 +92,10 @@ public final class InMemoryBudgetStore implements BudgetStore {
         synchronized long available(Budget budget, Instant now) {
             enterPeriod(budget, now);
             return Math.max(0, budget.limit().nanos() - spent - reserved);
+        }
+
+        synchronized long reserved() {
+            return reserved;
         }
 
         synchronized long spent(Budget budget, Instant now) {
