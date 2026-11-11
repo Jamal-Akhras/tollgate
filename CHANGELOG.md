@@ -61,6 +61,13 @@ traffic.
   `${env:...}` references only.
 - Request size and data-class guards. Data classes can only be made stricter,
   and each class goes only to the regions it allows.
+- Shadow mode for guards ([ADR 0022](docs/adr/0022-shadow-mode.md)). A guard
+  with `mode: monitor` runs like any other, but its refusal is only recorded:
+  the request goes on, the client sees nothing different, and the
+  `tollgate.guards.monitored` metric counts it. Intents with a monitored step
+  are version 3 of the audit record, with the step marked
+  `"mode":"monitor"`. A policy whose data-class guard is monitored still
+  loads, with a warning at startup.
 - Redaction of patterned personal data
   ([ADR 0012](docs/adr/0012-redact-personal-data.md)). A policy's `redact`
   setting replaces email addresses, card numbers, IBANs, phone numbers,

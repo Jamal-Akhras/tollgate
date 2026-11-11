@@ -47,6 +47,7 @@ abstract class GatewayTestSupport {
     static final ApiKey THRIFTY_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey SINGLE_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey AGENT_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey WATCHED_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -178,6 +179,10 @@ abstract class GatewayTestSupport {
                     models: [claude-sonnet]
                     dataClass: internal
                     policy: agents
+                  watched:
+                    models: [qwen3, cloud-model]
+                    dataClass: internal
+                    policy: watching
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
@@ -190,6 +195,7 @@ abstract class GatewayTestSupport {
                   - { id: %22$s, tenant: thrifty, sha256: %23$s }
                   - { id: %24$s, tenant: single, sha256: %25$s }
                   - { id: %26$s, tenant: agent, sha256: %27$s }
+                  - { id: %28$s, tenant: watched, sha256: %29$s }
                 detectors:
                   customer-id: { pattern: "CUST-[0-9]{6}" }
                   account-number: { pattern: "account (?<value>[0-9]{8})" }
@@ -227,6 +233,11 @@ abstract class GatewayTestSupport {
                         regions: { public: [us, local], internal: [us, local], confidential: [local] }
                     features:
                       web-search: [internal]
+                  watching:
+                    guards:
+                      - { type: request-size, maxBytes: 10, mode: monitor }
+                      - type: data-class
+                        regions: { public: [us, local], internal: [us, local], confidential: [local] }
                   slow:
                     guards:
                       - type: data-class
@@ -266,7 +277,9 @@ abstract class GatewayTestSupport {
                         SINGLE_KEY.id(),
                         SINGLE_KEY.sha256(),
                         AGENT_KEY.id(),
-                        AGENT_KEY.sha256());
+                        AGENT_KEY.sha256(),
+                        WATCHED_KEY.id(),
+                        WATCHED_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();

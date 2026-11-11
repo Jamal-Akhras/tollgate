@@ -157,6 +157,24 @@ class GuardsTest {
     }
 
     @Test
+    void aMonitoredGuardRecordsItsRefusalWithoutStoppingTheRequest() {
+        var policy = new Policy(List.of(new MonitoredGuard(new RequestSizeGuard(10)), new RequestSizeGuard(100)));
+
+        Policy.Evaluation passed = policy.evaluate(request("local", "public", 50));
+        Policy.Evaluation refused = policy.evaluate(request("local", "public", 500));
+
+        assertThat(passed.decision()).isEqualTo(Decision.ALLOW);
+        assertThat(passed.steps()).extracting(GuardStep::monitored).containsExactly(true, false);
+        assertThat(passed.steps().getFirst().decision()).isInstanceOf(Decision.Deny.class);
+        assertThat(refused.decision()).isInstanceOf(Decision.Deny.class);
+        assertThat(refused.steps()).hasSize(2);
+        assertThat(new MonitoredGuard(new RequestSizeGuard(10)).type()).isEqualTo("request-size");
+        assertThat(MonitoredGuard.underlying(new MonitoredGuard(new RequestSizeGuard(10))))
+                .isEqualTo(new RequestSizeGuard(10));
+        assertThat(MonitoredGuard.underlying(new RequestSizeGuard(10))).isEqualTo(new RequestSizeGuard(10));
+    }
+
+    @Test
     void dataClassAllowsOnlyListedRegions() {
         var guard = new DataClassGuard(Map.of("public", List.of("us", "local"), "confidential", List.of("local")));
 

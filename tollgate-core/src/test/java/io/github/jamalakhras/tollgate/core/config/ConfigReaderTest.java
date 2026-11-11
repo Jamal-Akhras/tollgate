@@ -13,6 +13,7 @@ import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
+import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
@@ -259,6 +260,24 @@ class ConfigReaderTest {
     }
 
     @Test
+    void readsMonitoredGuardsAndLetsAMonitoredDataClassGuardSatisfyTheTenantCheck() {
+        Map<String, Object> monitoredDataClass = new HashMap<>(DATA_CLASS_GUARD);
+        monitoredDataClass.put("mode", "monitor");
+        Map<String, Object> enforcedSize = Map.of("type", "request-size", "maxBytes", 5, "mode", "enforce");
+
+        GatewayConfig config = ConfigReader.read(with(
+                "policies", Map.of("default", Map.of("guards", List.of(enforcedSize, monitoredDataClass)))));
+
+        assertThat(Objects.requireNonNull(config.policies().get("default")).guards())
+                .containsExactly(
+                        new RequestSizeGuard(5),
+                        new MonitoredGuard(new DataClassGuard(
+                                Map.of("public", List.of("us", "local"), "confidential", List.of("local")))));
+        assertThat(config.monitoringDataClasses()).containsExactly("default");
+        assertThat(ConfigReader.read(document()).monitoringDataClasses()).isEmpty();
+    }
+
+    @Test
     void reportsGuardProblems() {
         assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "pii-redact"))))
                 .hasMessage("policies.default.guards[0].type must be one of request-size, data-class, was pii-redact");
@@ -270,7 +289,7 @@ class ConfigReaderTest {
                 .hasMessage("policies.default.guards[0]: maxBytes must be positive");
         assertThatThrownBy(
                         () -> ConfigReader.read(withGuard(Map.of("type", "request-size", "maxBytes", 5, "mode", "x"))))
-                .hasMessage("policies.default.guards[0].mode is not a recognised setting");
+                .hasMessage("policies.default.guards[0].mode must be enforce or monitor, was x");
         assertThatThrownBy(
                         () -> ConfigReader.read(withGuard(Map.of("type", "data-class", "regions", Map.of(), "x", 1))))
                 .hasMessage("policies.default.guards[0].x is not a recognised setting");

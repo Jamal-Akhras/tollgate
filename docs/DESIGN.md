@@ -190,6 +190,10 @@ audit:                             # required; 'mode: off' must be written out
 - **Guards** are `request-size` and `data-class`. The data-class guard fails
   closed: a class with no listed regions, or a provider with no region, is
   refused.
+- **Shadow mode:** a guard with `mode: monitor` records what it would have
+  refused, in the audit trail and the `tollgate.guards.monitored` metric,
+  without refusing, so a new guard can be measured before it is enforced
+  ([ADR 0022](adr/0022-shadow-mode.md)).
 - **Models** are the names applications ask for. Each maps to one provider,
   the provider's own model name, a price and an output-token cap. Every model
   has a known price before its first request. The price comes from the config,
@@ -210,8 +214,6 @@ audit:                             # required; 'mode: off' must be written out
 - **Rule guards** in CEL, the Common Expression Language: fast, side-effect
   free, guaranteed to terminate, and type-checked when the config loads.
 - **Secrets** from Vault and AWS Secrets Manager.
-- **Shadow mode** (`mode: monitor`), which records what a guard would have done
-  without doing it ([ADR 0022](adr/0022-shadow-mode.md)).
 - **In a cluster,** every instance converging on the latest config.
 
 ## 5. Extending Tollgate
@@ -387,9 +389,9 @@ with hardware details for every audit mode.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; `tollgate-core` and `tollgate-providers` on Maven Central |
+| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; `tollgate-core` and `tollgate-providers` on Maven Central |
 | **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
-| **Next** | Shadow mode ([ADR 0022](adr/0022-shadow-mode.md)); a Spring Boot starter ([ADR 0021](adr/0021-spring-boot-starter.md)); the Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
+| **Next** | A Spring Boot starter ([ADR 0021](adr/0021-spring-boot-starter.md)); the Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
 | **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; Policy Studio ([ADR 0004](adr/0004-studio-and-admin-api.md)); cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |
 
 ## 14. Risks

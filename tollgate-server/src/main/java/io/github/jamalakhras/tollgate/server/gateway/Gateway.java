@@ -83,6 +83,7 @@ final class Gateway implements AutoCloseable {
     static final String LIMITS_REFUSED_METRIC = "tollgate.limits.refused";
     static final String PROVIDERS_BUSY_METRIC = "tollgate.providers.busy";
     static final String FALLBACKS_METRIC = "tollgate.fallbacks";
+    static final String GUARDS_MONITORED_METRIC = "tollgate.guards.monitored";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
@@ -118,6 +119,7 @@ final class Gateway implements AutoCloseable {
             Tracer tracer) {
         this.environment = environment;
         this.current = new Snapshot(loaded, environment);
+        warnAboutMonitoredDataClasses(current.config());
         this.client = client;
         this.budgets = budgets;
         this.audit = audit;
@@ -195,6 +197,40 @@ final class Gateway implements AutoCloseable {
                         CircuitBreakers.OPEN);
             case CLOSED -> log.info("Provider '{}' is answering again", route.providerName());
             case NONE -> {}
+        }
+    }
+
+    private static void warnAboutMonitoredDataClasses(GatewayConfig config) {
+        for (String policy : config.monitoringDataClasses()) {
+            log.warn(
+                    "Policy '{}' only monitors its data-class guard, so requests can reach regions it would refuse",
+                    policy);
+        }
+    }
+
+    private void countMonitoredRefusals(Call call) {
+        String tenant = call.caller().tenant();
+        for (GuardStep step : call.admission().steps()) {
+            if (step.monitored() && step.decision() instanceof Decision.Deny denial) {
+                Metrics.counter(
+                                GUARDS_MONITORED_METRIC,
+                                "tenant",
+                                tenant,
+                                "model",
+                                call.route().model(),
+                                "provider",
+                                call.route().providerName(),
+                                "guard",
+                                step.guard())
+                        .increment();
+                if (firstWarningThisMinute("monitored." + tenant + "." + step.guard())) {
+                    log.warn(
+                            "Guard '{}' would have refused a request from tenant '{}': {}",
+                            step.guard(),
+                            tenant,
+                            denial.message());
+                }
+            }
         }
     }
 
@@ -483,6 +519,7 @@ final class Gateway implements AutoCloseable {
             throw new ReloadRejected(ReloadRejected.INVALID_CONFIG, String.valueOf(e.getMessage()));
         }
         current = after;
+        warnAboutMonitoredDataClasses(after.config());
         metrics.watch(after.config(), budgets, providerCalls);
         log.info(
                 "Reloaded {}: config version {} replaces {}",
@@ -883,6 +920,7 @@ final class Gateway implements AutoCloseable {
             Decision decision,
             @Nullable Money reservation,
             ChatRequest.@Nullable Forwarded sent) {
+        countMonitoredRefusals(call);
         AuditLog trail = audit;
         if (trail == null) {
             return;

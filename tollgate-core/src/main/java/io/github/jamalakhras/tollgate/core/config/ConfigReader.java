@@ -13,6 +13,7 @@ import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
+import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
@@ -279,14 +280,23 @@ public final class ConfigReader {
     }
 
     private static Guard guard(Section section) {
+        String mode = section.optionalText("mode");
+        if (mode != null && !mode.equals("enforce") && !mode.equals("monitor")) {
+            throw section.invalid("mode", "must be enforce or monitor, was " + mode);
+        }
+        Guard guard = enforcedGuard(section);
+        return "monitor".equals(mode) ? new MonitoredGuard(guard) : guard;
+    }
+
+    private static Guard enforcedGuard(Section section) {
         String type = section.text("type");
         return switch (type) {
             case RequestSizeGuard.TYPE -> {
-                section.requireOnly("type", "maxBytes");
+                section.requireOnly("type", "maxBytes", "mode");
                 yield section.build(() -> new RequestSizeGuard(section.wholeNumber("maxBytes")));
             }
             case DataClassGuard.TYPE -> {
-                section.requireOnly("type", "regions");
+                section.requireOnly("type", "regions", "mode");
                 yield section.build(() -> new DataClassGuard(section.textLists("regions")));
             }
             default ->

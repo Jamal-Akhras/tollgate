@@ -33,6 +33,10 @@ what was sent, who sent it, what it cost, and why it was allowed.
   `internal` or `confidential`. A request may make its class stricter, never
   looser, and each class may go only to providers in the regions you allow.
   Guards fail closed.
+- **Try a guard before it refuses.** A guard with `mode: monitor` runs on
+  real traffic and records what it would have refused, in the audit trail and
+  the `tollgate.guards.monitored` metric, without refusing anything
+  ([ADR 0022](docs/adr/0022-shadow-mode.md)).
 - **Streaming.** Streamed answers are relayed event by event as they arrive,
   with the same policies, budgets and audit as other calls
   ([ADR 0010](docs/adr/0010-streaming.md)).
@@ -361,7 +365,7 @@ WantedBy=multi-user.target
 |---|---|
 | **0.1.0** | Everything under "What works today", with the core and provider libraries on Maven Central |
 | **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
-| **Next** | Shadow mode for guards and a Spring Boot starter; the OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
+| **Next** | A Spring Boot starter; the OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
 | **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; Policy Studio; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).

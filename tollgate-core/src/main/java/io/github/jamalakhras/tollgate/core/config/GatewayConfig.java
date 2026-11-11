@@ -5,6 +5,7 @@ import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.GuardRequest;
+import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
@@ -62,7 +63,7 @@ public record GatewayConfig(
         }
         for (var policy : policies.entrySet()) {
             for (Guard guard : policy.getValue().guards()) {
-                if (guard instanceof DataClassGuard dataClassGuard) {
+                if (MonitoredGuard.underlying(guard) instanceof DataClassGuard dataClassGuard) {
                     checkDataClassGuard(policy.getKey(), dataClassGuard, dataClasses);
                 }
             }
@@ -195,7 +196,9 @@ public record GatewayConfig(
                         "tenants." + name + " has no policy to enforce its data class; set tenants." + name
                                 + ".policy or define a '" + DEFAULT_POLICY + "' policy");
             }
-            if (enforcing.guards().stream().noneMatch(DataClassGuard.class::isInstance)) {
+            if (enforcing.guards().stream()
+                    .map(MonitoredGuard::underlying)
+                    .noneMatch(DataClassGuard.class::isInstance)) {
                 throw new IllegalArgumentException("tenants." + name + ": policy '" + applied
                         + "' has no data-class guard, so data class '" + dataClass + "' would not be enforced");
             }
@@ -293,6 +296,16 @@ public record GatewayConfig(
                 }
             }
         }
+    }
+
+    public List<String> monitoringDataClasses() {
+        return policies.entrySet().stream()
+                .filter(policy -> policy.getValue().guards().stream()
+                        .anyMatch(guard -> guard instanceof MonitoredGuard monitored
+                                && monitored.guard() instanceof DataClassGuard))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
     }
 
     private static void checkDataClassGuard(String policy, DataClassGuard guard, List<String> dataClasses) {

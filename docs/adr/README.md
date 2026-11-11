@@ -27,4 +27,4 @@ is accepted is not always built yet; the last column says what 0.1.0 ships.
 | [0019](0019-mcp-through-tollgate.md) | MCP tool calls through Tollgate | Accepted | No |
 | [0020](0020-agent-clients-and-skills.md) | Agent clients and skills | Accepted | Claude Code only |
 | [0021](0021-spring-boot-starter.md) | A Spring Boot starter that embeds the gateway | Accepted | No |
-| [0022](0022-shadow-mode.md) | Shadow mode for guards | Accepted | No |
+| [0022](0022-shadow-mode.md) | Shadow mode for guards | Accepted | Yes |

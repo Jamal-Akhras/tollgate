@@ -67,8 +67,9 @@ public record Policy(
         for (Guard guard : guards) {
             long start = System.nanoTime();
             Decision decision = guard.check(request);
-            steps.add(new GuardStep(guard.type(), decision, Duration.ofNanos(System.nanoTime() - start)));
-            if (decision instanceof Decision.Deny) {
+            boolean monitored = guard instanceof MonitoredGuard;
+            steps.add(new GuardStep(guard.type(), decision, Duration.ofNanos(System.nanoTime() - start), monitored));
+            if (decision instanceof Decision.Deny && !monitored) {
                 return new Evaluation(decision, steps);
             }
         }
