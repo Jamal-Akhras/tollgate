@@ -18,8 +18,6 @@
     <maven.compiler.release>25</maven.compiler.release>
     <image.name>ghcr.io/jamal-akhras/tollgate</image.name>
     <base.image>gcr.io/distroless/java25-debian13:nonroot@sha256:8ac5525549d14b8ddd34562f9fc8e6ba4840c995363a1507b17cadf8bb7ab57e</base.image>
-    <coverage.line.minimum>0.85</coverage.line.minimum>
-    <coverage.branch.minimum>0.80</coverage.branch.minimum>
   </properties>
 
   <dependencies>
@@ -30,6 +28,10 @@
     <dependency>
       <groupId>io.github.jamal-akhras</groupId>
       <artifactId>tollgate-providers</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.jamal-akhras</groupId>
+      <artifactId>tollgate-spring-boot-starter</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

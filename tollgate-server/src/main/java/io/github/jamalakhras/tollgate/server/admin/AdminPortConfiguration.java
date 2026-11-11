@@ -1,6 +1,6 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
-import io.github.jamalakhras.tollgate.server.StartupException;
+import io.github.jamalakhras.tollgate.gateway.StartupException;
 import java.net.InetAddress;
 import org.apache.catalina.connector.Connector;
 import org.jspecify.annotations.Nullable;
