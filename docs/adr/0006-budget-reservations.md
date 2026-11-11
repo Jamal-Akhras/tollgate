@@ -46,6 +46,6 @@ response, and many calls for the same tenant run at once.
 - The bound holds for text. Images or files referenced by URL can cost more
   input tokens than their bytes suggest, so the settled cost of such a call can
   exceed its reservation. The overrun is charged, never ignored.
-- With the in-memory store, spend reset when the server restarted. Since
-  [ADR 0008](0008-harden-the-request-path.md), the current period is rebuilt
-  from the audit trail at startup.
+- With the in-memory store, spend reset when the server restarted. Amended
+  on 2026-11-11: since [ADR 0008](0008-harden-the-request-path.md), the
+  current period is rebuilt from the audit trail at startup.

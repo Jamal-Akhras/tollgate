@@ -224,8 +224,9 @@ traffic.
 - The admin API needs a token.
   - **Requests:** every admin request must send `Authorization: Bearer` with
     `TOLLGATE_ADMIN_TOKEN`, which must be at least 32 characters.
-  - **Without the token** the admin API is off and answers `503`, so web pages
-    can't reach it through the browser.
+  - **Without the token** the admin API is off and answers `503`.
+  - **Browsers:** a web page can't send the bearer token, so a page someone
+    opens can't reach the admin API.
 - The gateway port listens only on `127.0.0.1` unless `TOLLGATE_ADDRESS` says
   otherwise. The image listens on all of its own interfaces, and the README's
   `docker run` publishes every port on the host's `127.0.0.1` only.

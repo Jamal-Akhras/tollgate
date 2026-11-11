@@ -66,8 +66,8 @@ budget. Fetching a list at runtime would cause four problems:
 ### Commands
 
 - **`tollgate prices show <provider> <model>`** prints a model's price in the
-  catalog and the catalog's version. As built, it reads only the catalog; what
-  a config uses is shown by `prices pin`.
+  catalog and the catalog's version. Amended on 2026-11-11: as built, it
+  reads only the catalog; what a config uses is shown by `prices pin`.
 - **`tollgate prices pin`** prints a `price:` line for every configured model
   that uses the catalog, for pasting into the config. A team can then own and
   edit its prices. Like `keys create`, it prints config and never rewrites

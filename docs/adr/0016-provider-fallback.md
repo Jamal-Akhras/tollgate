@@ -28,7 +28,7 @@ exist. This ADR covers the other three.
 ```yaml
 providers:
   ollama:    { format: openai, baseUrl: http://gpu-box:11434/v1, region: local, concurrent: 2 }
-  openrouter: { format: openai, baseUrl: https://openrouter.ai/api/v1, apiKey: ${env:OPENROUTER_KEY}, region: us }
+  openrouter: { format: openai, baseUrl: https://openrouter.ai/api/v1, apiKey: "${env:OPENROUTER_KEY}", region: us }
 
 models:
   qwen3:

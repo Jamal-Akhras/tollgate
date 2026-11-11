@@ -56,8 +56,8 @@ own rule: prompts and answers never leave as text.
   budget, each audit write and each provider attempt.
 - **Provider spans use the GenAI attributes:** `gen_ai.provider.name`,
   `gen_ai.request.model` and the token counts, plus `tollgate.trace_id` so a
-  span leads to its audit records. `gen_ai.response.model` was planned too and
-  is not set yet.
+  span leads to its audit records. Amended on 2026-11-11:
+  `gen_ai.response.model` was planned too and is not set yet.
 - **No content, ever.** The GenAI conventions allow prompts and answers as
   span events. Tollgate never records them, because a trace backend is a
   second copy of the data that the audit trail is designed not to keep.

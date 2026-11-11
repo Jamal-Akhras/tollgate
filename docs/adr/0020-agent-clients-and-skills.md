@@ -121,7 +121,7 @@ review, and a tool added mid-conversation was refused even with
 ## Consequences
 
 - **Claude Code works through Tollgate with the review on,** skills
-  included. Codex, Copilot, Gemini CLI and the agent SDKs follow as each is
+  included. Amended on 2026-11-11: Codex, Copilot, Gemini CLI and the agent SDKs follow as each is
   recorded, with the endpoints and formats they need. Pointing a client at
   Tollgate is a base URL, a key and, with ADR 0019, one MCP URL.
 - **Each supported client is a fixture to keep current,** and new client
