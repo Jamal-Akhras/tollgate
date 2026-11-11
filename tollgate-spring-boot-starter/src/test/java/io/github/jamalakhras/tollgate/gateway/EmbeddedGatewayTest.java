@@ -22,16 +22,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 class EmbeddedGatewayTest {
 
     private static final String ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
             + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
+    private static final HttpClient HOST_CLIENT = HttpClient.newHttpClient();
 
     @TempDir
     Path directory;
 
     private final FakeProvider provider = new FakeProvider();
+    private final ApiKey key = ApiKey.generate(new SecureRandom());
+    private final AuditKeys.NewKeys keys = AuditKeys.generate(new SecureRandom());
 
     @AfterEach
     void stopTheProvider() {
@@ -40,9 +45,26 @@ class EmbeddedGatewayTest {
 
     @Test
     void servesTheGatewayFromAPlainSpringBootApplicationWithTheStartersDefaults() throws Exception {
-        ApiKey key = ApiKey.generate(new SecureRandom());
-        AuditKeys.NewKeys keys = AuditKeys.generate(new SecureRandom());
-        Path audit = directory.resolve("audit");
+        try (ConfigurableApplicationContext application = start(TestApplication.class)) {
+            HttpResponse<String> answer = chat(application);
+
+            assertThat(answer.statusCode()).isEqualTo(200);
+            assertThat(answer.body()).contains("\"model\":\"qwen3\"");
+            String trace = answer.headers().firstValue(TraceIdFilter.HEADER).orElseThrow();
+            assertThat(recordsOf(directory.resolve("audit"), trace)).hasSize(2);
+        }
+    }
+
+    @Test
+    void leavesTheApplicationsOwnHttpClientTheOnlyOneItCanInject() throws Exception {
+        try (ConfigurableApplicationContext application = start(TestApplication.class, HostWithAnHttpClient.class)) {
+            assertThat(application.getBean(HttpClient.class)).isSameAs(HOST_CLIENT);
+            assertThat(application.getBean(HostWithAnHttpClient.class).client).isSameAs(HOST_CLIENT);
+            assertThat(chat(application).statusCode()).isEqualTo(200);
+        }
+    }
+
+    private ConfigurableApplicationContext start(Class<?>... sources) throws Exception {
         Path config = Files.writeString(directory.resolve("tollgate.yaml"), """
                 providers:
                   local: { format: openai, baseUrl: "%s/v1", region: local }
@@ -59,33 +81,28 @@ class EmbeddedGatewayTest {
                   signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
                   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
                 """.formatted(
-                        provider.baseUrl(), key.id(), key.sha256(), audit, keys.publicKey()));
+                        provider.baseUrl(), key.id(), key.sha256(), directory.resolve("audit"), keys.publicKey()));
         provider.respond(200, ANSWER);
-
-        try (ConfigurableApplicationContext application = new SpringApplicationBuilder(TestApplication.class)
+        return new SpringApplicationBuilder(sources)
                 .run(
                         "--spring.config.location=optional:classpath:/no-application-config/",
                         "--server.port=0",
                         "--management.metrics.use-global-registry=false",
                         "--tollgate.config=" + config,
                         "--TOLLGATE_AUDIT_SIGNING_KEY=" + keys.signingKey(),
-                        "--TOLLGATE_AUDIT_HMAC_KEY=" + keys.hmacKey())) {
-            int port = application.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
-            HttpResponse<String> answer;
-            try (HttpClient client = HttpClient.newHttpClient()) {
-                answer = client.send(
-                        HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + Endpoints.OPENAI_CHAT))
-                                .header("Authorization", "Bearer " + key.value())
-                                .header("Content-Type", "application/json")
-                                .POST(HttpRequest.BodyPublishers.ofString("{\"model\":\"qwen3\",\"messages\":[]}"))
-                                .build(),
-                        HttpResponse.BodyHandlers.ofString());
-            }
+                        "--TOLLGATE_AUDIT_HMAC_KEY=" + keys.hmacKey());
+    }
 
-            assertThat(answer.statusCode()).isEqualTo(200);
-            assertThat(answer.body()).contains("\"model\":\"qwen3\"");
-            String trace = answer.headers().firstValue(TraceIdFilter.HEADER).orElseThrow();
-            assertThat(recordsOf(audit, trace)).hasSize(2);
+    private HttpResponse<String> chat(ConfigurableApplicationContext application) throws Exception {
+        int port = application.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            return client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + Endpoints.OPENAI_CHAT))
+                            .header("Authorization", "Bearer " + key.value())
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"model\":\"qwen3\",\"messages\":[]}"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
         }
     }
 
@@ -100,5 +117,20 @@ class EmbeddedGatewayTest {
             }
         }
         return records;
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class HostWithAnHttpClient {
+
+        final HttpClient client;
+
+        HostWithAnHttpClient(HttpClient client) {
+            this.client = client;
+        }
+
+        @Bean
+        static HttpClient hostHttpClient() {
+            return HOST_CLIENT;
+        }
     }
 }

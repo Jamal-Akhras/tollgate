@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.contributor.Health;
@@ -44,7 +45,7 @@ class GatewayConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(GatewayConfiguration.class);
 
-    @Bean(destroyMethod = "close")
+    @Bean(destroyMethod = "close", defaultCandidate = false)
     HttpClient providerHttpClient() {
         return ProviderClient.newHttpClient();
     }
@@ -52,7 +53,7 @@ class GatewayConfiguration {
     @Bean(destroyMethod = "close")
     Gateway gateway(
             GatewayProperties properties,
-            HttpClient providerHttpClient,
+            @Qualifier("providerHttpClient") HttpClient providerHttpClient,
             Environment environment,
             ObjectProvider<Tracer> tracer) {
         try {
