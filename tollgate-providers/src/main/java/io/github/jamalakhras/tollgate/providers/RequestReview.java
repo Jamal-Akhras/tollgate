@@ -55,13 +55,34 @@ final class RequestReview {
             "tool_choice",
             "thinking",
             "metadata",
-            "stream");
+            "stream",
+            "context_management",
+            "output_config",
+            "safeguards");
     private static final Set<String> OPENAI_TOOLS = Set.of("function", "custom");
     private static final List<String> ANTHROPIC_CLIENT_TOOLS =
             List.of("custom", "bash_", "text_editor_", "computer_", "memory_");
     private static final String WEB_SEARCH_TOOL = "web_search_";
     private static final List<String> REFUSED_BETAS =
             List.of("mcp-client-", "code-execution-", "web-fetch-", "files-api-", "context-1m-");
+    private static final List<String> REVIEWED_BETAS = List.of(
+            "advanced-tool-use-",
+            "advisor-tool-",
+            "afk-mode-",
+            "claude-code-",
+            "context-management-",
+            "dangerous-tool-use-",
+            "effort-",
+            "extended-cache-ttl-",
+            "fallback-credit-",
+            "inline-tools-",
+            "interleaved-thinking-",
+            "mid-conversation-tool-changes-",
+            "per-turn-control-",
+            "redact-thinking-",
+            "structured-outputs-",
+            "thinking-display-updates-",
+            "thinking-token-count-");
 
     private long inlineImages;
     private final List<String> refused = new ArrayList<>();
@@ -147,18 +168,20 @@ final class RequestReview {
         for (JsonNode message : body.path("messages")) {
             blocks(message.path("content"));
         }
-        for (JsonNode tool : body.path("tools")) {
-            String type = tool.path("type").asString("custom");
-            if (isWebSearch(tool)) {
-                used.add(Feature.WEB_SEARCH);
-            } else if (ANTHROPIC_CLIENT_TOOLS.stream().noneMatch(type::startsWith)) {
-                refuseTool(type);
-            }
-        }
+        body.path("tools").forEach(this::anthropicTool);
         if (betas != null) {
             for (String beta : betas.split(",", -1)) {
                 beta(beta.strip());
             }
+        }
+    }
+
+    private void anthropicTool(JsonNode tool) {
+        String type = tool.path("type").asString("custom");
+        if (isWebSearch(tool)) {
+            used.add(Feature.WEB_SEARCH);
+        } else if (ANTHROPIC_CLIENT_TOOLS.stream().noneMatch(type::startsWith)) {
+            refuseTool(type);
         }
     }
 
@@ -175,8 +198,14 @@ final class RequestReview {
     private void anthropicBlock(JsonNode block) {
         String type = block.path("type").asString("");
         switch (type) {
-            case "text", "thinking", "redacted_thinking", "tool_use" -> {}
+            case "text", "thinking", "redacted_thinking", "tool_use", "tool_reference", "tool_removal" -> {}
             case "tool_result" -> blocks(block.path("content"));
+            case "tool_addition" -> {
+                JsonNode definition = block.path("tool").path("definition");
+                if (!definition.isMissingNode()) {
+                    anthropicTool(definition);
+                }
+            }
             case "image" -> {
                 if (block.path("source").path("type").asString("").equals("base64")) {
                     inlineImages++;
@@ -206,7 +235,7 @@ final class RequestReview {
         if (REFUSED_BETAS.stream().anyMatch(beta::startsWith)) {
             refused.add("The anthropic-beta '" + beta + "' is not allowed: it switches on a provider ability"
                     + " Tollgate refuses");
-        } else {
+        } else if (REVIEWED_BETAS.stream().noneMatch(beta::startsWith)) {
             unreviewed.add("The anthropic-beta '" + beta + "' is not one Tollgate has reviewed");
         }
     }

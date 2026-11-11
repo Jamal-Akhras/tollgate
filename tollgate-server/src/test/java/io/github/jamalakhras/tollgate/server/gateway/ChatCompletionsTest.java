@@ -217,13 +217,13 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void refusesBodiesOverTheSizeLimitWithoutCallingTheProvider() throws Exception {
-        String content = "x".repeat(1_024);
+        String content = "x".repeat(16_384);
 
         HttpResponse<String> response =
                 chatWithKey("{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(413);
-        assertThat(response.body()).contains("The request body is larger than the limit of 1024 bytes");
+        assertThat(response.body()).contains("The request body is larger than the limit of 16384 bytes");
         assertThat(PROVIDER.received()).isEmpty();
     }
 }

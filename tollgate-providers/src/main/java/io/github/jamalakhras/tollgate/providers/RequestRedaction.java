@@ -56,6 +56,7 @@ final class RequestRedaction {
     private void anthropic(ObjectNode body) {
         text(body, "system");
         blocks(body.path("system"));
+        values(body.path("safeguards"));
         for (JsonNode message : body.path("messages")) {
             if (message instanceof ObjectNode fields) {
                 text(fields, "content");

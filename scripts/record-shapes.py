@@ -1,12 +1,16 @@
 """Relay a client's API calls and record their shape, never their content.
 
 Usage: record-shapes.py <upstream base URL> <output.json> [port]
+       record-shapes.py fixture <recording.json> <fixture.json>
 
 Point a client at http://127.0.0.1:<port> (default 8099) instead of the
 provider. Every request and answer passes through untouched. The output holds
 each endpoint's header names, beta headers, query parameter names, and the
 shape of each body: field names and value types. Only the values of "type",
 "role" and "model" are kept, and schemas and tool arguments are not opened.
+
+The fixture command keeps only the requests, as Tollgate's tests replay them,
+without the subscription login's beta.
 """
 
 import http.client
@@ -18,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl, urlsplit
 
 KEPT_VALUES = {"type", "role", "model"}
-OPAQUE = {"input_schema", "parameters", "schema", "arguments"}
+OPAQUE = {"input_schema", "parameters", "schema", "arguments", "classifier_context"}
 LISTED_HEADERS = {"anthropic-beta", "anthropic-version", "openai-beta", "content-type", "accept"}
 NOT_FORWARDED = {"host", "accept-encoding", "connection", "content-length", "transfer-encoding", "keep-alive"}
 NOT_RETURNED = {"connection", "transfer-encoding", "keep-alive"}
@@ -208,6 +212,31 @@ def handler(upstream, output):
     return Relay
 
 
+def closed(shape):
+    found = {}
+    for kind, detail in shape.items():
+        if kind.startswith("object"):
+            detail = {name: {"opaque": True} if name in OPAQUE else closed(field) for name, field in detail.items()}
+        elif kind == "array":
+            detail = closed(detail)
+        found[kind] = detail
+    return found
+
+
+def fixture(recording, output):
+    with open(recording, encoding="utf-8") as file:
+        calls = json.load(file)
+    requests = {}
+    for key, call in calls.items():
+        headers = dict(call["request"]["headers"])
+        if isinstance(headers.get("anthropic-beta"), list):
+            headers["anthropic-beta"] = [beta for beta in headers["anthropic-beta"] if not beta.startswith("oauth-")]
+        requests[key] = {"headers": headers, "query": call["request"]["query"], "body": closed(call["request"]["body"])}
+    with open(output, "w", encoding="utf-8", newline="\n") as file:
+        json.dump(requests, file, indent=2, sort_keys=True)
+        file.write("\n")
+
+
 def main(upstream, output, port="8099"):
     with open(output, "w", encoding="utf-8") as file:
         file.write("{}\n")
@@ -217,6 +246,9 @@ def main(upstream, output, port="8099"):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4):
+    if len(sys.argv) == 4 and sys.argv[1] == "fixture":
+        fixture(*sys.argv[2:])
+    elif len(sys.argv) in (3, 4):
+        main(*sys.argv[1:])
+    else:
         sys.exit(__doc__)
-    main(*sys.argv[1:])

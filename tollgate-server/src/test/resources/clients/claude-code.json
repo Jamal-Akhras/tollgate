@@ -1,0 +1,392 @@
+{
+  "POST /v1/messages": {
+    "body": {
+      "object": {
+        "context_management": {
+          "object": {
+            "edits": {
+              "array": {
+                "object:clear_thinking_20251015": {
+                  "keep": {
+                    "string": true
+                  },
+                  "type": {
+                    "string": [
+                      "clear_thinking_20251015"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "max_tokens": {
+          "number": true
+        },
+        "messages": {
+          "array": {
+            "object": {
+              "content": {
+                "array": {
+                  "object:text": {
+                    "cache_control": {
+                      "object:ephemeral": {
+                        "ttl": {
+                          "string": true
+                        },
+                        "type": {
+                          "string": [
+                            "ephemeral"
+                          ]
+                        }
+                      }
+                    },
+                    "text": {
+                      "string": true
+                    },
+                    "type": {
+                      "string": [
+                        "text"
+                      ]
+                    }
+                  },
+                  "object:thinking": {
+                    "signature": {
+                      "string": true
+                    },
+                    "thinking": {
+                      "string": true
+                    },
+                    "type": {
+                      "string": [
+                        "thinking"
+                      ]
+                    }
+                  },
+                  "object:tool_addition": {
+                    "cache_control": {
+                      "object:ephemeral": {
+                        "ttl": {
+                          "string": true
+                        },
+                        "type": {
+                          "string": [
+                            "ephemeral"
+                          ]
+                        }
+                      }
+                    },
+                    "tool": {
+                      "object:tool_definition": {
+                        "definition": {
+                          "object": {
+                            "description": {
+                              "string": true
+                            },
+                            "input_schema": {
+                              "opaque": true
+                            },
+                            "name": {
+                              "string": true
+                            }
+                          }
+                        },
+                        "type": {
+                          "string": [
+                            "tool_definition"
+                          ]
+                        }
+                      }
+                    },
+                    "type": {
+                      "string": [
+                        "tool_addition"
+                      ]
+                    }
+                  },
+                  "object:tool_result": {
+                    "cache_control": {
+                      "object:ephemeral": {
+                        "ttl": {
+                          "string": true
+                        },
+                        "type": {
+                          "string": [
+                            "ephemeral"
+                          ]
+                        }
+                      }
+                    },
+                    "content": {
+                      "array": {
+                        "object:text": {
+                          "text": {
+                            "string": true
+                          },
+                          "type": {
+                            "string": [
+                              "text"
+                            ]
+                          }
+                        },
+                        "object:tool_reference": {
+                          "tool_name": {
+                            "string": true
+                          },
+                          "type": {
+                            "string": [
+                              "tool_reference"
+                            ]
+                          }
+                        }
+                      },
+                      "string": true
+                    },
+                    "is_error": {
+                      "boolean": true
+                    },
+                    "tool_use_id": {
+                      "string": true
+                    },
+                    "type": {
+                      "string": [
+                        "tool_result"
+                      ]
+                    }
+                  },
+                  "object:tool_use": {
+                    "cache_control": {
+                      "object:ephemeral": {
+                        "ttl": {
+                          "string": true
+                        },
+                        "type": {
+                          "string": [
+                            "ephemeral"
+                          ]
+                        }
+                      }
+                    },
+                    "caller": {
+                      "object:direct": {
+                        "type": {
+                          "string": [
+                            "direct"
+                          ]
+                        }
+                      }
+                    },
+                    "id": {
+                      "string": true
+                    },
+                    "input": {
+                      "opaque": true
+                    },
+                    "name": {
+                      "string": true
+                    },
+                    "type": {
+                      "string": [
+                        "tool_use"
+                      ]
+                    }
+                  }
+                },
+                "string": true
+              },
+              "output_config": {
+                "object": {
+                  "effort": {
+                    "string": true
+                  }
+                }
+              },
+              "role": {
+                "string": [
+                  "assistant",
+                  "system",
+                  "user"
+                ]
+              }
+            }
+          }
+        },
+        "metadata": {
+          "object": {
+            "user_id": {
+              "string": true
+            }
+          }
+        },
+        "model": {
+          "string": [
+            "claude-opus-5-5"
+          ]
+        },
+        "output_config": {
+          "object": {
+            "effort": {
+              "string": true
+            },
+            "format": {
+              "object:json_schema": {
+                "schema": {
+                  "opaque": true
+                },
+                "type": {
+                  "string": [
+                    "json_schema"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "safeguards": {
+          "array": {
+            "object:dangerous_tool_use": {
+              "classifier_context": {
+                "opaque": true
+              },
+              "type": {
+                "string": [
+                  "dangerous_tool_use"
+                ]
+              }
+            }
+          }
+        },
+        "stream": {
+          "boolean": true
+        },
+        "system": {
+          "array": {
+            "object:text": {
+              "cache_control": {
+                "object:ephemeral": {
+                  "ttl": {
+                    "string": true
+                  },
+                  "type": {
+                    "string": [
+                      "ephemeral"
+                    ]
+                  }
+                }
+              },
+              "text": {
+                "string": true
+              },
+              "type": {
+                "string": [
+                  "text"
+                ]
+              }
+            }
+          }
+        },
+        "thinking": {
+          "object:adaptive": {
+            "display": {
+              "string": true
+            },
+            "type": {
+              "string": [
+                "adaptive"
+              ]
+            }
+          }
+        },
+        "tool_choice": {
+          "object:auto": {
+            "type": {
+              "string": [
+                "auto"
+              ]
+            }
+          }
+        },
+        "tools": {
+          "array": {
+            "object": {
+              "defer_loading": {
+                "boolean": true
+              },
+              "description": {
+                "string": true
+              },
+              "input_schema": {
+                "opaque": true
+              },
+              "name": {
+                "string": true
+              }
+            },
+            "object:web_search_20250305": {
+              "max_uses": {
+                "number": true
+              },
+              "name": {
+                "string": true
+              },
+              "type": {
+                "string": [
+                  "web_search_20250305"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "headers": {
+      "accept": [
+        "application/json"
+      ],
+      "anthropic-beta": [
+        "advanced-tool-use-2025-11-20",
+        "advisor-tool-2026-03-01",
+        "afk-mode-2026-01-31",
+        "claude-code-20250219",
+        "context-management-2025-06-27",
+        "dangerous-tool-use-2026-09-03",
+        "effort-2025-11-24",
+        "extended-cache-ttl-2025-04-11",
+        "fallback-credit-2026-06-01",
+        "inline-tools-2026-09-15",
+        "interleaved-thinking-2025-05-14",
+        "mid-conversation-tool-changes-2026-07-01",
+        "per-turn-control-2026-07-01",
+        "redact-thinking-2026-02-12",
+        "structured-outputs-2025-12-15",
+        "thinking-display-updates-2026-08-18",
+        "thinking-token-count-2026-05-13"
+      ],
+      "anthropic-dangerous-direct-browser-access": true,
+      "anthropic-version": [
+        "2023-06-01"
+      ],
+      "authorization": true,
+      "content-type": [
+        "application/json"
+      ],
+      "user-agent": [
+        "claude-cli/2.1.322"
+      ],
+      "x-app": true,
+      "x-claude-code-agent-id": true,
+      "x-claude-code-session-id": true,
+      "x-stainless-arch": true,
+      "x-stainless-lang": true,
+      "x-stainless-os": true,
+      "x-stainless-package-version": true,
+      "x-stainless-retry-count": true,
+      "x-stainless-runtime": true,
+      "x-stainless-runtime-version": true,
+      "x-stainless-timeout": true
+    },
+    "query": {
+      "beta": true
+    }
+  }
+}

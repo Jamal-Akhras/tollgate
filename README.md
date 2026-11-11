@@ -23,6 +23,10 @@ what was sent, who sent it, what it cost, and why it was allowed.
   URL. Requests are forwarded in their own format, so structured output, tool
   use and prompt caching keep working
   ([ADR 0005](docs/adr/0005-forward-requests-in-their-own-format.md)).
+- **Coding agents too.** Claude Code works through Tollgate with every
+  request reviewed: point `ANTHROPIC_BASE_URL` at Tollgate and give it a
+  tenant key ([setup](docs/clients/claude-code.md),
+  [ADR 0020](docs/adr/0020-agent-clients-and-skills.md)).
 - **Tenants and keys.** Each application gets a tenant with its own API keys,
   which are stored only as SHA-256 hashes, and its own list of models.
 - **Data classes and regions.** Each tenant has a default data class, such as
@@ -65,6 +69,8 @@ what was sent, who sent it, what it cost, and why it was allowed.
     price from it, including long-context tiers and reasoning rates.
   - **Other providers:** a provider can name a catalog with `catalog:`.
   - **Local models:** set `price: free`.
+  - **Cache writes kept for an hour** are charged at `cacheWrite1h`, which is
+    twice the input price on Anthropic unless you set it.
   - **Your own rates:** a `price` you write always wins. `tollgate prices pin
     tollgate.yaml` prints the catalog prices your config uses, ready to paste
     in, and `tollgate prices show openai gpt-6.1-sol` prints one.
@@ -377,6 +383,7 @@ mutation tested. The checks the build enforces are listed under the
 
 - [Design](docs/DESIGN.md): architecture, request lifecycle, configuration and roadmap
 - [Architecture decision records](docs/adr/)
+- [Claude Code through Tollgate](docs/clients/claude-code.md)
 - [Admin API contract](docs/api/admin-openapi.json)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
 

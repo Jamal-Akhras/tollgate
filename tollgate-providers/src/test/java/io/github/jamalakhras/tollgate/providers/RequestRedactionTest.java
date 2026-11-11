@@ -192,6 +192,20 @@ class RequestRedactionTest {
     }
 
     @Test
+    void redactsTheContextClaudeCodeSendsToItsSafeguards() {
+        String json = "{\"model\":\"claude\",\"messages\":[],\"safeguards\":[{\"type\":\"dangerous_tool_use\","
+                + "\"classifier_context\":{\"user_identity\":\"jane@example.com\",\"rules\":{\"deny\":[]}}}]}";
+
+        assertThat(tree(sent(json, WireFormat.ANTHROPIC, redactor()))
+                        .path("safeguards")
+                        .path(0)
+                        .path("classifier_context")
+                        .path("user_identity")
+                        .stringValue())
+                .isEqualTo("[EMAIL_1]");
+    }
+
+    @Test
     void sendsTheSameBytesEachTurnSoPromptCachingStillWorks() {
         String history = "{\"role\":\"user\",\"content\":\"I am jane@example.com, card 4111111111111111\"},"
                 + "{\"role\":\"assistant\",\"content\":\"Thanks jane@example.com\"}";

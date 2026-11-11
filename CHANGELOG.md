@@ -104,6 +104,17 @@ versions may change the extension interfaces.
   refusals by code, tokens and cost by tenant, model, key or day.
   `GET /admin/v1/budgets` shows each budget's spent, reserved and available
   amounts.
+- Claude Code works through Tollgate with the request review on
+  ([ADR 0020](docs/adr/0020-agent-clients-and-skills.md)). Its fields,
+  betas and blocks were recorded and reviewed, and a tool it adds
+  mid-conversation is checked like any other. The context it sends to
+  Anthropic's tool-use safeguards is redacted. A recorded session is replayed
+  in the build, and `docs/clients/claude-code.md` shows how to set it up.
+- `scripts/record-shapes.py`, which relays a client's calls and records their
+  shape without their content, for reviewing new clients.
+- Prices gain `cacheWrite1h` for cache writes kept for an hour. It defaults to
+  twice the input price on `anthropic` providers, which is what Anthropic
+  charges, and to `cacheWrite` elsewhere.
 - A circuit breaker for each provider. After five failures in a row, calls
   skip the provider for 30 seconds and go to a fallback, or get `503`
   `provider_unavailable` with `Retry-After` at once. Then one call tries the

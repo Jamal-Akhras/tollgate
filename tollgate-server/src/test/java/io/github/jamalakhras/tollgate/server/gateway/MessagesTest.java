@@ -65,7 +65,7 @@ class MessagesTest extends GatewayTestSupport {
 
     @Test
     void reportsOversizedRequestsInTheAnthropicFormat() throws Exception {
-        String content = "x".repeat(1_024);
+        String content = "x".repeat(16_384);
 
         HttpResponse<String> response = messages(
                 "{\"model\":\"claude-sonnet\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}",

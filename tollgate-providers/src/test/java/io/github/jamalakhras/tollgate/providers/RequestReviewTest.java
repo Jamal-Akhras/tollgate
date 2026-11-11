@@ -65,6 +65,42 @@ class RequestReviewTest {
     }
 
     @Test
+    void acceptsWhatClaudeCodeSends() {
+        RequestFeatures features = anthropic(
+                """
+                "system":[{"type":"text","text":"Be brief","cache_control":{"type":"ephemeral","ttl":"1h"}}],
+                "messages":[{"role":"user","content":"Hi"},{"role":"system","content":[
+                  {"type":"tool_addition","tool":{"type":"tool_definition","definition":{"name":"Late",
+                    "input_schema":{}}}},{"type":"tool_removal","name":"Early"}]}],
+                "tools":[{"name":"Read","input_schema":{},"defer_loading":true}],
+                "thinking":{"type":"adaptive","display":"summarized"},
+                "context_management":{"edits":[{"type":"clear_thinking_20251015","keep":"all"}]},
+                "output_config":{"effort":"high","format":{"type":"json_schema","schema":{}}},
+                "safeguards":[{"type":"dangerous_tool_use","classifier_context":{"v":1}}]""",
+                "advanced-tool-use-2025-11-20,advisor-tool-2026-03-01,afk-mode-2026-01-31,claude-code-20250219,"
+                        + "context-management-2025-06-27,dangerous-tool-use-2026-09-03,effort-2025-11-24,"
+                        + "extended-cache-ttl-2025-04-11,fallback-credit-2026-06-01,inline-tools-2026-09-15,"
+                        + "interleaved-thinking-2025-05-14,mid-conversation-tool-changes-2026-07-01,"
+                        + "per-turn-control-2026-07-01,redact-thinking-2026-02-12,structured-outputs-2025-12-15,"
+                        + "thinking-display-updates-2026-08-18,thinking-token-count-2026-05-13");
+
+        assertThat(features).isEqualTo(RequestFeatures.NONE);
+    }
+
+    @Test
+    void checksToolsAddedMidConversation() {
+        String addition = "{\"type\":\"tool_addition\",\"tool\":{\"type\":\"tool_definition\","
+                + "\"definition\":{\"type\":\"code_execution_20250825\",\"name\":\"run\"}}}";
+
+        assertThat(anthropicContent(addition).refused())
+                .containsExactly("The tool type 'code_execution_20250825' is not allowed: it runs on the provider,"
+                        + " outside Tollgate's view");
+        assertThat(anthropicContent(addition.replace("code_execution_20250825", "web_search_20250305"))
+                        .used())
+                .containsExactly(Feature.WEB_SEARCH);
+    }
+
+    @Test
     void acceptsTheProvidersExtraFields() {
         RequestFeatures features = ChatRequest.parse(
                         "{\"model\":\"m\",\"top_k\":5,\"min_p\":0.1}".getBytes(StandardCharsets.UTF_8))
@@ -77,8 +113,8 @@ class RequestReviewTest {
     void marksUnknownFieldsAsUnreviewed() {
         assertThat(openAi("\"prediction\":{}").unreviewed())
                 .containsExactly("The field 'prediction' is not one Tollgate has reviewed");
-        assertThat(anthropic("\"context_management\":{}", null).unreviewed())
-                .containsExactly("The field 'context_management' is not one Tollgate has reviewed");
+        assertThat(anthropic("\"inference_geo\":\"us\"", null).unreviewed())
+                .containsExactly("The field 'inference_geo' is not one Tollgate has reviewed");
     }
 
     @ParameterizedTest
@@ -209,16 +245,19 @@ class RequestReviewTest {
                 .containsExactly("The content type 'web_search_tool_result' is not allowed");
         assertThat(anthropicContent("{\"type\":\"tool_result\",\"content\":\"text\"}"))
                 .isEqualTo(RequestFeatures.NONE);
+        assertThat(
+                        anthropicContent(
+                                "{\"type\":\"tool_result\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"Read\"}]}"))
+                .isEqualTo(RequestFeatures.NONE);
     }
 
     @Test
     void reviewsEachAnthropicBeta() {
-        RequestFeatures features =
-                anthropic("\"messages\":[]", "interleaved-thinking-2025-05-14, ,mcp-client-2025-11-20,");
+        RequestFeatures features = anthropic(
+                "\"messages\":[]", "interleaved-thinking-2025-05-14, ,oauth-2025-04-20,mcp-client-2025-11-20,");
 
         assertThat(features.unreviewed())
-                .containsExactly(
-                        "The anthropic-beta 'interleaved-thinking-2025-05-14' is not one Tollgate has reviewed");
+                .containsExactly("The anthropic-beta 'oauth-2025-04-20' is not one Tollgate has reviewed");
         assertThat(features.refused())
                 .containsExactly("The anthropic-beta 'mcp-client-2025-11-20' is not allowed: it switches on a provider"
                         + " ability Tollgate refuses");

@@ -29,7 +29,7 @@ import org.springframework.test.context.DynamicPropertySource;
         webEnvironment = WebEnvironment.RANDOM_PORT,
         properties = {
             "management.server.port=0",
-            "tollgate.max-request-size=1KB",
+            "tollgate.max-request-size=16KB",
             "tollgate.max-response-size=16KB",
             "tollgate.max-stream-duration=3s"
         })
@@ -46,6 +46,7 @@ abstract class GatewayTestSupport {
     static final ApiKey RATIONED_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey THRIFTY_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey SINGLE_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey AGENT_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final int ADMIN_PORT = TestPorts.free();
@@ -173,6 +174,10 @@ abstract class GatewayTestSupport {
                     models: [qwen3]
                     dataClass: internal
                     limits: { concurrent: 1 }
+                  agent:
+                    models: [claude-sonnet]
+                    dataClass: internal
+                    policy: agents
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
@@ -184,6 +189,7 @@ abstract class GatewayTestSupport {
                   - { id: %20$s, tenant: rationed, sha256: %21$s }
                   - { id: %22$s, tenant: thrifty, sha256: %23$s }
                   - { id: %24$s, tenant: single, sha256: %25$s }
+                  - { id: %26$s, tenant: agent, sha256: %27$s }
                 detectors:
                   customer-id: { pattern: "CUST-[0-9]{6}" }
                   account-number: { pattern: "account (?<value>[0-9]{8})" }
@@ -215,6 +221,12 @@ abstract class GatewayTestSupport {
                     refuse:
                       secret: [public, internal, confidential]
                       codenames: [internal, confidential]
+                  agents:
+                    guards:
+                      - type: data-class
+                        regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                    features:
+                      web-search: [internal]
                   slow:
                     guards:
                       - type: data-class
@@ -252,7 +264,9 @@ abstract class GatewayTestSupport {
                         THRIFTY_KEY.id(),
                         THRIFTY_KEY.sha256(),
                         SINGLE_KEY.id(),
-                        SINGLE_KEY.sha256());
+                        SINGLE_KEY.sha256(),
+                        AGENT_KEY.id(),
+                        AGENT_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();
