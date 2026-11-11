@@ -1,6 +1,7 @@
 # Tollgate design
 
-Status: draft for 0.1. Decisions with lasting consequences are recorded in
+Status: describes 0.1.0. What is decided but not built yet sits under
+"Planned" in each section. Decisions with lasting consequences are recorded in
 [`docs/adr`](adr/).
 
 ## 1. Purpose
@@ -17,12 +18,10 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 
 - **Any language can use it.** The server speaks the OpenAI and Anthropic wire
   formats, so existing SDKs work by changing their base URL.
-- **Java applications can embed it.** The same core runs in-process through a
-  Spring Boot starter, with no network hop.
-- **Safe defaults, explicit trade-offs.** Security guards fail closed. Every
-  guard declares its failure mode, and nothing falls back silently.
-- **Policy without code, code when needed.** Rules in configuration, custom Java
-  guards, or a webhook in any language.
+- **Safe defaults, explicit trade-offs.** Security guards fail closed, and
+  nothing falls back silently.
+- **Policy without code.** Guards, data classes, redaction and budgets are
+  configuration.
 - **Provable records.** Exact money, a tamper-evident audit trail, and a
   decision trace for every request.
 
@@ -33,23 +32,24 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 - The lowest possible proxy latency at any cost. Tollgate targets low,
   measured overhead; governance comes first.
 
+### Planned
+
+- **Java applications can embed it,** through a Spring Boot starter
+  ([ADR 0021](adr/0021-spring-boot-starter.md)).
+- **Code when configuration isn't enough:** custom Java guards, and webhook
+  guards in any language.
+
 ## 2. Modules
 
 | Module | Purpose |
 |---|---|
-| `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, extension interfaces, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
+| `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
 | `tollgate-providers` | Provider wire formats on the JDK HTTP client: OpenAI (also used by any OpenAI-compatible server, such as Ollama, vLLM, LM Studio or Gemini's compatible endpoint) and Anthropic. |
 | `tollgate-server` | Standalone server: Spring Boot, Spring MVC on virtual threads, JDK 25. |
-| `tollgate-spring-boot-starter` | Runs the core inside another Spring Boot application. |
-| `tollgate-studio` | Admin UI, server-rendered with JTE and htmx ([ADR 0004](adr/0004-studio-and-admin-api.md)). |
-| `tollgate-testkit` | A fake provider and conformance suites for custom guards and adapters. |
-
-Modules are added when they gain code. Today the build has `tollgate-core`,
-`tollgate-providers` and `tollgate-server`.
 
 Commands ship inside the server jar, so the one download does both:
-`java -jar tollgate.jar keys create --tenant support-bot`,
-`audit keys create` and `audit verify`, and later `validate` and `simulate`.
+`init`, `keys create --tenant <name>`, `audit keys create`, `audit verify`,
+`prices show`, `prices pin` and `usage`.
 
 ### Ports
 
@@ -59,13 +59,23 @@ audience:
 | Port (default) | Serves | Audience |
 |---|---|---|
 | 8080 | Gateway API | Applications |
-| 8081 | Admin API, OpenAPI document, Studio | Operators, on a private network. Bound to `127.0.0.1` unless `tollgate.admin.address` says otherwise |
+| 8081 | Admin API and its OpenAPI document | Operators, on a private network. Bound to `127.0.0.1` unless `tollgate.admin.address` says otherwise |
 | 9090 | Health probes and metrics | Orchestrators and scrapers |
 
 Admin routes answer only on the admin port and gateway routes only off it;
 anything else is a 404. The check runs on the decoded, normalized path the
 handlers are matched against, so encoded or dot-segment variants cannot reach
 an admin handler from the gateway port.
+
+### Planned
+
+| Module | Purpose |
+|---|---|
+| `tollgate-spring-boot-starter` | Runs the gateway inside another Spring Boot application ([ADR 0021](adr/0021-spring-boot-starter.md)) |
+| `tollgate-studio` | Admin UI on the admin port, server-rendered with JTE and htmx ([ADR 0004](adr/0004-studio-and-admin-api.md)) |
+| `tollgate-testkit` | Conformance suites for custom guards and provider adapters |
+
+Modules are added when they gain code.
 
 ## 3. Request lifecycle
 
@@ -84,7 +94,6 @@ an admin handler from the gateway port.
    - data class and region rules
    - personal data: refuse or redact patterned values
      ([ADR 0012](adr/0012-redact-personal-data.md))
-   - custom guards
 
    The tenant's model list was already checked in step 2.
 5. **Reserve budget.** Reserve the most the call can cost. The
@@ -96,28 +105,33 @@ an admin handler from the gateway port.
 7. **Call the provider,** with a timeout, a per-provider concurrency limit and
    a circuit breaker. Fall back to another provider only before the first byte
    reaches the client ([ADR 0016](adr/0016-provider-fallback.md)).
-8. **Post-call guards:** output PII and structural validation.
-9. **Restore** redacted values in the response, including streams. The
+8. **Restore** redacted values in the response, including streams. The
    mapping lives in memory for that request only.
-10. **Settle and audit outcome.** Settle the cost from the provider's reported
-    token usage, release the unused reservation, and record the outcome.
+9. **Settle and audit outcome.** Settle the cost from the provider's reported
+   token usage, release the unused reservation, and record the outcome.
 
 Every request produces a **decision trace**: each guard, its verdict, its
-duration and the config version. The trace feeds the audit trail, the metrics
-and the Studio simulator.
+duration and the config version. The trace feeds the audit trail and the
+metrics, and its ID comes back in the `X-Tollgate-Trace-Id` header.
+
+### Planned
+
+- **Custom guards** after the built-in ones in step 4.
+- **Post-call guards** between steps 7 and 8: personal data in the answer, and
+  structural validation.
 
 ## 4. Configuration
 
-YAML is the source of truth; Studio edits the same model. Tollgate reads its
-own `tollgate.yaml` rather than Spring properties, so the server, the starter
-and the CLI load the same model the same way.
+YAML is the source of truth. Tollgate reads its own `tollgate.yaml` rather
+than Spring properties, so the server and the CLI load the same model the same
+way.
 
 ```yaml
 currency: USD
 dataClasses: [public, internal, confidential, restricted]   # least to most strict
 
 providers:
-  anthropic: { format: anthropic, baseUrl: https://api.anthropic.com, apiKey: ${env:ANTHROPIC_API_KEY}, region: us }
+  anthropic: { format: anthropic, baseUrl: https://api.anthropic.com, apiKey: "${env:ANTHROPIC_API_KEY}", region: us }
   ollama:    { format: openai, baseUrl: http://gpu-box:11434/v1, region: local, concurrent: 2 }
 
 models:
@@ -141,7 +155,7 @@ tenants:
     limits: { requestsPerMinute: 60, tokensPerMinute: 200000, concurrent: 8 }
 
 keys:
-  - { id: k7Qm2xPa, tenant: support-bot, sha256: 3f1c…9ab2 }
+  - { id: k7Qm2xPa9bCd, tenant: support-bot, sha256: 3f1c…9ab2 }
 
 policies:
   default:
@@ -150,10 +164,6 @@ policies:
         maxBytes: 1048576
       - type: data-class
         regions: { public: [us, eu, local], internal: [us, eu, local], confidential: [local], restricted: [local] }
-      - type: rule
-        when: "request.dataClass == 'confidential' && provider.region != 'local'"
-        action: deny
-        reason: "Confidential data stays on local models"
     redact:                        # replaced before the call, restored in the answer
       email: [internal, confidential]
       iban: [internal, confidential, restricted]
@@ -177,41 +187,53 @@ audit:                             # required; 'mode: off' must be written out
 - **Tenants** may call only the models they list; any other model is reported as
   not found. Once `dataClasses` are defined, every tenant needs a default
   class, and a request header may move it to a stricter class only.
-- **The data-class guard** fails closed: a class with no listed regions, or a
-  provider with no region, is refused.
+- **Guards** are `request-size` and `data-class`. The data-class guard fails
+  closed: a class with no listed regions, or a provider with no region, is
+  refused.
 - **Models** are the names applications ask for. Each maps to one provider,
   the provider's own model name, a price and an output-token cap. Every model
   has a known price before its first request. The price comes from the config,
   or from the reviewed catalog that ships with each release
   ([ADR 0009](adr/0009-price-catalog.md)). Nothing is fetched at runtime.
-  A price can also give reasoning tokens their own rate, and list long-context
-  tiers that apply once a prompt reaches a size.
-- **Rules** use CEL, the Common Expression Language: fast, side-effect free,
-  guaranteed to terminate, and type-checked when the config loads.
+  A price can also give reasoning tokens and hour-long cache writes their own
+  rates, and list long-context tiers that apply once a prompt reaches a size.
 - **Secrets** are references, never values, and are never logged:
-  `${env:NAME}` first, then Vault and AWS Secrets Manager.
+  `${env:NAME}`.
 - **Tenant keys** never appear in configuration; only their hashes do.
   `tollgate keys create` prints a new key once, with the line to add.
 - **Reloads** validate the new config and swap it in atomically, through
   `POST /admin/v1/config/reload`. An invalid config never replaces a running
-  one, and each decision records the config version that made it. In a
-  cluster, every instance converges on the latest version.
-- **Shadow mode** (`mode: monitor`) records what a guard would have done
-  without doing it, so a new policy can be measured before it is enforced.
+  one, and each decision records the config version that made it.
+
+### Planned
+
+- **Rule guards** in CEL, the Common Expression Language: fast, side-effect
+  free, guaranteed to terminate, and type-checked when the config loads.
+- **Secrets** from Vault and AWS Secrets Manager.
+- **Shadow mode** (`mode: monitor`), which records what a guard would have done
+  without doing it ([ADR 0022](adr/0022-shadow-mode.md)).
+- **In a cluster,** every instance converging on the latest config.
 
 ## 5. Extending Tollgate
+
+`tollgate-core` defines `BudgetStore` and `AuditSink`. The server uses the
+in-memory budget store and the JSON-lines audit sink; there is no way yet to
+plug in your own without changing the server.
+
+### Planned
 
 | Need | Mechanism |
 |---|---|
 | Simple conditions | `rule` guards in CEL |
 | Custom logic in Java | Implement `Guard`; discovered through `ServiceLoader` or as Spring beans |
 | Custom logic in any language | `webhook` guard: an HTTPS endpoint returning allow, deny or redact |
-| New provider | Implement `ProviderAdapter`; verify it with the testkit's conformance suite |
-| Storage | Implement `BudgetStore` or `AuditSink` |
+| New provider | Implement a provider adapter; verify it with the testkit's conformance suite |
+| Storage | Your own `BudgetStore` or `AuditSink`, as Spring beans through the starter |
 
-Each guard declares its order, timeout and failure mode. Webhook guards receive
-prompt content, so only administrators can configure them; they require an
-allowlisted HTTPS endpoint, optionally mTLS, and every call is audited.
+Each guard will declare its order, timeout and failure mode. Webhook guards
+receive prompt content, so only administrators will be able to configure them;
+they will require an allowlisted HTTPS endpoint, optionally mTLS, and every
+call will be audited.
 
 ## 6. Using Tollgate from other languages
 
@@ -237,20 +259,27 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
 - `GET /v1/models` lists the models the calling tenant may use.
 - A blocked request returns a `403` with code `policy_denied` and a reason, in
   the error format of the endpoint that was called, so existing error handling
-  works unchanged. A response header carries the decision trace ID.
-- Deployed on the same host or as a sidecar, the extra hop is small; the
-  performance report publishes the measured figure.
+  works unchanged. The `X-Tollgate-Trace-Id` header carries the decision trace
+  ID.
+- Coding agents work too: Claude Code is recorded and replayed in the build
+  ([setup](clients/claude-code.md),
+  [ADR 0020](adr/0020-agent-clients-and-skills.md)).
+- Deployed on the same host or as a sidecar, the extra hop is small. The first
+  performance report, in 0.1.1, publishes the measured figure.
 
 ## 7. Storage
 
+Policy, budgets, limits and reservations live in memory. Budgets are rebuilt
+from the audit trail at startup, so a restart never resets them. The audit
+trail is a JSON-lines file.
+
+### Planned
+
 | Tier | Policy and ledger | Limits and reservations | Audit |
 |---|---|---|---|
-| Try it (`docker run`) | In memory, rebuilt from the audit trail at startup | In memory | JSON lines file |
 | Production | Postgres | Redis (atomic Lua scripts) | Postgres, Kafka, or S3 with Object Lock |
 
-The production tier arrives in M2.
-
-If Redis is unavailable, each policy chooses: fail closed, or fall back to
+If Redis is unavailable, each policy will choose: fail closed, or fall back to
 per-instance limits (the shared limit divided by the instance count).
 
 ## 8. Money
@@ -261,9 +290,10 @@ the next nano-unit, so a reservation never under-reserves. How reservations
 are sized and settled is in [ADR 0006](adr/0006-budget-reservations.md). Near
 the limit, the output cap is lowered so the worst case fits
 ([ADR 0008](adr/0008-harden-the-request-path.md)). A request that cannot fit
-even then is refused with a `429`, as OpenAI does for an exhausted quota. Settled costs use the
-provider's reported token counts. For streamed responses, the gateway asks
-the provider to include usage, so streamed calls settle exactly too.
+even then is refused with a `429`, as OpenAI does for an exhausted quota.
+Settled costs use the provider's reported token counts. For streamed
+responses, the gateway asks the provider to include usage, so streamed calls
+settle exactly too.
 
 ## 9. Audit
 
@@ -274,29 +304,40 @@ the provider to include usage, so streamed calls settle exactly too.
   serializing every write behind one chain. Records are hashed from a fixed
   binary encoding rather than their JSON text, so verification does not
   depend on JSON formatting. `tollgate audit verify` checks a trail end to end.
-- **Privacy by default:** prompts are stored as keyed hashes (HMAC), which
-  cannot be reversed by guessing. Storing content is opt-in, with retention.
-  Stored content is encrypted with a key per tenant; deleting the key makes that
-  tenant's content unreadable without breaking the chain.
+- **Privacy by default:** prompts and answers are stored only as keyed hashes
+  (HMAC), which cannot be reversed by guessing.
 - **Durability modes:** synchronous, the default (durable before the provider
   is called, group-committed), or asynchronous (batched). If the intent record
-  cannot be written, the request is refused. Performance is reported per mode.
+  cannot be written, the request is refused.
 
 The record format, the hashing and the failure rules are in
 [ADR 0007](adr/0007-audit-trail.md).
 
+### Planned
+
+- **Storing content,** opt-in and with retention, encrypted with a key per
+  tenant, so deleting the key makes that tenant's content unreadable without
+  breaking the chain.
+- **Performance for each durability mode,** in the first performance report.
+
 ## 10. Streaming
 
-- With no output guards, streams pass straight through.
+- Streams are relayed event by event as they arrive, with the same policies,
+  budgets and audit as other calls ([ADR 0010](adr/0010-streaming.md)).
 - Restoring redacted values holds back at most one placeholder's length of
   text, so a placeholder split across events is still restored
   ([ADR 0012](adr/0012-redact-personal-data.md)).
-- Strict policies can buffer the whole response.
 - Retries and provider fallback happen only before the first byte is sent.
 
-## 11. Policy Studio
+### Planned
 
-A small admin UI on the admin port.
+- **Output guards on streams,** with a hold-back window, and strict policies
+  that buffer the whole response.
+
+## 11. Policy Studio (planned)
+
+A small admin UI on the admin port, decided in
+[ADR 0004](adr/0004-studio-and-admin-api.md) and not built yet.
 
 - Tenants and keys: create, rotate, revoke; a new key is shown once.
 - Guards: reorder, switch between enforce and shadow, pick redaction entities.
@@ -309,24 +350,34 @@ plus the simulator, exporting changes as YAML diffs; and **managed**, where
 configuration is versioned in Postgres with maker-checker approval, diffs and
 rollback. Sign-in uses OIDC with viewer, editor and approver roles.
 
-Studio is one client of the admin API. The API's OpenAPI contract is published
-in [`docs/api/admin-openapi.json`](api/admin-openapi.json) and checked against
-the code in CI, so other tools can build on it.
+Studio will be one client of the admin API. The API's OpenAPI contract is
+already published in [`docs/api/admin-openapi.json`](api/admin-openapi.json)
+and checked against the code in CI, so other tools can build on it today.
 
 ## 12. Quality bar
 
 | Area | Practice |
 |---|---|
-| Correctness | Immutable records, sealed result types, no `null` in public interfaces (NullAway at compile time), injected clock, idempotency keys on admin writes |
+| Correctness | Immutable records, sealed result types, no `null` in public interfaces (NullAway at compile time), injected clock |
 | Static analysis | Error Prone and NullAway in every compile; `-Xlint:all -Werror`; CodeQL |
 | Formatting | Spotless with palantir-java-format, checked in CI |
-| Tests | JUnit, jqwik property tests against reference implementations, Testcontainers, WireMock provider fixtures, Toxiproxy fault injection, ArchUnit module rules |
+| Tests | JUnit, jqwik property tests against reference implementations, a fake provider for HTTP-level tests, recorded agent-client sessions, ArchUnit module rules |
 | Coverage | JaCoCo floors per module; PIT mutation testing on core |
-| Performance | JMH microbenchmarks for hot paths, nightly Gatling load tests with regression thresholds, JFR allocation profiling |
-| Compatibility | Semantic versioning; japicmp on the extension interfaces from the first release |
-| Supply chain | Actions pinned to commits, Dependabot, CycloneDX SBOM, signed artifacts and images, OpenSSF Scorecard |
-| Observability | OpenTelemetry traces (GenAI conventions, still at development status), Micrometer metrics, JSON logs with redaction |
-| Deployment | Distroless image, Helm chart, Terraform example |
+| Supply chain | Actions pinned to commits, Dependabot, CycloneDX SBOM, build provenance attested for each image, OpenSSF Scorecard |
+| Observability | OpenTelemetry traces (GenAI conventions, still at development status), Micrometer metrics for Prometheus, a Grafana dashboard |
+| Deployment | Distroless image |
+
+### Planned
+
+| Area | Practice |
+|---|---|
+| Correctness | Idempotency keys on admin writes |
+| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection |
+| Performance | JMH microbenchmarks for hot paths and Gatling load tests, published in 0.1.1; regression thresholds and JFR allocation profiling |
+| Compatibility | japicmp on the extension interfaces from the first release |
+| Supply chain | Signed images |
+| Observability | JSON logs with redaction |
+| Deployment | Helm chart, Terraform example |
 
 Performance target, to be measured rather than assumed: under 2 ms of gateway
 overhead at p99 for non-streaming calls in asynchronous audit mode, published
