@@ -641,7 +641,9 @@ final class Gateway implements AutoCloseable {
             usage = rewriter.usage();
             if (usage.isPresent()) {
                 long webSearches = route.definition().offersWebSearch() ? rewriter.webSearches() : 0;
-                charge = route.definition().price().costOf(usage.get(), rewriter.reasoningTokens(), webSearches);
+                charge = route.definition()
+                        .price()
+                        .costOf(usage.get(), rewriter.reasoningTokens(), webSearches, rewriter.cacheWrite1hTokens());
             } else {
                 log.warn("Provider {} streamed no token usage; charging the full reservation", route.providerName());
             }
@@ -962,7 +964,9 @@ final class Gateway implements AutoCloseable {
                 ? UsageReader.webSearches(route.provider().format(), response.body())
                 : 0;
         long reasoningTokens = UsageReader.reasoningTokens(route.provider().format(), response.body());
-        return route.definition().price().costOf(usage.get(), reasoningTokens, webSearches);
+        long cacheWrite1hTokens =
+                UsageReader.cacheWrite1hTokens(route.provider().format(), response.body());
+        return route.definition().price().costOf(usage.get(), reasoningTokens, webSearches, cacheWrite1hTokens);
     }
 
     private static Money nothing(Route route) {

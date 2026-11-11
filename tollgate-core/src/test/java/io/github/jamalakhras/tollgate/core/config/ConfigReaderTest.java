@@ -155,7 +155,8 @@ class ConfigReaderTest {
         assertThat(ollama.timeout()).isEqualTo(ConfigReader.DEFAULT_TIMEOUT);
 
         Model claude = entry(config.models(), "claude-sonnet");
-        assertThat(claude.price()).isEqualTo(Prices.perMillion("3", "15", "0.30", "3.75"));
+        assertThat(claude.price())
+                .isEqualTo(Prices.perMillion("3", "15", "0.30", "3.75").withCacheWrite1hAtTwiceInput());
         assertThat(claude.maxOutputTokens()).isEqualTo(new OutputTokens(2_048, 8_192));
         assertThat(entry(config.models(), "qwen3").maxOutputTokens()).isNull();
         assertThat(entry(config.tenants(), "support-bot").models()).containsExactly("qwen3", "claude-sonnet");
@@ -295,6 +296,35 @@ class ConfigReaderTest {
     }
 
     @Test
+    void pricesAnthropicCacheWritesKeptForAnHourAtTwiceTheInputUnlessWritten() {
+        Map<String, Object> written = new HashMap<>(CLAUDE_PRICE);
+        written.put("cacheWrite1h", 5);
+
+        TokenRates claude = entry(
+                        ConfigReader.read(with("models.claude-sonnet.price", CLAUDE_PRICE))
+                                .models(),
+                        "claude-sonnet")
+                .price()
+                .rates();
+        TokenRates set = entry(
+                        ConfigReader.read(with("models.claude-sonnet.price", written))
+                                .models(),
+                        "claude-sonnet")
+                .price()
+                .rates();
+        TokenRates qwen = entry(
+                        ConfigReader.read(with("models.qwen3.price", CLAUDE_PRICE))
+                                .models(),
+                        "qwen3")
+                .price()
+                .rates();
+
+        assertThat(claude.cacheWrite1h().perMillionTokens()).isEqualTo(Prices.usd("6"));
+        assertThat(set.cacheWrite1h().perMillionTokens()).isEqualTo(Prices.usd("5"));
+        assertThat(qwen.cacheWrite1h().perMillionTokens()).isEqualTo(Prices.usd("3.75"));
+    }
+
+    @Test
     void readsReasoningAndLongContextPrices() {
         Map<String, Object> tier = Map.of(
                 "fromTokens", 256_000, "input", 1.2, "output", 3.6, "reasoning", 12, "cacheRead", 0, "cacheWrite", 0);
@@ -356,7 +386,9 @@ class ConfigReaderTest {
         GatewayConfig config = ConfigReader.read(without("models.claude-sonnet.price"), CATALOG);
 
         assertThat(entry(config.models(), "claude-sonnet").price())
-                .isEqualTo(CATALOG.price("anthropic", "claude-sonnet-4-5").orElseThrow());
+                .isEqualTo(CATALOG.price("anthropic", "claude-sonnet-4-5")
+                        .orElseThrow()
+                        .withCacheWrite1hAtTwiceInput());
         assertThat(entry(config.models(), "claude-sonnet").priceCatalog()).isEqualTo("anthropic");
         assertThat(entry(config.models(), "qwen3").priceCatalog()).isNull();
     }

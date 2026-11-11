@@ -80,6 +80,18 @@ class UsageReaderTest {
     }
 
     @Test
+    void readsTheCacheWritesAnthropicKeepsForAnHour() {
+        byte[] body = """
+                {"usage":{"input_tokens":5,"output_tokens":3,"cache_creation_input_tokens":900,
+                 "cache_creation":{"ephemeral_5m_input_tokens":300,"ephemeral_1h_input_tokens":600}}}""".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(UsageReader.cacheWrite1hTokens(WireFormat.ANTHROPIC, body)).isEqualTo(600);
+        assertThat(UsageReader.cacheWrite1hTokens(WireFormat.OPENAI, body)).isZero();
+        assertThat(UsageReader.cacheWrite1hTokens(WireFormat.ANTHROPIC, "not json".getBytes(StandardCharsets.UTF_8)))
+                .isZero();
+    }
+
+    @Test
     void readsAnthropicUsageWithoutCaching() {
         String body = "{\"usage\":{\"input_tokens\":50,\"output_tokens\":30,\"cache_read_input_tokens\":null}}";
 

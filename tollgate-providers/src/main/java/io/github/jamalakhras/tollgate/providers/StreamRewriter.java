@@ -25,6 +25,7 @@ public final class StreamRewriter {
     private long output = -1;
     private long cacheRead;
     private long cacheWrite;
+    private long cacheWrite1h;
     private long webSearches;
     private long reasoningTokens;
 
@@ -129,6 +130,10 @@ public final class StreamRewriter {
         return reasoningTokens;
     }
 
+    public long cacheWrite1hTokens() {
+        return cacheWrite1h;
+    }
+
     private boolean read(ObjectNode data) {
         return switch (format) {
             case OPENAI -> {
@@ -164,6 +169,7 @@ public final class StreamRewriter {
         }
         cacheRead = Math.max(cacheRead, count(reported.path("cache_read_input_tokens")));
         cacheWrite = Math.max(cacheWrite, count(reported.path("cache_creation_input_tokens")));
+        cacheWrite1h = Math.max(cacheWrite1h, UsageReader.cacheWrite1hTokens(reported));
         webSearches =
                 Math.max(webSearches, count(reported.path("server_tool_use").path("web_search_requests")));
     }

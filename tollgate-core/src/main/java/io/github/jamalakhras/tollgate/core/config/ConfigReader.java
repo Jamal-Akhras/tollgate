@@ -96,9 +96,12 @@ public final class ConfigReader {
         String upstream = section.text("upstream");
         String priceCatalog =
                 section.has("price") ? null : priceCatalog(section, currency, providers.get(provider), provider);
+        Provider serving = providers.get(provider);
+        boolean anthropic = serving != null && serving.format() == WireFormat.ANTHROPIC;
         ModelPrice price = priceCatalog == null
-                ? writtenPrice(section, currency)
+                ? writtenPrice(section, currency, anthropic)
                 : catalog.price(priceCatalog, upstream)
+                        .map(found -> anthropic ? found.withCacheWrite1hAtTwiceInput() : found)
                         .orElseThrow(() -> new InvalidConfigException(section.path("price") + " is required: the "
                                 + priceCatalog + " price catalog has no model " + upstream));
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
@@ -123,7 +126,7 @@ public final class ConfigReader {
                         + ": its provider has no price catalog. Write the price, or price: free if it costs nothing"));
     }
 
-    private static ModelPrice writtenPrice(Section section, Currency currency) {
+    private static ModelPrice writtenPrice(Section section, Currency currency, boolean anthropic) {
         if (section.isText("price")) {
             String text = section.text("price");
             if (!text.equals("free")) {
@@ -131,33 +134,42 @@ public final class ConfigReader {
             }
             return ModelPrice.free(currency);
         }
-        return section.child("price", child -> price(child, currency));
+        return section.child("price", child -> price(child, currency, anthropic));
     }
 
-    private static ModelPrice price(Section section, Currency currency) {
-        section.requireOnly("input", "output", "reasoning", "cacheRead", "cacheWrite", "webSearch", "longContext");
-        TokenRates rates = rates(section, currency);
-        List<ContextTier> longContext = section.sectionList("longContext", tier -> contextTier(tier, currency));
+    private static ModelPrice price(Section section, Currency currency, boolean anthropic) {
+        section.requireOnly(
+                "input", "output", "reasoning", "cacheRead", "cacheWrite", "cacheWrite1h", "webSearch", "longContext");
+        TokenRates rates = rates(section, currency, anthropic);
+        List<ContextTier> longContext =
+                section.sectionList("longContext", tier -> contextTier(tier, currency, anthropic));
         Money webSearch = section.optionalMoney("webSearch", currency);
         return section.build(
                 () -> new ModelPrice(rates, longContext, webSearch == null ? null : new SearchPrice(webSearch)));
     }
 
-    private static ContextTier contextTier(Section section, Currency currency) {
-        section.requireOnly("fromTokens", "input", "output", "reasoning", "cacheRead", "cacheWrite");
-        TokenRates rates = rates(section, currency);
+    private static ContextTier contextTier(Section section, Currency currency, boolean anthropic) {
+        section.requireOnly("fromTokens", "input", "output", "reasoning", "cacheRead", "cacheWrite", "cacheWrite1h");
+        TokenRates rates = rates(section, currency, anthropic);
         return section.build(() -> new ContextTier(section.wholeNumber("fromTokens"), rates));
     }
 
-    private static TokenRates rates(Section section, Currency currency) {
+    private static TokenRates rates(Section section, Currency currency, boolean anthropic) {
         Money output = section.money("output", currency);
         Money reasoning = section.optionalMoney("reasoning", currency);
-        return section.build(() -> new TokenRates(
-                new TokenPrice(section.money("input", currency)),
-                new TokenPrice(output),
-                new TokenPrice(reasoning == null ? output : reasoning),
-                new TokenPrice(section.money("cacheRead", currency)),
-                new TokenPrice(section.money("cacheWrite", currency))));
+        Money cacheWrite1h = section.optionalMoney("cacheWrite1h", currency);
+        return section.build(() -> {
+            TokenRates rates = new TokenRates(
+                    new TokenPrice(section.money("input", currency)),
+                    new TokenPrice(output),
+                    new TokenPrice(reasoning == null ? output : reasoning),
+                    new TokenPrice(section.money("cacheRead", currency)),
+                    new TokenPrice(section.money("cacheWrite", currency)));
+            if (cacheWrite1h != null) {
+                return rates.withCacheWrite1h(new TokenPrice(cacheWrite1h));
+            }
+            return anthropic ? rates.withCacheWrite1hAtTwiceInput() : rates;
+        });
     }
 
     private static OutputTokens outputTokens(Section section) {

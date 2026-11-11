@@ -71,6 +71,17 @@ class ModelPriceTest {
     }
 
     @Test
+    void chargesCacheWritesKeptForAnHourAtTheirOwnRate() {
+        ModelPrice claude = sonnet.withCacheWrite1hAtTwiceInput();
+        Usage usage = new Usage(0, 0, 0, 1_000_000);
+
+        assertThat(claude.costOf(usage, 0, 0, 400_000)).isEqualTo(usd("2.25").plus(usd("2.4")));
+        assertThat(claude.costOf(usage, 0, 0, 2_000_000)).isEqualTo(usd("6"));
+        assertThat(sonnet.costOf(usage, 0, 0, 1_000_000)).isEqualTo(usd("3.75"));
+        assertThat(claude.mostFor(1_000_000, 0)).isEqualTo(usd("6"));
+    }
+
+    @Test
     void reservesOutputAtTheDearerOfOutputAndReasoning() {
         assertThat(reasoning("1.2", "4").mostFor(0, 1_000_000)).isEqualTo(usd("4"));
         assertThat(reasoning("4", "1.2").mostFor(0, 1_000_000)).isEqualTo(usd("4"));

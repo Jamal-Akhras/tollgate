@@ -100,11 +100,13 @@ class StreamRewriterTest {
         rewriter.rewrite(List.of(
                 "event: message_delta",
                 "data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":15,\"cache_creation_input_tokens\":4,"
+                        + "\"cache_creation\":{\"ephemeral_1h_input_tokens\":3},"
                         + "\"server_tool_use\":{\"web_search_requests\":2}}}"));
         rewriter.rewrite(List.of("event: message_delta", "data: {\"type\":\"message_delta\",\"usage\":{}}"));
 
         assertThat(rewriter.usage()).contains(new Usage(25, 15, 10, 4));
         assertThat(rewriter.webSearches()).isEqualTo(2);
+        assertThat(rewriter.cacheWrite1hTokens()).isEqualTo(3);
     }
 
     @Test

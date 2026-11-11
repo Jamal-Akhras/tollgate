@@ -55,9 +55,22 @@ public record ModelPrice(
     }
 
     public Money costOf(Usage usage, long reasoningTokens, long webSearches) {
+        return costOf(usage, reasoningTokens, webSearches, 0);
+    }
+
+    public Money costOf(Usage usage, long reasoningTokens, long webSearches, long cacheWrite1hTokens) {
         long prompt =
                 Math.addExact(Math.addExact(usage.inputTokens(), usage.cacheReadTokens()), usage.cacheWriteTokens());
-        return ratesFor(prompt).costOf(usage, reasoningTokens).plus(searches(webSearches));
+        return ratesFor(prompt)
+                .costOf(usage, reasoningTokens, cacheWrite1hTokens)
+                .plus(searches(webSearches));
+    }
+
+    public ModelPrice withCacheWrite1hAtTwiceInput() {
+        List<ContextTier> tiers = longContext.stream()
+                .map(tier -> new ContextTier(tier.fromTokens(), tier.rates().withCacheWrite1hAtTwiceInput()))
+                .toList();
+        return new ModelPrice(rates.withCacheWrite1hAtTwiceInput(), tiers, webSearch);
     }
 
     public Money mostFor(long inputTokens, long outputTokens) {

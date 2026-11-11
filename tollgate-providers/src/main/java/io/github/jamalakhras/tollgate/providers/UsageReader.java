@@ -51,6 +51,22 @@ public final class UsageReader {
         }
     }
 
+    public static long cacheWrite1hTokens(WireFormat format, byte[] responseBody) {
+        if (format != WireFormat.ANTHROPIC) {
+            return 0;
+        }
+        try {
+            return cacheWrite1hTokens(ChatRequest.JSON.readTree(responseBody).path("usage"));
+        } catch (JacksonException e) {
+            return 0;
+        }
+    }
+
+    static long cacheWrite1hTokens(JsonNode usage) {
+        return countOrZero(usage.path("cache_creation").path("ephemeral_1h_input_tokens"))
+                .orElse(0);
+    }
+
     static long reasoningTokens(JsonNode usage) {
         return countOrZero(usage.path("completion_tokens_details").path("reasoning_tokens"))
                 .orElse(0);
