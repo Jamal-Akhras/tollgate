@@ -56,13 +56,17 @@ budget endpoints in 0.1.0.
 
 ### The public surface
 
-Only what the server needs becomes public:
+Only what the server needs, or what crosses the starter's own package
+boundary, is public:
 
 - `Gateway`, with `reload()`, `config()`, `budgetStore()` and
   `auditDirectory()`, and its `Reload` result.
 - `ReloadRejected` and `StartupException`.
 - `ConfigFile`, `LoadedConfig`, `AuditDirectory` and `UsageReport`, which the
   CLI already uses.
+- `AuditJson` and `JsonLinesAuditSink`, which the gateway package uses from
+  the audit package.
+- `GatewayProperties`, the `tollgate.*` settings, which Spring binds.
 
 Everything else stays package-private. Until 1.0 these types may change
 between minor versions, as the changelog already says of the extension
