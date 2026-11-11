@@ -175,7 +175,6 @@ policies:
       - type: data-class
         regions: { public: [local], internal: [local], confidential: [local] }
     features:                                 # confidential data stays strict
-      unreviewed-fields: [public, internal]
       remote-images: [public, internal]
     redact:                                   # sent as [CARD_1], restored in the answer
       card: [public, internal, confidential]

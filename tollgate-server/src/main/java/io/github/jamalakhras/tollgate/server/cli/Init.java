@@ -77,7 +77,6 @@ final class Init {
                       - type: data-class
                         regions: { public: [local], internal: [local], confidential: [local] }
                     features:
-                      unreviewed-fields: [public, internal]
                       remote-images: [public, internal]
                     redact:
                       card: [public, internal, confidential]
