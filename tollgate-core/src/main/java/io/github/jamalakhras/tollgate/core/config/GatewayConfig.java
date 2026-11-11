@@ -298,14 +298,19 @@ public record GatewayConfig(
         }
     }
 
-    public List<String> monitoringDataClasses() {
+    public List<String> policiesOnlyMonitoringDataClasses() {
         return policies.entrySet().stream()
-                .filter(policy -> policy.getValue().guards().stream()
-                        .anyMatch(guard -> guard instanceof MonitoredGuard monitored
-                                && monitored.guard() instanceof DataClassGuard))
+                .filter(policy -> onlyMonitorsDataClasses(policy.getValue().guards()))
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
+    }
+
+    private static boolean onlyMonitorsDataClasses(List<Guard> guards) {
+        boolean monitored = guards.stream()
+                .anyMatch(guard -> guard instanceof MonitoredGuard monitoredGuard
+                        && monitoredGuard.guard() instanceof DataClassGuard);
+        return monitored && guards.stream().noneMatch(DataClassGuard.class::isInstance);
     }
 
     private static void checkDataClassGuard(String policy, DataClassGuard guard, List<String> dataClasses) {

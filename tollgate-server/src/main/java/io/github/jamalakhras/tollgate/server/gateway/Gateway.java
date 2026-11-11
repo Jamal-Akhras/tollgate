@@ -201,7 +201,7 @@ final class Gateway implements AutoCloseable {
     }
 
     private static void warnAboutMonitoredDataClasses(GatewayConfig config) {
-        for (String policy : config.monitoringDataClasses()) {
+        for (String policy : config.policiesOnlyMonitoringDataClasses()) {
             log.warn(
                     "Policy '{}' only monitors its data-class guard, so requests can reach regions it would refuse",
                     policy);

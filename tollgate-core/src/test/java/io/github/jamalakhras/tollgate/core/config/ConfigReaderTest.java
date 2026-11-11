@@ -273,8 +273,19 @@ class ConfigReaderTest {
                         new RequestSizeGuard(5),
                         new MonitoredGuard(new DataClassGuard(
                                 Map.of("public", List.of("us", "local"), "confidential", List.of("local")))));
-        assertThat(config.monitoringDataClasses()).containsExactly("default");
-        assertThat(ConfigReader.read(document()).monitoringDataClasses()).isEmpty();
+        assertThat(config.policiesOnlyMonitoringDataClasses()).containsExactly("default");
+        assertThat(ConfigReader.read(document()).policiesOnlyMonitoringDataClasses())
+                .isEmpty();
+    }
+
+    @Test
+    void doesNotCallAPolicyMonitoringWhenAnotherDataClassGuardEnforces() {
+        Map<String, Object> stricter = new HashMap<>(DATA_CLASS_GUARD);
+        stricter.put("mode", "monitor");
+
+        GatewayConfig config = ConfigReader.read(withGuard(stricter));
+
+        assertThat(config.policiesOnlyMonitoringDataClasses()).isEmpty();
     }
 
     @Test
