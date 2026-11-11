@@ -41,6 +41,11 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <configuration>
+              <includes>
+                <include>**/FakeProvider*</include>
+              </includes>
+            </configuration>
           </execution>
         </executions>
       </plugin>
