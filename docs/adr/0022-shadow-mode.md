@@ -1,6 +1,6 @@
 # ADR 0022: Shadow mode for guards
 
-Date: 2026-11-11 · Status: Proposed, amends [ADR 0007](0007-audit-trail.md)
+Date: 2026-11-11 · Status: Accepted, amends [ADR 0007](0007-audit-trail.md)
 
 ## Context
 

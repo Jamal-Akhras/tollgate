@@ -1,6 +1,6 @@
 # ADR 0007: A signed, batch-chained audit trail
 
-Date: 2026-10-29 · Status: Accepted, amended by [ADR 0009](0009-price-catalog.md)
+Date: 2026-10-29 · Status: Accepted, amended by [ADR 0009](0009-price-catalog.md) and [ADR 0022](0022-shadow-mode.md)
 
 ## Context
 

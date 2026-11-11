@@ -1,6 +1,6 @@
 # ADR 0021: A Spring Boot starter that embeds the gateway
 
-Date: 2026-11-11 · Status: Proposed
+Date: 2026-11-11 · Status: Accepted
 
 ## Context
 
