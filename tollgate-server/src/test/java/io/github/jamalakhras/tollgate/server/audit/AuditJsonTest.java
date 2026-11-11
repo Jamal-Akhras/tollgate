@@ -28,6 +28,7 @@ class AuditJsonTest {
                 Samples.intent("a"),
                 Samples.refused("b"),
                 Samples.redacted("d"),
+                Samples.monitored("e"),
                 Samples.outcome("a"),
                 Samples.unreachable("c"),
                 SEAL);
@@ -68,6 +69,33 @@ class AuditJsonTest {
         assertThat(AuditJson.write(Samples.intent("7c0e")))
                 .startsWith("{\"v\":1,")
                 .doesNotContain("redactions");
+    }
+
+    @Test
+    void writesAMonitoredIntentAsVersion3AndMarksOnlyTheMonitoredStep() {
+        String line = AuditJson.write(Samples.monitored("7c0e"));
+
+        assertThat(line)
+                .startsWith("{\"v\":3,\"type\":\"intent\",")
+                .contains("\"nanos\":2100},")
+                .contains("\"nanos\":3400,\"mode\":\"monitor\"}")
+                .contains("\"redactions\":");
+    }
+
+    @Test
+    void keepsTheModeAndItsVersionTogether() {
+        String monitored = AuditJson.write(Samples.monitored("a"));
+        String plain = AuditJson.write(Samples.intent("a"));
+
+        assertThatThrownBy(() -> AuditJson.read(monitored.replace("{\"v\":3,", "{\"v\":2,")))
+                .hasMessageContaining("'mode' is not part of");
+        assertThatThrownBy(() -> AuditJson.read(plain.replace("{\"v\":1,", "{\"v\":3,")))
+                .hasMessage("A version 3 intent must have a monitored step");
+        assertThatThrownBy(() -> AuditJson.read(monitored.replace("\"monitor\"", "\"enforce\"")))
+                .hasMessage("'mode' must be monitor, was enforce");
+        assertThatThrownBy(() ->
+                        AuditJson.read(AuditJson.write(Samples.outcome("a")).replace("{\"v\":1,", "{\"v\":3,")))
+                .hasMessage("Unsupported audit record version 3");
     }
 
     @Test

@@ -2,9 +2,13 @@ package io.github.jamalakhras.tollgate.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.jamalakhras.tollgate.core.policy.Decision;
+import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import net.jqwik.api.Assume;
 import net.jqwik.api.ForAll;
@@ -15,6 +19,10 @@ class EncodingTest {
 
     private static final String PREVIOUS = "0d4a" + "3".repeat(60);
     private static final String ROOT = "9f2c" + "4".repeat(60);
+    private static final String ID = "7c0e9a51-2f4b-4d0e-9a3c-1b2d3e4f5a6b";
+    private static final String MONITORED_SHA256 = "7bffa2fe16cb2cfb0b6f99ff9c8a51e0ce55cd6841951d534a114b93b6f9dd94";
+    private static final String MONITORED_AND_REDACTED_SHA256 =
+            "d5a21bf5cd6d8858bd9d6b9d839f8d40037b1027e22ac9a979037e3405cdfe71";
 
     private static String sha256Of(AuditEntry entry) {
         return Digests.HEX.formatHex(Digests.sha256(Encoding.of(entry)));
@@ -65,6 +73,34 @@ class EncodingTest {
         assertThat(Encoding.of(Records.intent("a"))).startsWith(1, 1);
         assertThat(Encoding.of(Records.outcome("a"))).startsWith(1, 2);
         assertThat(Encoding.of(Records.redacted("a"))).startsWith(2, 1);
+        assertThat(Encoding.of(Records.monitored("a"))).startsWith(3, 1);
+        assertThat(Encoding.of(Records.monitoredAndRedacted("a"))).startsWith(3, 1);
+    }
+
+    @Test
+    void encodesAMonitoredIntentAsVersion3WithEachStepsModeAndOptionalRedactions() {
+        byte[] plain = Encoding.of(Records.intent("a"));
+        byte[] redacted = Encoding.of(Records.redacted("a"));
+        byte[] monitored = Encoding.of(Records.monitored("a"));
+        byte[] both = Encoding.of(Records.monitoredAndRedacted("a"));
+        byte[] redactionsBlock = Arrays.copyOfRange(redacted, plain.length, redacted.length);
+
+        assertThat(monitored[monitored.length - 1]).isZero();
+        assertThat(both).startsWith(Arrays.copyOf(monitored, monitored.length - 1));
+        assertThat(both[monitored.length - 1]).isOne();
+        assertThat(Arrays.copyOfRange(both, monitored.length, both.length)).isEqualTo(redactionsBlock);
+        assertThat(List.of(sha256Of(Records.monitored(ID)), sha256Of(Records.monitoredAndRedacted(ID))))
+                .containsExactly(MONITORED_SHA256, MONITORED_AND_REDACTED_SHA256);
+    }
+
+    @Test
+    void recordsWhichStepWasMonitored() {
+        Intent monitored = Records.monitored("a");
+        List<GuardStep> swapped = List.of(
+                new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100), true),
+                new GuardStep("data-class", monitored.steps().get(1).decision(), Duration.ofNanos(3_400), true));
+
+        assertThat(Encoding.of(monitored)).isNotEqualTo(Encoding.of(withSteps(monitored, swapped)));
     }
 
     @Test
@@ -118,6 +154,25 @@ class EncodingTest {
     @Test
     void movingCharactersBetweenFieldsChangesTheEncoding() {
         assertThat(Encoding.of(withTenantAndKey("ab", "c"))).isNotEqualTo(Encoding.of(withTenantAndKey("a", "bc")));
+    }
+
+    private static Intent withSteps(Intent intent, List<GuardStep> steps) {
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                steps,
+                intent.decision(),
+                intent.reservation(),
+                intent.redactions());
     }
 
     private static Intent withTenantAndKey(String tenant, String key) {

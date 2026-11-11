@@ -66,6 +66,29 @@ final class Samples {
                 new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
     }
 
+    static Intent monitored(String id) {
+        Intent intent = intent(id);
+        Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                List.of(
+                        new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                        new GuardStep("data-class", denial, Duration.ofNanos(3_400), true)),
+                Decision.ALLOW,
+                intent.reservation(),
+                new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
+    }
+
     static Intent refused(String id) {
         Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
         return new Intent(

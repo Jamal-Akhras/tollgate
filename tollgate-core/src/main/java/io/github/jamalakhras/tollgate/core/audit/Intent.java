@@ -36,6 +36,10 @@ public record Intent(
         steps = List.copyOf(steps);
     }
 
+    public boolean monitored() {
+        return steps.stream().anyMatch(GuardStep::monitored);
+    }
+
     public Intent(
             String id,
             Instant time,

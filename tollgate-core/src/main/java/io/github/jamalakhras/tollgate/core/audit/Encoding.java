@@ -13,6 +13,7 @@ final class Encoding {
 
     static final int VERSION = 1;
     static final int REDACTED_VERSION = 2;
+    static final int MONITORED_VERSION = 3;
 
     private static final int INTENT = 1;
     private static final int OUTCOME = 2;
@@ -34,7 +35,8 @@ final class Encoding {
 
     private void intent(Intent intent) {
         Redactions redactions = intent.redactions();
-        header(redactions == null ? VERSION : REDACTED_VERSION, INTENT);
+        boolean monitored = intent.monitored();
+        header(monitored ? MONITORED_VERSION : redactions == null ? VERSION : REDACTED_VERSION, INTENT);
         text(intent.id());
         instant(intent.time());
         text(intent.tenant());
@@ -49,6 +51,9 @@ final class Encoding {
         u32(intent.steps().size());
         for (GuardStep step : intent.steps()) {
             text(step.guard());
+            if (monitored) {
+                bytes.write(step.monitored() ? 1 : 0);
+            }
             decision(step.decision());
             i64(step.duration().toNanos());
         }
@@ -57,6 +62,9 @@ final class Encoding {
         present(reservation != null);
         if (reservation != null) {
             money(reservation);
+        }
+        if (monitored) {
+            present(redactions != null);
         }
         if (redactions != null) {
             u32(redactions.values().size());

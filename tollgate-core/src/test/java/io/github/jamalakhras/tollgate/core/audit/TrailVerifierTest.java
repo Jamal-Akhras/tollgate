@@ -2,6 +2,7 @@ package io.github.jamalakhras.tollgate.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,9 +74,41 @@ class TrailVerifierTest {
         List<AuditRecord> records = new ArrayList<>(Trails.requests(3));
         records.add(Records.redacted("redacted-1"));
         records.add(Records.outcome("redacted-1"));
+        records.add(Records.monitored("monitored-1"));
+        records.add(Records.outcome("monitored-1"));
+        records.add(Records.monitoredAndRedacted("monitored-2"));
+        records.add(Records.outcome("monitored-2"));
         List<AuditEntry> trail = Trails.sealed(records, 3);
 
         assertThat(Trails.verify(trail).intact()).isTrue();
+
+        List<AuditEntry> unmonitored = new ArrayList<>(trail);
+        int monitoredAt = unmonitored.indexOf(Records.monitored("monitored-1"));
+        Intent monitored = (Intent) unmonitored.get(monitoredAt);
+        unmonitored.set(
+                monitoredAt,
+                new Intent(
+                        monitored.id(),
+                        monitored.time(),
+                        monitored.tenant(),
+                        monitored.key(),
+                        monitored.endpoint(),
+                        monitored.model(),
+                        monitored.provider(),
+                        monitored.upstream(),
+                        monitored.dataClass(),
+                        monitored.configVersion(),
+                        monitored.requestHmac(),
+                        List.of(
+                                monitored.steps().get(0),
+                                new GuardStep(
+                                        "data-class",
+                                        monitored.steps().get(1).decision(),
+                                        monitored.steps().get(1).duration())),
+                        monitored.decision(),
+                        monitored.reservation()));
+
+        assertThat(Trails.verify(unmonitored).intact()).isFalse();
 
         int at = trail.indexOf(Records.redacted("redacted-1"));
         Intent redacted = (Intent) trail.get(at);

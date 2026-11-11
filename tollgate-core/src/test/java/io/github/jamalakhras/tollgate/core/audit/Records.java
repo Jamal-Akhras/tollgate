@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 final class Records {
 
@@ -59,6 +60,36 @@ final class Records {
                 intent.decision(),
                 intent.reservation(),
                 new Redactions(Map.of("card", 1, "email", 2), SENT_HMAC));
+    }
+
+    static Intent monitored(String id) {
+        return withSteps(intent(id), null);
+    }
+
+    static Intent monitoredAndRedacted(String id) {
+        return withSteps(intent(id), new Redactions(Map.of("card", 1, "email", 2), SENT_HMAC));
+    }
+
+    private static Intent withSteps(Intent intent, @Nullable Redactions redactions) {
+        Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                List.of(
+                        new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                        new GuardStep("data-class", denial, Duration.ofNanos(3_400), true)),
+                Decision.ALLOW,
+                intent.reservation(),
+                redactions);
     }
 
     static Intent refused(String id) {

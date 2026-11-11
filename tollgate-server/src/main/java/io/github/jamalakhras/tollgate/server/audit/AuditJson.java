@@ -42,12 +42,20 @@ public final class AuditJson {
             .build();
     private static final int VERSION = 1;
     private static final int REDACTED_VERSION = 2;
+    private static final int MONITORED_VERSION = 3;
 
     private AuditJson() {}
 
     public static String write(AuditEntry entry) {
-        boolean redacted = entry instanceof Intent intent && intent.redactions() != null;
-        ObjectNode line = JSON.createObjectNode().put("v", redacted ? REDACTED_VERSION : VERSION);
+        int version = VERSION;
+        if (entry instanceof Intent intent) {
+            if (intent.monitored()) {
+                version = MONITORED_VERSION;
+            } else if (intent.redactions() != null) {
+                version = REDACTED_VERSION;
+            }
+        }
+        ObjectNode line = JSON.createObjectNode().put("v", version);
         switch (entry) {
             case Intent intent -> writeIntent(line, intent);
             case Outcome outcome -> writeOutcome(line, outcome);
@@ -66,14 +74,14 @@ public final class AuditJson {
         Fields fields = Fields.of("the line", root);
         long version = fields.whole("v");
         String type = fields.text("type");
-        if (version == REDACTED_VERSION && type.equals("intent")) {
-            return readIntent(fields, true);
+        if ((version == REDACTED_VERSION || version == MONITORED_VERSION) && type.equals("intent")) {
+            return readIntent(fields, version);
         }
         if (version != VERSION) {
             throw new IllegalArgumentException("Unsupported audit record version " + version);
         }
         return switch (type) {
-            case "intent" -> readIntent(fields, false);
+            case "intent" -> readIntent(fields, VERSION);
             case "outcome" -> readOutcome(fields);
             case "seal" -> readSeal(fields);
             default -> throw new IllegalArgumentException("Unknown line type '" + type + "'");
@@ -98,6 +106,9 @@ public final class AuditJson {
             ObjectNode written = steps.addObject().put("guard", step.guard());
             written.set("decision", decision(step.decision()));
             written.put("nanos", step.duration().toNanos());
+            if (step.monitored()) {
+                written.put("mode", "monitor");
+            }
         }
         line.set("decision", decision(intent.decision()));
         Money reservation = intent.reservation();
@@ -161,7 +172,9 @@ public final class AuditJson {
                 .put("currency", money.currency().getCurrencyCode());
     }
 
-    private static Intent readIntent(Fields fields, boolean redacted) {
+    private static Intent readIntent(Fields fields, long version) {
+        boolean redacted = version == REDACTED_VERSION
+                || (version == MONITORED_VERSION && fields.node().has("redactions"));
         List<String> names = new ArrayList<>(List.of(
                 "v",
                 "type",
@@ -185,9 +198,23 @@ public final class AuditJson {
         fields.requireExactly(names.toArray(String[]::new));
         List<GuardStep> steps = new ArrayList<>();
         for (Fields step : fields.list("steps")) {
-            step.requireExactly("guard", "decision", "nanos");
+            boolean monitored = version == MONITORED_VERSION && step.node().has("mode");
+            if (monitored) {
+                step.requireExactly("guard", "decision", "nanos", "mode");
+                if (!step.text("mode").equals("monitor")) {
+                    throw new IllegalArgumentException("'mode' must be monitor, was " + step.text("mode"));
+                }
+            } else {
+                step.requireExactly("guard", "decision", "nanos");
+            }
             steps.add(new GuardStep(
-                    step.text("guard"), readDecision(step.child("decision")), Duration.ofNanos(step.whole("nanos"))));
+                    step.text("guard"),
+                    readDecision(step.child("decision")),
+                    Duration.ofNanos(step.whole("nanos")),
+                    monitored));
+        }
+        if (version == MONITORED_VERSION && steps.stream().noneMatch(GuardStep::monitored)) {
+            throw new IllegalArgumentException("A version 3 intent must have a monitored step");
         }
         return fields.build(() -> new Intent(
                 fields.text("id"),
