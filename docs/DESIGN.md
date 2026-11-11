@@ -24,6 +24,9 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
   configuration.
 - **Provable records.** Exact money, a tamper-evident audit trail, and a
   decision trace for every request.
+- **Java applications can embed it,** through a Spring Boot starter
+  ([ADR 0021](adr/0021-spring-boot-starter.md)). It still serves HTTP, on the
+  application's own port.
 
 ### Non-goals
 
@@ -34,8 +37,6 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 
 ### Planned
 
-- **Java applications can embed it,** through a Spring Boot starter
-  ([ADR 0021](adr/0021-spring-boot-starter.md)).
 - **Code when configuration isn't enough:** custom Java guards, and webhook
   guards in any language.
 
@@ -45,7 +46,8 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 |---|---|
 | `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
 | `tollgate-providers` | Provider wire formats on the JDK HTTP client: OpenAI (also used by any OpenAI-compatible server, such as Ollama, vLLM, LM Studio or Gemini's compatible endpoint) and Anthropic. |
-| `tollgate-server` | Standalone server: Spring Boot, Spring MVC on virtual threads, JDK 25. |
+| `tollgate-spring-boot-starter` | The gateway as Spring Boot 4.1 auto-configuration on Spring MVC, Java 21: the endpoints, the request pipeline, budgets, the audit sink and the metrics ([ADR 0021](adr/0021-spring-boot-starter.md)). |
+| `tollgate-server` | Standalone server on the starter: the admin API on its own port, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
 
 Commands ship inside the server jar, so the one download does both:
 `init`, `keys create --tenant <name>`, `audit keys create`, `audit verify`,
@@ -71,7 +73,6 @@ an admin handler from the gateway port.
 
 | Module | Purpose |
 |---|---|
-| `tollgate-spring-boot-starter` | Runs the gateway inside another Spring Boot application ([ADR 0021](adr/0021-spring-boot-starter.md)) |
 | `tollgate-studio` | Admin UI on the admin port, server-rendered with JTE and htmx ([ADR 0004](adr/0004-studio-and-admin-api.md)) |
 | `tollgate-testkit` | Conformance suites for custom guards and provider adapters |
 
@@ -123,8 +124,8 @@ metrics, and its ID comes back in the `X-Tollgate-Trace-Id` header.
 ## 4. Configuration
 
 YAML is the source of truth. Tollgate reads its own `tollgate.yaml` rather
-than Spring properties, so the server and the CLI load the same model the same
-way.
+than Spring properties, so the server, the starter and the CLI load the same
+model the same way.
 
 ```yaml
 currency: USD
@@ -389,9 +390,9 @@ with hardware details for every audit mode.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; `tollgate-core` and `tollgate-providers` on Maven Central |
+| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on Maven Central |
 | **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
-| **Next** | A Spring Boot starter ([ADR 0021](adr/0021-spring-boot-starter.md)); the Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
+| **Next** | The Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
 | **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; Policy Studio ([ADR 0004](adr/0004-studio-and-admin-api.md)); cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |
 
 ## 14. Risks

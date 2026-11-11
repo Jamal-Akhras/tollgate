@@ -169,8 +169,13 @@ traffic.
 - A non-root container image on a distroless Java 25 base, published to
   `ghcr.io/jamal-akhras/tollgate` with a build provenance attestation, and the
   server jar and an SBOM on each GitHub release.
-- `tollgate-core` and `tollgate-providers` on Maven Central as
-  `io.github.jamal-akhras`, with sources, Javadoc and signatures.
+- `tollgate-spring-boot-starter`, which runs the gateway inside a Spring Boot
+  4.1 application on Spring MVC
+  ([ADR 0021](docs/adr/0021-spring-boot-starter.md)). The server is built on
+  it and adds the admin API, the CLI and the image.
+- `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on
+  Maven Central as `io.github.jamal-akhras`, with sources, Javadoc and
+  signatures.
 - The log says which address each port listens on at startup, and how to
   accept other machines when only localhost can connect.
 - Startup problems, such as a missing or invalid config, an unset secret or an

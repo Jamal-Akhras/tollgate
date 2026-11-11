@@ -23,6 +23,9 @@ what was sent, who sent it, what it cost, and why it was allowed.
   URL. Requests are forwarded in their own format, so structured output, tool
   use and prompt caching keep working
   ([ADR 0005](docs/adr/0005-forward-requests-in-their-own-format.md)).
+- **Inside your Spring Boot application.** The same gateway runs inside a
+  Spring Boot 4.1 application through `tollgate-spring-boot-starter`, with one
+  dependency and a config file ([embedding](#inside-a-spring-boot-application)).
 - **Coding agents too.** Claude Code works through Tollgate with every
   request reviewed: point `ANTHROPIC_BASE_URL` at Tollgate and give it a
   tenant key ([setup](docs/clients/claude-code.md),
@@ -289,6 +292,37 @@ WantedBy=multi-user.target
   container's memory. `-XX:+ExitOnOutOfMemoryError` with `Restart=on-failure`
   turns running out into a clean restart.
 
+### Inside a Spring Boot application
+
+Add the starter to a Spring Boot 4.1 application on Spring MVC
+([ADR 0021](docs/adr/0021-spring-boot-starter.md)):
+
+```xml
+<dependency>
+  <groupId>io.github.jamal-akhras</groupId>
+  <artifactId>tollgate-spring-boot-starter</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
+Set `tollgate.config` to a `tollgate.yaml` and give it the audit secrets, as
+for the server. The application then serves `/v1/chat/completions`,
+`/v1/models` and `/anthropic/v1/messages` with the same guards, budgets,
+redaction, audit, metrics and traces.
+
+- **It listens where your application does.** The server binds to
+  `127.0.0.1`; your application may listen on every interface, and then
+  tenant keys are the only gate.
+- **The routes are fixed:** `/v1/*` and `/anthropic/*` belong to the gateway.
+- **There is no admin API.** Reload, the usage report and budgets are the
+  server's.
+- **Settings the server makes for itself,** which you may want too: virtual
+  threads, the histogram buckets of `gen_ai.client.operation.duration` and
+  `tollgate.stream.first_event`, the Prometheus endpoint, the `audit`
+  readiness group, and turning off OTLP metric export. They are in
+  [the server's `application.yaml`](tollgate-server/src/main/resources/application.yaml).
+- **Not supported:** WebFlux applications.
+
 ## Operating it
 
 | Port | Serves |
@@ -362,9 +396,9 @@ WantedBy=multi-user.target
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | Everything under "What works today", with the core and provider libraries on Maven Central |
+| **0.1.0** | Everything under "What works today", with the core, provider and starter libraries on Maven Central |
 | **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
-| **Next** | A Spring Boot starter; the OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
+| **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
 | **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; Policy Studio; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
