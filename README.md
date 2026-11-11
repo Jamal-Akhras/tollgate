@@ -13,8 +13,8 @@ signed audit trail that shows when a record has been changed or removed.
 It is built for teams that have to answer four questions about any model call:
 what was sent, who sent it, what it cost, and why it was allowed.
 
-> **Status: preparing 0.1.0.** Everything under "What works today" is built
-> and tested. What comes next is on the [roadmap](#roadmap).
+> **Status: 0.1.0, the first release.** Everything under "What works today"
+> is built and tested. What comes next is on the [roadmap](#roadmap).
 
 ## What works today
 
@@ -124,14 +124,22 @@ what was sent, who sent it, what it cost, and why it was allowed.
 
 ## Quickstart
 
-You need JDK 25, and a model server that speaks the OpenAI API. This example
-uses [Ollama](https://ollama.com) on its default port.
+You need Java 25, and a model server that speaks the OpenAI API. This example
+uses [Ollama](https://ollama.com) on its default port, with `qwen3:8b` pulled.
 
-**1. Build the server.**
+**1. Download the server** from the
+[latest release](https://github.com/Jamal-Akhras/tollgate/releases/latest):
 
 ```bash
-./mvnw -DskipTests install
-alias tollgate='java -XX:+ExitOnOutOfMemoryError -jar tollgate-server/target/tollgate-server-0.1.0-SNAPSHOT.jar'
+curl -LO https://github.com/Jamal-Akhras/tollgate/releases/download/v0.1.0/tollgate-0.1.0.jar
+alias tollgate='java -XX:+ExitOnOutOfMemoryError -jar tollgate-0.1.0.jar'
+```
+
+On Windows, in PowerShell:
+
+```powershell
+curl.exe -LO https://github.com/Jamal-Akhras/tollgate/releases/download/v0.1.0/tollgate-0.1.0.jar
+function tollgate { java -XX:+ExitOnOutOfMemoryError -jar tollgate-0.1.0.jar @args }
 ```
 
 **2. Create a config and its secrets.**
@@ -146,7 +154,7 @@ tollgate init
   it up.
 - **The API key** for the tenant `my-app` is printed once.
 
-The config it writes:
+The config it writes, with comments added here:
 
 ```yaml
 dataClasses: [public, internal, confidential]
@@ -199,6 +207,13 @@ set -a; . ./tollgate.env; set +a
 tollgate
 ```
 
+On Windows, in PowerShell:
+
+```powershell
+Get-Content tollgate.env | ForEach-Object { $name, $value = $_ -split '=', 2; Set-Item "env:$name" $value }
+tollgate
+```
+
 **4. Call it** with the OpenAI SDK, using the tenant key:
 
 ```python
@@ -229,28 +244,44 @@ batch that no longer matches.
 
 ### With Docker
 
-```bash
-./mvnw -DskipTests install
-./mvnw -pl tollgate-server jib:dockerBuild -Djib.from.platforms=linux/amd64
+Each version is published as `ghcr.io/jamal-akhras/tollgate:<version>` for
+amd64 and arm64. Create the config and its secrets with the image itself,
+writing them to the current folder as your own user:
 
-docker run --rm ghcr.io/jamal-akhras/tollgate:0.1.0-SNAPSHOT audit keys create
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+  ghcr.io/jamal-akhras/tollgate:0.1.0 init
+```
+
+On Windows, Docker Desktop writes the files as you, so leave out `--user`. In
+PowerShell:
+
+```powershell
+docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.1.0 init
+```
+
+The other commands here are for bash; in PowerShell, end each continued line
+with a backtick instead of `\`, and write `${PWD}` for `$PWD`.
+
+In `tollgate.yaml`, point the provider at `host.docker.internal` instead of
+`localhost`, and set `audit.directory` to `/home/nonroot/audit` so the trail
+lands on the volume. Then start it:
+
+```bash
 docker run -d --name tollgate \
   -v "$PWD/tollgate.yaml:/etc/tollgate/tollgate.yaml:ro" \
   -v tollgate-data:/home/nonroot \
-  -e TOLLGATE_AUDIT_SIGNING_KEY -e TOLLGATE_AUDIT_HMAC_KEY -e TOLLGATE_ADMIN_TOKEN \
+  --env-file tollgate.env \
   --add-host=host.docker.internal:host-gateway \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
-  ghcr.io/jamal-akhras/tollgate:0.1.0-SNAPSHOT
+  ghcr.io/jamal-akhras/tollgate:0.1.0
 ```
 
-In the container, set `audit.directory` to `/home/nonroot/audit` so the trail
-lands on the volume, and point the provider at `host.docker.internal`. The
-`--add-host` line makes that name work on Linux too; Docker Desktop provides
-it already.
+The `--add-host` line makes `host.docker.internal` work on Linux too; Docker
+Desktop provides it already.
 
-From the first release, each version is published as
-`ghcr.io/jamal-akhras/tollgate:<version>` for amd64 and arm64, with a signed
-record of how it was built. Check it before you run it:
+Each image comes with a signed record of how it was built. Check it before you
+run it:
 
 ```bash
 gh attestation verify oci://ghcr.io/jamal-akhras/tollgate:<version> --owner Jamal-Akhras
@@ -305,10 +336,15 @@ Add the starter to a Spring Boot 4.1 application on Spring MVC
 </dependency>
 ```
 
-Set `tollgate.config` to a `tollgate.yaml` and give it the audit secrets, as
-for the server. The application then serves `/v1/chat/completions`,
-`/v1/models` and `/anthropic/v1/messages` with the same guards, budgets,
-redaction, audit, metrics and traces.
+It needs Java 21 or later; Spring Boot 4.1 itself runs on 17, but the starter
+does not.
+
+Create the config, the audit keys and a tenant key with the server jar's
+`init`, or with `audit keys create` and `keys create` for an existing config.
+Set `tollgate.config` to the `tollgate.yaml` and give the application the
+audit secrets as environment variables, as for the server. It then serves
+`/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` with the
+same guards, budgets, redaction, audit, metrics and traces.
 
 - **It listens where your application does.** The server binds to
   `127.0.0.1`; your application may listen on every interface, and then
@@ -321,6 +357,9 @@ redaction, audit, metrics and traces.
   `tollgate.stream.first_event`, the Prometheus endpoint, the `audit`
   readiness group, and turning off OTLP metric export. They are in
   [the server's `application.yaml`](tollgate-server/src/main/resources/application.yaml).
+- **Metrics go through Micrometer's global registry.** An application that
+  sets `management.metrics.use-global-registry=false` gets none of the
+  gateway's metrics.
 - **Not supported:** WebFlux applications.
 
 ## Operating it
@@ -408,6 +447,8 @@ The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
 Requires JDK 25. The Maven Wrapper downloads and verifies Maven itself.
 
 ```bash
+./mvnw -DskipTests install                    # the server jar in tollgate-server/target
+./mvnw -pl tollgate-server jib:dockerBuild -Djib.from.platforms=linux/amd64   # the image, locally
 ./mvnw verify                                 # formatting, Error Prone, NullAway, tests, coverage, API contract
 ./mvnw -pl tollgate-core -Pmutation verify    # mutation testing on core
 ./mvnw -Psbom package                         # CycloneDX SBOM in target/bom.json

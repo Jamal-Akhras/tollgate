@@ -14,8 +14,7 @@ credit you in the advisory unless you prefer otherwise.
 
 ## Supported versions
 
-Tollgate has not had a release yet. Once it does, security fixes will be made
-for the latest minor version.
+Security fixes are made for the latest minor version, currently 0.1.
 
 ## Scope
 
