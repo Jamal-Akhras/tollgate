@@ -13,8 +13,8 @@ signed audit trail that shows when a record has been changed or removed.
 It is built for teams that have to answer four questions about any model call:
 what was sent, who sent it, what it cost, and why it was allowed.
 
-> **Status: working toward 0.1.** Everything under "What works today" is built
-> and tested. The rest of the design is on the [roadmap](#roadmap).
+> **Status: preparing 0.1.0.** Everything under "What works today" is built
+> and tested. What comes next is on the [roadmap](#roadmap).
 
 ## What works today
 
@@ -357,11 +357,12 @@ WantedBy=multi-user.target
 
 ## Roadmap
 
-| Milestone | Scope |
+| Release | Scope |
 |---|---|
-| **M1** (in progress) | Everything above, the security hardening in [ADR 0008](docs/adr/0008-harden-the-request-path.md), redaction and restore of emails, phone and card numbers, IBANs, national IDs, IP addresses and secrets, including on streams, streaming, and a published performance report |
-| **M2** | Name detection, CEL rules, webhook guards, Postgres and Redis storage, rate limits, provider fallback, OpenTelemetry, a Spring Boot starter, and a first release to Maven Central |
-| **M3** | Policy Studio: a simulator, a guard editor, shadow mode and maker-checker approval |
+| **0.1.0** | Everything under "What works today", with the core and provider libraries on Maven Central |
+| **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
+| **Next** | Shadow mode for guards and a Spring Boot starter; the OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
+| **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; Policy Studio; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
 
