@@ -15,6 +15,7 @@
   <description>Runs the Tollgate gateway inside a Spring Boot application.</description>
 
   <properties>
+    <automatic.module.name>io.github.jamalakhras.tollgate.gateway</automatic.module.name>
     <coverage.line.minimum>0.91</coverage.line.minimum>
     <coverage.branch.minimum>0.83</coverage.branch.minimum>
   </properties>

@@ -14,6 +14,10 @@
   <name>Tollgate Core</name>
   <description>Framework-free policy pipeline, extension interfaces and domain types.</description>
 
+  <properties>
+    <automatic.module.name>io.github.jamalakhras.tollgate.core</automatic.module.name>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>net.jqwik</groupId>

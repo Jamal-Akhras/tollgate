@@ -14,6 +14,10 @@
   <name>Tollgate Providers</name>
   <description>Forwards requests to model providers in the OpenAI and Anthropic wire formats.</description>
 
+  <properties>
+    <automatic.module.name>io.github.jamalakhras.tollgate.providers</automatic.module.name>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>io.github.jamal-akhras</groupId>
