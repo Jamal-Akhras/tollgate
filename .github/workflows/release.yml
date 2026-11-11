@@ -26,6 +26,9 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
       - name: Check the tag matches the project version
         run: |
           version=$(./mvnw -B -q help:evaluate -Dexpression=project.version -DforceStdout)
@@ -36,6 +39,13 @@ jobs:
           echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Build and verify
         run: ./mvnw -B -ntp -Psbom install
+      - name: Publish the libraries to Maven Central
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_KEY: ${{ secrets.MAVEN_GPG_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: ./mvnw -B -ntp -Prelease -DskipTests -Djacoco.skip=true -Dcentral.autoPublish=true deploy
       - name: Push the image
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
