@@ -37,8 +37,10 @@ a Spring Boot 4 application, so the starter is mostly a move.
   `StreamTarget`, `TraceIdFilter` and `ReloadRejected`.
 - **From `server/audit`:** `JsonLinesAuditSink`, `AuditJson`,
   `AuditDirectory` and `UsageReport`.
-- **`StartupException`** moves with `GatewayConfiguration`, which throws it;
-  the server's `StartupFailureAnalyzer` keeps reporting it.
+- **`StartupException` and `StartupFailureAnalyzer`** move together, so an
+  embedding application gets the same one-line startup message as the server
+  rather than a stack trace. The analyzer is registered in the starter's
+  `META-INF/spring.factories`.
 - **Packages:** `io.github.jamalakhras.tollgate.gateway` and
   `io.github.jamalakhras.tollgate.gateway.audit`.
 - **The move is a pure move.** No behaviour changes in the same commit, and
@@ -65,6 +67,24 @@ Only what the server needs becomes public:
 Everything else stays package-private. Until 1.0 these types may change
 between minor versions, as the changelog already says of the extension
 interfaces.
+
+### What it brings into the host application
+
+- **Required:** Spring MVC on a servlet container, since the controllers, the
+  stream relay and the trace-ID filter use the Servlet API; Jackson's YAML
+  module, to read `tollgate.yaml`; Micrometer and the Micrometer Tracing API;
+  and Spring Boot's health module, for the audit health indicator.
+- **Optional:** a Prometheus registry and the actuator endpoint to expose the
+  metrics, and Spring Boot's OpenTelemetry starter for traces. Without a
+  tracer the gateway records no spans, as the server does without an OTLP
+  endpoint.
+- **Not supported:** WebFlux applications.
+
+### Routes
+
+The gateway claims `/v1/*` and `/anthropic/*` in the host application, and the
+trace-ID filter runs on every request under them, including any the host
+serves itself. There is no setting for a prefix in 0.1.0.
 
 ### Wiring
 
@@ -97,4 +117,8 @@ interfaces.
   tested on every build.
 - **Some gateway types become public API** in a published jar.
 - **Embedded gateways have no admin API** in 0.1.0.
+- **An embedded gateway listens wherever the host application does.** The
+  server binds to `127.0.0.1` because its own `application.yaml` says so; a
+  host application usually listens on every interface, and then tenant keys
+  are the only gate. The README says so where it shows embedding.
 - **Spring Boot 4.1 only.** Other versions may work but aren't tested.

@@ -37,9 +37,14 @@ policies:
 - **The request's decision ignores monitored refusals.** An enforcing guard
   later in the list still refuses.
 - **Only guards listed under `guards:` can be monitored.** The built-in
-  request review, the `redact` and `refuse` detectors, budgets and rate limits
-  always enforce. They protect data and money, and they have no rollout risk
-  that a monitor would help with.
+  request review, budgets and rate limits always enforce: they bound what a
+  request can ask for and what it can cost.
+- **Monitoring detectors is deferred, not ruled out.** A new detector with
+  false matches is exactly the rollout risk this mode is for. It is left out
+  of 0.1.0 for scope, because a monitored `redact` or `refuse` also needs to
+  say what it would have replaced without replacing it.
+- **The client sees nothing different.** A monitored refusal adds no header
+  and no error, and the usage report doesn't count it as a refusal.
 - **Fallback attempts** re-run the guards, so each attempt's intent carries its
   own steps, as today. A dry run records what a real call would.
 - **A monitored `data-class` guard** still satisfies the rule that every
@@ -57,7 +62,9 @@ their version, so trails written before this change verify unchanged.
   reservation comes a presence byte for redactions, followed by the version 2
   redactions block when present.
 - **JSON:** `"v":3`, and a monitored step carries `"mode":"monitor"`. A step
-  without `mode` was enforced.
+  without `mode` was enforced. A `mode` on a version 1 or 2 line fails
+  verification, as ADR 0007 promises that nothing unhashed rides along in a
+  line.
 - **Readers:** `audit verify`, budget replay and the usage report accept
   version 3. A golden vector pins it, and the version 1 and 2 vectors don't
   change.
@@ -75,8 +82,9 @@ their version, so trails written before this change verify unchanged.
   one new guard would mean taking the others off too.
 - **Recording monitored refusals in logs and metrics only.** No format change,
   but the audit trail would no longer explain every decision on a request.
-- **Monitoring budgets and detectors too.** A monitored `refuse` lets a secret
-  out, and a monitored budget lets spend through; neither can be taken back.
+- **Monitoring budgets and rate limits too.** They are the limits a tenant
+  was given, not rules being tried out; a monitored budget would simply be no
+  budget.
 - **Writing every intent as version 3.** One version is simpler to read, but
   every existing trail and golden vector would change for a feature most
   requests don't use.
