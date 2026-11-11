@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   release:
-    name: Publish the image and a draft release
+    name: Upload to Central, publish the image and draft a release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,13 +39,13 @@ jobs:
           echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Build and verify
         run: ./mvnw -B -ntp -Psbom install
-      - name: Publish the libraries to Maven Central
+      - name: Upload the libraries to Maven Central for publishing by hand
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_KEY: ${{ secrets.MAVEN_GPG_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: ./mvnw -B -ntp -Prelease -DskipTests -Djacoco.skip=true -Dcentral.autoPublish=true deploy
+        run: ./mvnw -B -ntp -Prelease -DskipTests -Djacoco.skip=true deploy
       - name: Push the image
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -61,6 +61,11 @@ jobs:
         run: |
           cp "tollgate-server/target/tollgate-server-$VERSION.jar" "tollgate-$VERSION.jar"
           cp target/bom.json "tollgate-$VERSION.sbom.json"
-          gh release create "$GITHUB_REF_NAME" --draft --generate-notes \
+          awk -v heading="## [$VERSION]" 'index($0, heading) == 1 { found = 1; next } found && /^## \[/ { exit } found' CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md \
             --title "Tollgate $VERSION" \
             "tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json"
