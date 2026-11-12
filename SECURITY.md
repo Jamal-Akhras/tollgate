@@ -4,8 +4,8 @@ Tollgate is a security control, so we treat vulnerabilities in it seriously.
 
 ## Reporting a vulnerability
 
-Please **do not** open a public issue. Report privately through GitHub:
-**Security → Report a vulnerability** on this repository.
+Please **do not** open a public issue. Report privately through GitHub, at
+https://github.com/Jamal-Akhras/tollgate/security/advisories/new.
 
 Include what you found, how to reproduce it, and the impact you expect. You
 will get an acknowledgement within three working days and a status update at
