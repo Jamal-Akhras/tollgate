@@ -57,10 +57,22 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ env.DIGEST }}
           push-to-registry: true
-      - name: Draft the GitHub release
+      - name: Gather the release files
         run: |
           cp "tollgate-server/target/tollgate-server-$VERSION.jar" "tollgate-$VERSION.jar"
           cp target/bom.json "tollgate-$VERSION.sbom.json"
+      - name: Record how the jar was built
+        id: jar-provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            tollgate-${{ env.VERSION }}.jar
+            tollgate-${{ env.VERSION }}.sbom.json
+      - name: Draft the GitHub release
+        env:
+          BUNDLE: ${{ steps.jar-provenance.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE" "tollgate-$VERSION.sigstore.json"
           awk -v heading="## [$VERSION]" 'index($0, heading) == 1 { found = 1; next } found && /^## \[/ { exit } found' CHANGELOG.md > notes.md
           if [[ ! -s notes.md ]]; then
             echo "CHANGELOG.md has no section for $VERSION"
@@ -68,4 +80,4 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md \
             --title "Tollgate $VERSION" \
-            "tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json"
+            "tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json" "tollgate-$VERSION.sigstore.json"

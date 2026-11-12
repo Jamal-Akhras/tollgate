@@ -168,7 +168,7 @@ traffic.
   CI, and health probes on the management port.
 - A non-root container image on a distroless Java 25 base, published to
   `ghcr.io/jamal-akhras/tollgate` with a build provenance attestation, and the
-  server jar and an SBOM on each GitHub release.
+  server jar and an SBOM on each GitHub release, attested the same way.
 - `tollgate-spring-boot-starter`, which runs the gateway inside a Spring Boot
   4.1 application on Spring MVC
   ([ADR 0021](docs/adr/0021-spring-boot-starter.md)). The server is built on
