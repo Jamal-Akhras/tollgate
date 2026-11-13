@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class GuardsTest {
 
@@ -172,6 +174,77 @@ class GuardsTest {
         assertThat(MonitoredGuard.underlying(new MonitoredGuard(new RequestSizeGuard(10))))
                 .isEqualTo(new RequestSizeGuard(10));
         assertThat(MonitoredGuard.underlying(new RequestSizeGuard(10))).isEqualTo(new RequestSizeGuard(10));
+    }
+
+    private static GuardRequest defining(String... tools) {
+        return using(new RequestFeatures(List.of(), List.of(), Set.of(), List.of(tools)), "internal");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "run_command, run_command",
+        "write_*, write_file",
+        "*_command, run_command",
+        "a*c*e, abcde",
+        "*, anything"
+    })
+    void refusesARequestThatDefinesARefusedTool(String pattern, String name) {
+        var guard = new ToolNamesGuard(List.of(), List.of(pattern));
+
+        assertThat(guard.check(defining(name)))
+                .isEqualTo(
+                        Decision.deny(Refusal.POLICY_DENIED, "The tool '" + name + "' is not allowed by this policy"));
+        assertThat(guard.type()).isEqualTo("tool-names");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"run_command, run_commands", "run_command, Run_Command", "write_*, rewrite_x", "a*c, abcd"})
+    void allowsToolsThatNoPatternMatches(String pattern, String name) {
+        var guard = new ToolNamesGuard(List.of(), List.of(pattern));
+
+        assertThat(guard.check(defining(name))).isEqualTo(Decision.ALLOW);
+        assertThat(guard.check(defining())).isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void refusesAToolMissingFromTheAllowList() {
+        var guard = new ToolNamesGuard(List.of("get_weather", "search_*"), List.of());
+
+        assertThat(guard.check(defining("get_weather", "search_web"))).isEqualTo(Decision.ALLOW);
+        assertThat(guard.check(defining("get_weather", "run_command")))
+                .isEqualTo(
+                        Decision.deny(Refusal.POLICY_DENIED, "The tool 'run_command' is not allowed by this policy"));
+        assertThat(guard.check(defining())).isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void refusesAToolThatTheAllowListAdmitsButTheRefuseListNames() {
+        var guard = new ToolNamesGuard(List.of("file_*"), List.of("file_delete"));
+
+        assertThat(guard.check(defining("file_read"))).isEqualTo(Decision.ALLOW);
+        assertThat(guard.check(defining("file_delete"))).isInstanceOf(Decision.Deny.class);
+    }
+
+    @Test
+    void aToolNamesGuardNeedsAListWithoutBlanks() {
+        assertThatThrownBy(() -> new ToolNamesGuard(List.of(), List.of()))
+                .hasMessage("a tool-names guard needs allow, refuse or both");
+        assertThatThrownBy(() -> new ToolNamesGuard(List.of(" "), List.of()))
+                .hasMessage("allow and refuse must not hold an empty name");
+        assertThatThrownBy(() -> new ToolNamesGuard(List.of(), List.of("")))
+                .hasMessage("allow and refuse must not hold an empty name");
+    }
+
+    @Test
+    void aMonitoredToolNamesGuardRecordsItsRefusalAndLetsTheRequestThrough() {
+        var policy = new Policy(List.of(new MonitoredGuard(new ToolNamesGuard(List.of(), List.of("run_command")))));
+
+        Policy.Evaluation evaluation = policy.evaluate(defining("run_command"));
+
+        assertThat(evaluation.decision()).isEqualTo(Decision.ALLOW);
+        assertThat(evaluation.steps()).hasSize(1);
+        assertThat(evaluation.steps().getFirst().monitored()).isTrue();
+        assertThat(evaluation.steps().getFirst().decision()).isInstanceOf(Decision.Deny.class);
     }
 
     @Test

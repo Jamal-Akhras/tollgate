@@ -88,6 +88,7 @@ final class RequestReview {
     private final List<String> refused = new ArrayList<>();
     private final List<String> unreviewed = new ArrayList<>();
     private final Set<Feature> used = EnumSet.noneOf(Feature.class);
+    private final List<String> tools = new ArrayList<>();
 
     private final List<String> extraFields;
 
@@ -101,7 +102,7 @@ final class RequestReview {
             case OPENAI -> review.openAi(body);
             case ANTHROPIC -> review.anthropic(body, betas);
         }
-        return new RequestFeatures(review.refused, review.unreviewed, review.used);
+        return new RequestFeatures(review.refused, review.unreviewed, review.used, review.tools);
     }
 
     static long inlineImages(WireFormat format, ObjectNode body) {
@@ -130,6 +131,17 @@ final class RequestReview {
             if (!OPENAI_TOOLS.contains(type)) {
                 refuseTool(type);
             }
+            toolName(tool.path("function").path("name"));
+            toolName(tool.path("custom").path("name"));
+        }
+        for (JsonNode function : body.path("functions")) {
+            toolName(function.path("name"));
+        }
+    }
+
+    private void toolName(JsonNode name) {
+        if (name.isString()) {
+            tools.add(name.asString());
         }
     }
 
@@ -183,6 +195,7 @@ final class RequestReview {
         } else if (ANTHROPIC_CLIENT_TOOLS.stream().noneMatch(type::startsWith)) {
             refuseTool(type);
         }
+        toolName(tool.path("name"));
     }
 
     static boolean isWebSearch(JsonNode tool) {

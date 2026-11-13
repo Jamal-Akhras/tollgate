@@ -7,6 +7,7 @@ import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,7 +48,32 @@ class RequestReviewTest {
                 "reasoning_effort":"low","verbosity":"low","user":"u","safety_identifier":"s","prompt_cache_key":"k",
                 "store":false,"stream":false""");
 
-        assertThat(features).isEqualTo(RequestFeatures.NONE);
+        assertThat(features).isEqualTo(named("f", "g"));
+    }
+
+    private static RequestFeatures named(String... tools) {
+        return new RequestFeatures(List.of(), List.of(), Set.of(), List.of(tools));
+    }
+
+    @Test
+    void collectsTheNamesOfOpenAiTools() {
+        RequestFeatures features = openAi("""
+                "tools":[{"type":"function","function":{"name":"get_weather"}},
+                  {"type":"custom","custom":{"name":"run_command"}},{"type":"function","function":{}}],
+                "functions":[{"name":"old_style"},{"description":"nameless"}]""");
+
+        assertThat(features.tools()).containsExactly("get_weather", "run_command", "old_style");
+        assertThat(features.unreviewed()).hasSize(1);
+    }
+
+    @Test
+    void collectsTheNamesOfAnthropicToolsAndOfThoseAddedMidConversation() {
+        RequestFeatures features = anthropic("""
+                "messages":[{"role":"system","content":[{"type":"tool_addition","tool":{"type":"tool_definition",
+                  "definition":{"name":"Late","input_schema":{}}}}]}],
+                "tools":[{"name":"Read","input_schema":{}},{"type":"bash_20250124"}]""", null);
+
+        assertThat(features.tools()).containsExactly("Late", "Read");
     }
 
     @Test
@@ -61,7 +87,7 @@ class RequestReviewTest {
                 "tools":[{"name":"emit","input_schema":{}},{"type":"custom","name":"c"},{"type":"bash_20250124"},
                   {"type":"text_editor_20250728"},{"type":"computer_20250124"},{"type":"memory_20250818"}]""", null);
 
-        assertThat(features).isEqualTo(RequestFeatures.NONE);
+        assertThat(features).isEqualTo(named("emit", "c"));
     }
 
     @Test
@@ -84,7 +110,7 @@ class RequestReviewTest {
                         + "per-turn-control-2026-07-01,redact-thinking-2026-02-12,structured-outputs-2025-12-15,"
                         + "thinking-display-updates-2026-08-18,thinking-token-count-2026-05-13");
 
-        assertThat(features).isEqualTo(RequestFeatures.NONE);
+        assertThat(features).isEqualTo(named("Late", "Read"));
     }
 
     @Test

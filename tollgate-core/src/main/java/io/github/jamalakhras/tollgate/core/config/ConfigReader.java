@@ -16,6 +16,7 @@ import io.github.jamalakhras.tollgate.core.policy.Guard;
 import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
+import io.github.jamalakhras.tollgate.core.policy.ToolNamesGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
 import java.time.Duration;
 import java.util.Currency;
@@ -300,10 +301,15 @@ public final class ConfigReader {
                 section.requireOnly("type", "regions", "mode");
                 yield section.build(() -> new DataClassGuard(section.textLists("regions")));
             }
+            case ToolNamesGuard.TYPE -> {
+                section.requireOnly("type", "allow", "refuse", "mode");
+                yield section.build(() -> new ToolNamesGuard(section.texts("allow"), section.texts("refuse")));
+            }
             default ->
                 throw section.invalid(
                         "type",
-                        "must be one of " + RequestSizeGuard.TYPE + ", " + DataClassGuard.TYPE + ", was " + type);
+                        "must be one of " + RequestSizeGuard.TYPE + ", " + DataClassGuard.TYPE + ", "
+                                + ToolNamesGuard.TYPE + ", was " + type);
         };
     }
 }

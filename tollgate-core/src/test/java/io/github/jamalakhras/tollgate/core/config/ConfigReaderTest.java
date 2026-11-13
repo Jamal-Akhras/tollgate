@@ -16,6 +16,7 @@ import io.github.jamalakhras.tollgate.core.policy.Feature;
 import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.RequestSizeGuard;
+import io.github.jamalakhras.tollgate.core.policy.ToolNamesGuard;
 import io.github.jamalakhras.tollgate.core.redact.Detector;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
 import java.math.BigDecimal;
@@ -307,9 +308,40 @@ class ConfigReaderTest {
     }
 
     @Test
+    void readsAToolNamesGuard() {
+        Map<String, Object> refuse = Map.of("type", "tool-names", "refuse", List.of("run_command", "write_*"));
+        Map<String, Object> allow = Map.of("type", "tool-names", "allow", List.of("get_weather"));
+        Map<String, Object> both =
+                Map.of("type", "tool-names", "allow", List.of("file_*"), "refuse", List.of("file_delete"));
+        Map<String, Object> monitored =
+                Map.of("type", "tool-names", "refuse", List.of("run_command"), "mode", "monitor");
+
+        GatewayConfig config = ConfigReader.read(with(
+                "policies",
+                Map.of("default", Map.of("guards", List.of(DATA_CLASS_GUARD, refuse, allow, both, monitored)))));
+
+        assertThat(Objects.requireNonNull(config.policies().get("default")).guards())
+                .containsExactly(
+                        new DataClassGuard(Map.of("public", List.of("us", "local"), "confidential", List.of("local"))),
+                        new ToolNamesGuard(List.of(), List.of("run_command", "write_*")),
+                        new ToolNamesGuard(List.of("get_weather"), List.of()),
+                        new ToolNamesGuard(List.of("file_*"), List.of("file_delete")),
+                        new MonitoredGuard(new ToolNamesGuard(List.of(), List.of("run_command"))));
+    }
+
+    @Test
+    void rejectsAToolNamesGuardWithNeitherList() {
+        assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "tool-names"))))
+                .hasMessage("policies.default.guards[0]: a tool-names guard needs allow, refuse or both");
+        assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "tool-names", "refuse", List.of()))))
+                .hasMessage("policies.default.guards[0]: a tool-names guard needs allow, refuse or both");
+    }
+
+    @Test
     void reportsGuardProblems() {
         assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "pii-redact"))))
-                .hasMessage("policies.default.guards[0].type must be one of request-size, data-class, was pii-redact");
+                .hasMessage(
+                        "policies.default.guards[0].type must be one of request-size, data-class, tool-names, was pii-redact");
         assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "request-size", "maxBytes", "1MB"))))
                 .hasMessage("policies.default.guards[0].maxBytes must be a whole number, was 1MB");
         assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "request-size"))))
