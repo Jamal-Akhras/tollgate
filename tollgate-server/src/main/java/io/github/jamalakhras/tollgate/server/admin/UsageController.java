@@ -65,7 +65,8 @@ class UsageController {
                     @RequestParam(required = false)
                     @Nullable
                     String to,
-            @Parameter(description = "tenant, model, key or day") @RequestParam(defaultValue = "tenant") String by)
+            @Parameter(description = "tenant, model, key, user or day") @RequestParam(defaultValue = "tenant")
+                    String by)
             throws IOException {
         Path directory = gateway.auditDirectory().orElseThrow(AuditOff::new);
         try {

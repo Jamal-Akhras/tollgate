@@ -130,7 +130,7 @@
             "type" : [ "string", "null" ]
           }
         }, {
-          "description" : "tenant, model, key or day",
+          "description" : "tenant, model, key, user or day",
           "in" : "query",
           "name" : "by",
           "required" : false,

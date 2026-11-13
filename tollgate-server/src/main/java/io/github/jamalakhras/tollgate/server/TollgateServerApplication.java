@@ -13,7 +13,7 @@ public class TollgateServerApplication {
 
     public static void main(String[] args) {
         if (Commands.isCommand(args)) {
-            System.exit(new Commands(System.out, System.err, new SecureRandom()).run(List.of(args)));
+            System.exit(new Commands(System.out, System.err, new SecureRandom(), System::getenv).run(List.of(args)));
         }
         SpringApplication.run(TollgateServerApplication.class, args);
     }

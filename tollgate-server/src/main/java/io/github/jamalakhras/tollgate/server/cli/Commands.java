@@ -20,6 +20,7 @@ import io.github.jamalakhras.tollgate.gateway.audit.UsageReport;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,7 +33,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 public final class Commands {
 
@@ -48,18 +51,22 @@ public final class Commands {
               java -jar tollgate.jar audit verify --public-key <key> <directory> Verify an audit trail
               java -jar tollgate.jar prices show <provider> <model>             Show a model's price in the catalog
               java -jar tollgate.jar prices pin <tollgate.yaml>                 Print the catalog prices a config uses
-              java -jar tollgate.jar usage <tollgate.yaml> [--from <day>] [--to <day>] [--by tenant|model|key|day]
+              java -jar tollgate.jar usage <tollgate.yaml> [--from <day>] [--to <day>] [--by tenant|model|key|user|day]
                                                                                 Sum the audit trail
+              java -jar tollgate.jar audit user <tollgate.yaml> <id>             Print the HMAC a user ID is recorded under
             """;
 
     private final PrintStream out;
     private final PrintStream err;
     private final SecureRandom random;
+    private final Function<String, @Nullable String> environment;
 
-    public Commands(PrintStream out, PrintStream err, SecureRandom random) {
+    public Commands(
+            PrintStream out, PrintStream err, SecureRandom random, Function<String, @Nullable String> environment) {
         this.out = out;
         this.err = err;
         this.random = random;
+        this.environment = environment;
     }
 
     public static boolean isCommand(String[] args) {
@@ -78,6 +85,9 @@ public final class Commands {
         }
         if (args.size() == 5 && args.subList(0, 3).equals(List.of("audit", "verify", "--public-key"))) {
             return verify(args.get(3), Path.of(args.get(4)));
+        }
+        if (args.size() == 4 && args.subList(0, 2).equals(List.of("audit", "user"))) {
+            return auditUser(Path.of(args.get(2)), args.get(3));
         }
         if (args.size() == 4 && args.subList(0, 2).equals(List.of("prices", "show"))) {
             return showPrice(args.get(2), args.get(3));
@@ -217,6 +227,32 @@ public final class Commands {
             return FAILED;
         }
         out.println("The audit trail is intact.");
+        return 0;
+    }
+
+    private int auditUser(Path config, String id) {
+        LoadedConfig loaded;
+        try {
+            loaded = ConfigFile.read(config);
+        } catch (IllegalStateException | UncheckedIOException e) {
+            err.println(e.getMessage());
+            return FAILED;
+        }
+        if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
+            err.println("Users are recorded in the audit trail, and audit.mode is off in " + config);
+            return FAILED;
+        }
+        AuditKeys keys;
+        try {
+            keys = AuditKeys.of(
+                    audit.publicKey(),
+                    audit.signingKey().resolve(environment),
+                    audit.hmacKey().resolve(environment));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            err.println(e.getMessage());
+            return FAILED;
+        }
+        out.println(keys.hmac(id.strip().getBytes(StandardCharsets.UTF_8)));
         return 0;
     }
 

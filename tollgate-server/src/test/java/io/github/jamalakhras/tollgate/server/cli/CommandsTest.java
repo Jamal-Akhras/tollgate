@@ -29,6 +29,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,7 +50,8 @@ class CommandsTest {
     private final Commands commands = new Commands(
             new PrintStream(out, true, StandardCharsets.UTF_8),
             new PrintStream(err, true, StandardCharsets.UTF_8),
-            new SecureRandom());
+            new SecureRandom(),
+            Map.of("SIGNING", AUDIT_KEYS.signingKey(), "HMAC", AUDIT_KEYS.hmacKey())::get);
 
     @Test
     void createsAKeyAndTheConfigEntryThatMatchesIt() {
@@ -202,6 +204,42 @@ class CommandsTest {
     }
 
     @Test
+    void sumsUsageByUser() throws Exception {
+        writeTrail();
+        Path config = usageConfig("{ mode: sync, directory: ., publicKey: " + AUDIT_KEYS.publicKey()
+                + ", signingKey: \"${env:SIGNING}\", hmacKey: \"${env:HMAC}\" }");
+
+        int status = commands.run(
+                List.of("usage", config.toString(), "--from", "1970-01-01", "--to", "1970-01-02", "--by", "user"));
+
+        assertThat(status).isZero();
+        assertThat(out.toString(StandardCharsets.UTF_8)).containsPattern("unattributed +0 +2 +0 +0 +0 +0 +0 +-");
+    }
+
+    @Test
+    void printsTheHmacAUserIdIsRecordedUnder() throws Exception {
+        Path config = usageConfig("{ mode: sync, directory: ., publicKey: " + AUDIT_KEYS.publicKey()
+                + ", signingKey: \"${env:SIGNING}\", hmacKey: \"${env:HMAC}\" }");
+        String expected = AuditKeys.of(AUDIT_KEYS.publicKey(), AUDIT_KEYS.signingKey(), AUDIT_KEYS.hmacKey())
+                .hmac("alice".getBytes(StandardCharsets.UTF_8));
+
+        int status = commands.run(List.of("audit", "user", config.toString(), "  alice "));
+
+        assertThat(status).isZero();
+        assertThat(out.toString(StandardCharsets.UTF_8)).isEqualTo(expected + System.lineSeparator());
+    }
+
+    @Test
+    void cannotHashAUserWhenTheAuditTrailIsOff() throws Exception {
+        int status = commands.run(
+                List.of("audit", "user", usageConfig("{ mode: off }").toString(), "alice"));
+
+        assertThat(status).isEqualTo(Commands.FAILED);
+        assertThat(out.toString(StandardCharsets.UTF_8)).isEmpty();
+        assertThat(err.toString(StandardCharsets.UTF_8)).contains("Users are recorded in the audit trail");
+    }
+
+    @Test
     void explainsWhyItCannotSumTheTrail() throws Exception {
         assertThat(commands.run(List.of("usage", usageConfig("{ mode: off }").toString())))
                 .isEqualTo(Commands.FAILED);
@@ -215,7 +253,7 @@ class CommandsTest {
         assertThat(commands.run(List.of("usage", config.toString()))).isEqualTo(Commands.FAILED);
         assertThat(err.toString(StandardCharsets.UTF_8))
                 .contains("audit.mode is off")
-                .contains("by must be one of tenant, model, key, day, was week")
+                .contains("by must be one of tenant, model, key, user, day, was week")
                 .contains("Could not read the audit trail");
     }
 
