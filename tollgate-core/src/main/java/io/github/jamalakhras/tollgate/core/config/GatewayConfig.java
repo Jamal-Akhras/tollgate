@@ -59,6 +59,10 @@ public record GatewayConfig(
             checkFallback(model.getKey(), model.getValue(), models, providers);
         }
         for (var tenant : tenants.entrySet()) {
+            if (tenant.getValue().userHeader() != null && !(audit instanceof AuditSettings.Enabled)) {
+                throw new IllegalArgumentException("tenants." + tenant.getKey()
+                        + ".userHeader needs the audit trail, where the user is recorded, and audit.mode is off");
+            }
             checkTenant(tenant.getKey(), tenant.getValue(), dataClasses, models, providers, policies);
         }
         for (var policy : policies.entrySet()) {

@@ -181,7 +181,7 @@ public final class ConfigReader {
     }
 
     private static Tenant tenant(Section section, Currency currency) {
-        section.requireOnly("models", "dataClass", "policy", "budget", "showCosts", "limits");
+        section.requireOnly("models", "dataClass", "policy", "budget", "showCosts", "limits", "userHeader");
         Budget budget = section.optionalChild("budget", child -> budget(child, currency));
         Limits limits = section.optionalChild("limits", ConfigReader::limits);
         return section.build(() -> new Tenant(
@@ -190,7 +190,8 @@ public final class ConfigReader {
                 section.optionalText("policy"),
                 budget,
                 section.flag("showCosts", false),
-                limits == null ? Limits.NONE : limits));
+                limits == null ? Limits.NONE : limits,
+                section.optionalText("userHeader")));
     }
 
     private static Limits limits(Section section) {

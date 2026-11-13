@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.budget.Budget;
 import io.github.jamalakhras.tollgate.core.budget.Period;
+import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.money.SearchPrice;
@@ -67,6 +68,16 @@ class GatewayConfigTest {
                 List.of(),
                 Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "any-size", ANY_SIZE, "open", Policy.NONE),
                 AuditSettings.DISABLED);
+    }
+
+    @Test
+    void refusesAUserHeaderWhenTheAuditTrailIsOff() {
+        var budget = new Budget(Prices.usd("10"), Period.MONTHLY);
+        var tenant = new Tenant(List.of("qwen3"), "internal", "any-size", budget, false, Limits.NONE, "X-User");
+
+        assertThatThrownBy(() -> config(Map.of("support-bot", tenant)))
+                .hasMessage("tenants.support-bot.userHeader needs the audit trail, where the user is recorded,"
+                        + " and audit.mode is off");
     }
 
     private Admission admit(String tenant, String model, @Nullable String requestedDataClass, long size) {

@@ -13,7 +13,8 @@ public record Tenant(
         @Nullable String policy,
         @Nullable Budget budget,
         boolean showCosts,
-        Limits limits) {
+        Limits limits,
+        @Nullable String userHeader) {
 
     public Tenant {
         models = List.copyOf(models);
@@ -21,10 +22,13 @@ public record Tenant(
             throw new IllegalArgumentException("models must not repeat a model");
         }
         Objects.requireNonNull(limits, "limits");
+        if (userHeader != null && !userHeader.matches("[A-Za-z0-9-]+")) {
+            throw new IllegalArgumentException("userHeader must be a header name such as X-OpenWebUI-User-Id");
+        }
     }
 
     public Tenant(List<String> models, @Nullable String dataClass, @Nullable String policy, @Nullable Budget budget) {
-        this(models, dataClass, policy, budget, false, Limits.NONE);
+        this(models, dataClass, policy, budget, false, Limits.NONE, null);
     }
 
     public boolean mayUse(String model) {

@@ -34,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfigReaderTest {
 
@@ -199,6 +200,23 @@ class ConfigReaderTest {
                 .isEqualTo(new Limits(null, null, 4L));
         assertThat(entry(ConfigReader.read(document()).tenants(), "support-bot").limits())
                 .isEqualTo(Limits.NONE);
+    }
+
+    @Test
+    void readsATenantsUserHeader() {
+        GatewayConfig config = ConfigReader.read(with("tenants.support-bot.userHeader", "X-OpenWebUI-User-Id"));
+
+        assertThat(entry(config.tenants(), "support-bot").userHeader()).isEqualTo("X-OpenWebUI-User-Id");
+        assertThat(entry(ConfigReader.read(document()).tenants(), "support-bot").userHeader())
+                .isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"X User", "X-User: 1"})
+    void rejectsAUserHeaderThatIsNotAHeaderName(String header) {
+        assertThatThrownBy(() -> ConfigReader.read(with("tenants.support-bot.userHeader", header)))
+                .hasMessageContaining("tenants.support-bot")
+                .hasMessageContaining("userHeader");
     }
 
     @Test
