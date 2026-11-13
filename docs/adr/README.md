@@ -28,3 +28,5 @@ is accepted is not always built yet; the last column says what 0.1.0 ships.
 | [0020](0020-agent-clients-and-skills.md) | Agent clients and skills | Accepted | Claude Code only |
 | [0021](0021-spring-boot-starter.md) | A Spring Boot starter that embeds the gateway | Accepted | Yes |
 | [0022](0022-shadow-mode.md) | Shadow mode for guards | Accepted | Yes |
+| [0023](0023-attribute-calls-to-a-user.md) | Attribute calls to a user | Accepted | Yes |
+| [0024](0024-refuse-tools-by-name.md) | Refuse tools by name | Accepted | Yes |

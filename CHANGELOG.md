@@ -53,6 +53,10 @@ traffic.
   safeguards is redacted. A recorded session is replayed in the build, and
   [docs/clients/claude-code.md](docs/clients/claude-code.md) shows how to set
   it up.
+- Open WebUI works through Tollgate with the request review on. A recorded
+  session is replayed in the build, and
+  [docs/clients/open-webui.md](docs/clients/open-webui.md) shows how to set it
+  up.
 
 #### Tenants, policy and redaction
 
@@ -61,6 +65,14 @@ traffic.
   `${env:...}` references only.
 - Request size and data-class guards. Data classes can only be made stricter,
   and each class goes only to the regions it allows.
+- `userHeader` on a tenant names the request header that says which user is
+  calling ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)). Its value
+  is recorded as an HMAC and never sent to a provider. A config with a
+  `userHeader` and the audit trail off is rejected.
+- A `tool-names` guard refuses a request that defines a tool with a listed
+  name, or one missing from an `allow` list
+  ([ADR 0024](docs/adr/0024-refuse-tools-by-name.md)). It checks tool
+  definitions only, so tools written into a prompt are not seen.
 - Shadow mode for guards ([ADR 0022](docs/adr/0022-shadow-mode.md)). A guard
   with `mode: monitor` runs like any other, but its refusal is only recorded:
   the request goes on, the client sees nothing different, and the
@@ -152,9 +164,12 @@ traffic.
   is never sent to providers.
 - A usage report summed from the audit trail, on the admin port at
   `GET /admin/v1/usage` and on the command line as `tollgate usage`: calls,
-  refusals by code, tokens and cost by tenant, model, key or day.
+  refusals by code, tokens and cost by tenant, model, key, user or day.
   `GET /admin/v1/budgets` shows each budget's spent, reserved and available
   amounts.
+- Intents with a user are version 4 of the audit record. The usage report
+  also groups `by=user`, and `tollgate audit user` prints the hash a user ID
+  is recorded under.
 
 #### Running it
 

@@ -92,6 +92,8 @@ Modules are added when they gain code.
    - the built-in check that the request asks only for reviewed fields, tools
      and content ([ADR 0008](adr/0008-harden-the-request-path.md))
    - size limits
+   - tools by name, when the policy lists any
+     ([ADR 0024](adr/0024-refuse-tools-by-name.md))
    - data class and region rules
    - personal data: refuse or redact patterned values
      ([ADR 0012](adr/0012-redact-personal-data.md))
@@ -152,6 +154,7 @@ tenants:
     dataClass: confidential          # default; headers can only make it stricter
     models: [claude-sonnet, qwen3]
     policy: default
+    userHeader: X-OpenWebUI-User-Id  # optional; the user is recorded as an HMAC
     budget: { limit: 50.00, period: monthly }
     limits: { requestsPerMinute: 60, tokensPerMinute: 200000, concurrent: 8 }
 
@@ -163,6 +166,8 @@ policies:
     guards:
       - type: request-size
         maxBytes: 1048576
+      - type: tool-names
+        refuse: [run_command, "delete_*"]
       - type: data-class
         regions: { public: [us, eu, local], internal: [us, eu, local], confidential: [local], restricted: [local] }
     redact:                        # replaced before the call, restored in the answer
@@ -188,9 +193,16 @@ audit:                             # required; 'mode: off' must be written out
 - **Tenants** may call only the models they list; any other model is reported as
   not found. Once `dataClasses` are defined, every tenant needs a default
   class, and a request header may move it to a stricter class only.
-- **Guards** are `request-size` and `data-class`. The data-class guard fails
+- **Guards** are `request-size`, `data-class` and `tool-names`. The data-class guard fails
   closed: a class with no listed regions, or a provider with no region, is
-  refused.
+  refused. The `tool-names` guard refuses a request that defines a tool
+  with a listed name (`*` matches any run of characters), or one not on an
+  `allow` list. It sees tool definitions only, and the client chooses the
+  names ([ADR 0024](adr/0024-refuse-tools-by-name.md)).
+- **Users:** a tenant's `userHeader` names the request header that says which
+  person is calling. Its value is recorded as an HMAC, and `usage --by user`
+  groups by it. The header is the application's word, not proof
+  ([ADR 0023](adr/0023-attribute-calls-to-a-user.md)).
 - **Shadow mode:** a guard with `mode: monitor` records what it would have
   refused, in the audit trail and the `tollgate.guards.monitored` metric,
   without refusing, so a new guard can be measured before it is enforced
@@ -266,7 +278,8 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
   ID.
 - Coding agents work too: Claude Code is recorded and replayed in the build
   ([setup](clients/claude-code.md),
-  [ADR 0020](adr/0020-agent-clients-and-skills.md)).
+  [ADR 0020](adr/0020-agent-clients-and-skills.md)). Open WebUI works the
+  same way ([setup](clients/open-webui.md)).
 - Deployed on the same host or as a sidecar, the extra hop is small. The first
   performance report, in 0.1.1, publishes the measured figure.
 
@@ -308,7 +321,8 @@ settle exactly too.
   binary encoding rather than their JSON text, so verification does not
   depend on JSON formatting. `tollgate audit verify` checks a trail end to end.
 - **Privacy by default:** prompts and answers are stored only as keyed hashes
-  (HMAC), which cannot be reversed by guessing.
+  (HMAC), which cannot be reversed by guessing. A user is stored the same
+  way, never as the ID, name or email the client sent.
 - **Durability modes:** synchronous, the default (durable before the provider
   is called, group-committed), or asynchronous (batched). If the intent record
   cannot be written, the request is refused.
@@ -390,7 +404,7 @@ with hardware details for every audit mode.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on Maven Central |
+| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code and Open WebUI through the review; a Docker image; `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on Maven Central |
 | **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
 | **Next** | The Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
 | **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; Policy Studio ([ADR 0004](adr/0004-studio-and-admin-api.md)); cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |

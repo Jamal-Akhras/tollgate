@@ -30,12 +30,23 @@ what was sent, who sent it, what it cost, and why it was allowed.
   request reviewed: point `ANTHROPIC_BASE_URL` at Tollgate and give it a
   tenant key ([setup](docs/clients/claude-code.md),
   [ADR 0020](docs/adr/0020-agent-clients-and-skills.md)).
+- **Open WebUI too.** It works through Tollgate with every request
+  reviewed: add Tollgate as an OpenAI connection with a tenant key
+  ([setup](docs/clients/open-webui.md)).
+- **Calls per person.** A tenant with `userHeader: X-OpenWebUI-User-Id` has
+  that header's value recorded in the audit trail as an HMAC, so usage can
+  be summed by user without storing who they are
+  ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)).
 - **Tenants and keys.** Each application gets a tenant with its own API keys,
   which are stored only as SHA-256 hashes, and its own list of models.
 - **Data classes and regions.** Each tenant has a default data class, such as
   `internal` or `confidential`. A request may make its class stricter, never
   looser, and each class may go only to providers in the regions you allow.
   Guards fail closed.
+- **Refuse tools by name.** A `tool-names` guard refuses a request that
+  defines a tool you list, such as `run_command` or `delete_*`, or any tool
+  not on an `allow` list. It sees tool definitions, not tools written into a
+  prompt ([ADR 0024](docs/adr/0024-refuse-tools-by-name.md)).
 - **Try a guard before it refuses.** A guard with `mode: monitor` runs on
   real traffic and records what it would have refused, in the audit trail and
   the `tollgate.guards.monitored` metric, without refusing anything
@@ -392,8 +403,8 @@ same guards, budgets, redaction, audit, metrics and traces.
   - `tollgate_limits_refused_total`, `tollgate_providers_busy_total` and
     `tollgate_fallbacks_total`
 
-  Prompts, answers and key IDs never appear in metrics. To see them, import
-  [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into Grafana and
+  Prompts, answers, key IDs and users never appear in metrics. To see them,
+  import [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into Grafana and
   pick your Prometheus data source: calls, refusals, spend, budgets, tokens,
   provider latency, fallbacks and calls in flight, filtered by tenant, model
   and provider.
@@ -419,10 +430,12 @@ same guards, budgets, redaction, audit, metrics and traces.
 - **Usage and budgets:**
   `curl -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" "http://127.0.0.1:8081/admin/v1/usage?from=2026-11-01&by=tenant"`
   sums the audit trail: calls, refusals by code, tokens and cost, by
-  `tenant`, `model`, `key` or `day`. The numbers are the ones `audit verify`
-  vouches for. `java -jar tollgate.jar usage tollgate.yaml --by model` prints
-  the same table, and `/admin/v1/budgets` shows each budget's spent, reserved
-  and available amounts.
+  `tenant`, `model`, `key`, `user` or `day`. The numbers are the ones
+  `audit verify` vouches for. `java -jar tollgate.jar usage tollgate.yaml --by model`
+  prints the same table, and `/admin/v1/budgets` shows each budget's spent,
+  reserved and available amounts.
+  `java -jar tollgate.jar audit user tollgate.yaml <id>` prints the hash a user
+  ID is recorded under, to find that person's row in a report `by=user`.
 - **Audit modes:**
   - In `sync` mode, the default, each record is fsynced before the request
     moves on, and concurrent requests share fsyncs.
@@ -463,6 +476,7 @@ mutation tested. The checks the build enforces are listed under the
 - [Design](docs/DESIGN.md): architecture, request lifecycle, configuration and roadmap
 - [Architecture decision records](docs/adr/)
 - [Claude Code through Tollgate](docs/clients/claude-code.md)
+- [Open WebUI through Tollgate](docs/clients/open-webui.md)
 - [Admin API contract](docs/api/admin-openapi.json)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
 

@@ -1,6 +1,7 @@
 # ADR 0017: Metrics, traces and a usage report
 
-Date: 2026-11-10 · Status: Accepted
+Date: 2026-11-10 · Status: Accepted, amended by
+[ADR 0023](0023-attribute-calls-to-a-user.md)
 
 ## Context
 
@@ -69,6 +70,8 @@ own rule: prompts and answers never leave as text.
 - **`GET /admin/v1/usage?from=…&to=…&by=tenant|model|key|day`** on the admin
   port, and `tollgate usage` on the command line, sum the audit trail:
   requests, refusals by code, tokens by type, and cost.
+- Amended on 2026-11-13: `user` was added to `by` by
+  [ADR 0023](0023-attribute-calls-to-a-user.md).
 - **The audit trail is the source** because it is complete, signed and
   survives restarts. The numbers are the ones `audit verify` vouches for, not
   a second count that could drift from them.
