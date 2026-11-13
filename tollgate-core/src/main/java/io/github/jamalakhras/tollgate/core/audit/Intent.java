@@ -24,7 +24,8 @@ public record Intent(
         List<GuardStep> steps,
         Decision decision,
         @Nullable Money reservation,
-        @Nullable Redactions redactions)
+        @Nullable Redactions redactions,
+        @Nullable String user)
         implements AuditRecord {
 
     public Intent {
@@ -33,6 +34,9 @@ public record Intent(
         Objects.requireNonNull(decision, "decision");
         Digests.requireSha256("configVersion", configVersion);
         Digests.requireSha256("requestHmac", requestHmac);
+        if (user != null) {
+            Digests.requireSha256("user", user);
+        }
         steps = List.copyOf(steps);
     }
 
@@ -70,6 +74,42 @@ public record Intent(
                 steps,
                 decision,
                 reservation,
+                null,
+                null);
+    }
+
+    public Intent(
+            String id,
+            Instant time,
+            String tenant,
+            String key,
+            WireFormat endpoint,
+            String model,
+            String provider,
+            String upstream,
+            @Nullable String dataClass,
+            String configVersion,
+            String requestHmac,
+            List<GuardStep> steps,
+            Decision decision,
+            @Nullable Money reservation,
+            @Nullable Redactions redactions) {
+        this(
+                id,
+                time,
+                tenant,
+                key,
+                endpoint,
+                model,
+                provider,
+                upstream,
+                dataClass,
+                configVersion,
+                requestHmac,
+                steps,
+                decision,
+                reservation,
+                redactions,
                 null);
     }
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -74,6 +75,31 @@ class RecordValidationTest {
                 .hasMessage("previous must be 64 lowercase hex characters");
         assertThatThrownBy(() -> new Seal(1, 1, Records.TIME, HASH, "0", "b81e44a0c3f2d917", "4c07a2e19b5d3f60", ""))
                 .hasMessage("root must be 64 lowercase hex characters");
+    }
+
+    @Test
+    void rejectsAUserThatIsNotAnHmac() {
+        Intent intent = Records.intent("a");
+        for (String user : List.of("alice", "a".repeat(63))) {
+            assertThatThrownBy(() -> new Intent(
+                            intent.id(),
+                            intent.time(),
+                            intent.tenant(),
+                            intent.key(),
+                            intent.endpoint(),
+                            intent.model(),
+                            intent.provider(),
+                            intent.upstream(),
+                            intent.dataClass(),
+                            intent.configVersion(),
+                            intent.requestHmac(),
+                            intent.steps(),
+                            intent.decision(),
+                            intent.reservation(),
+                            null,
+                            user))
+                    .hasMessage("user must be 64 lowercase hex characters");
+        }
     }
 
     @Test

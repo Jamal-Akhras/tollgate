@@ -14,6 +14,7 @@ final class Encoding {
     static final int VERSION = 1;
     static final int REDACTED_VERSION = 2;
     static final int MONITORED_VERSION = 3;
+    static final int USER_VERSION = 4;
 
     private static final int INTENT = 1;
     private static final int OUTCOME = 2;
@@ -35,8 +36,13 @@ final class Encoding {
 
     private void intent(Intent intent) {
         Redactions redactions = intent.redactions();
-        boolean monitored = intent.monitored();
-        header(monitored ? MONITORED_VERSION : redactions == null ? VERSION : REDACTED_VERSION, INTENT);
+        String user = intent.user();
+        boolean modes = user != null || intent.monitored();
+        header(
+                user != null
+                        ? USER_VERSION
+                        : modes ? MONITORED_VERSION : redactions == null ? VERSION : REDACTED_VERSION,
+                INTENT);
         text(intent.id());
         instant(intent.time());
         text(intent.tenant());
@@ -51,7 +57,7 @@ final class Encoding {
         u32(intent.steps().size());
         for (GuardStep step : intent.steps()) {
             text(step.guard());
-            if (monitored) {
+            if (modes) {
                 bytes.write(step.monitored() ? 1 : 0);
             }
             decision(step.decision());
@@ -63,7 +69,7 @@ final class Encoding {
         if (reservation != null) {
             money(reservation);
         }
-        if (monitored) {
+        if (modes) {
             present(redactions != null);
         }
         if (redactions != null) {
@@ -73,6 +79,9 @@ final class Encoding {
                 u32(count);
             });
             sha256(redactions.sentHmac());
+        }
+        if (user != null) {
+            sha256(user);
         }
     }
 

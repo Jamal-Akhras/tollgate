@@ -21,6 +21,7 @@ class EncodingTest {
     private static final String ROOT = "9f2c" + "4".repeat(60);
     private static final String ID = "7c0e9a51-2f4b-4d0e-9a3c-1b2d3e4f5a6b";
     private static final String MONITORED_SHA256 = "7bffa2fe16cb2cfb0b6f99ff9c8a51e0ce55cd6841951d534a114b93b6f9dd94";
+    private static final String ATTRIBUTED_SHA256 = "acdfa9633bece71be46f0c9e6e81843b0cd6d92ea8165fafc67d512f88c077d3";
     private static final String MONITORED_AND_REDACTED_SHA256 =
             "d5a21bf5cd6d8858bd9d6b9d839f8d40037b1027e22ac9a979037e3405cdfe71";
 
@@ -91,6 +92,30 @@ class EncodingTest {
         assertThat(Arrays.copyOfRange(both, monitored.length, both.length)).isEqualTo(redactionsBlock);
         assertThat(List.of(sha256Of(Records.monitored(ID)), sha256Of(Records.monitoredAndRedacted(ID))))
                 .containsExactly(MONITORED_SHA256, MONITORED_AND_REDACTED_SHA256);
+    }
+
+    @Test
+    void encodesAnIntentWithAUserAsVersion4EndingInTheUsersHmac() {
+        byte[] encoded = Encoding.of(Records.attributed("a"));
+
+        assertThat(encoded).startsWith(4, 1);
+        assertThat(Arrays.copyOfRange(encoded, encoded.length - 32, encoded.length))
+                .isEqualTo(Digests.HEX.parseHex(Records.USER_HMAC));
+        assertThat(sha256Of(Records.attributed(ID))).isEqualTo(ATTRIBUTED_SHA256);
+    }
+
+    @Test
+    void writesAModeByteForEachStepOfAVersion4Intent() {
+        Intent attributed = Records.attributed("a");
+        List<GuardStep> enforced = List.of(
+                new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                new GuardStep("data-class", Decision.ALLOW, Duration.ofNanos(3_400)));
+        List<GuardStep> oneMonitored = List.of(
+                new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                new GuardStep("data-class", Decision.ALLOW, Duration.ofNanos(3_400), true));
+
+        assertThat(Encoding.of(withSteps(attributed, oneMonitored)))
+                .isNotEqualTo(Encoding.of(withSteps(attributed, enforced)));
     }
 
     @Test
@@ -172,7 +197,8 @@ class EncodingTest {
                 steps,
                 intent.decision(),
                 intent.reservation(),
-                intent.redactions());
+                intent.redactions(),
+                intent.user());
     }
 
     private static Intent withTenantAndKey(String tenant, String key) {
