@@ -404,10 +404,10 @@ same guards, budgets, redaction, audit, metrics and traces.
     `tollgate_fallbacks_total`
 
   Prompts, answers, key IDs and users never appear in metrics. To see them,
-  import [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into Grafana and
-  pick your Prometheus data source: calls, refusals, spend, budgets, tokens,
-  provider latency, fallbacks and calls in flight, filtered by tenant, model
-  and provider.
+  import [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into
+  Grafana and pick your Prometheus data source: calls, refusals, spend,
+  budgets, tokens, provider latency, fallbacks and calls in flight, filtered
+  by tenant, model and provider.
 
 - **Traces:** set
   `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://collector:4318/v1/traces`

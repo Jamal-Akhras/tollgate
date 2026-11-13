@@ -38,11 +38,15 @@ final class Encoding {
         Redactions redactions = intent.redactions();
         String user = intent.user();
         boolean modes = user != null || intent.monitored();
-        header(
-                user != null
-                        ? USER_VERSION
-                        : modes ? MONITORED_VERSION : redactions == null ? VERSION : REDACTED_VERSION,
-                INTENT);
+        int version = VERSION;
+        if (user != null) {
+            version = USER_VERSION;
+        } else if (modes) {
+            version = MONITORED_VERSION;
+        } else if (redactions != null) {
+            version = REDACTED_VERSION;
+        }
+        header(version, INTENT);
         text(intent.id());
         instant(intent.time());
         text(intent.tenant());

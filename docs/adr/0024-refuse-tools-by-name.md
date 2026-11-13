@@ -41,7 +41,8 @@ policies:
   refused. A request with no tools passes.
 - **Both may be given.** A tool must then match `allow` and not match
   `refuse`, so `allow: ["file_*"]` with `refuse: [file_delete]` works.
-- **A guard with neither, or with an empty list, fails the config load.**
+- **A guard with neither list, or with both empty, fails the config load,**
+  and so does an empty name in either.
 - **It is per policy,** and tenants choose a policy, so one tenant can be
   given a tool another is refused. There is no global list.
 
@@ -50,11 +51,15 @@ policies:
 - **It checks tool definitions.** For an OpenAI request these are the names
   under `tools` and the older `functions` field. For an Anthropic request they
   are the names under `tools`, and the definition in a `tool_addition` block.
+- **Anthropic's built-in tools have names too,** such as `bash` or
+  `web_search`, and are matched like any other, so an `allow` list must name
+  them. OpenAI's web search is a request field, not a tool, and the policy's
+  `features` govern it.
 - **One refused name refuses the request,** with `403` `policy_denied` in the
   endpoint's own error format: `The tool 'run_command' is not allowed by this
   policy`. The same message is used whether the name matched `refuse` or
-  missed `allow`. Nothing is removed from a request to make it pass, since Tollgate
-  changes only the model and the output cap (ADR 0005).
+  missed `allow`. Nothing is removed from a request to make it pass, since
+  Tollgate changes only the model and the output cap (ADR 0005).
 - **It runs where it is listed,** after the built-in request review, and again
   for each fallback attempt, like the other guards.
 - **It can be monitored.** `mode: monitor` records what it would have refused
