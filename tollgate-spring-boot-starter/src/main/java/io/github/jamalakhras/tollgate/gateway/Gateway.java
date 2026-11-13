@@ -261,11 +261,12 @@ public final class Gateway implements AutoCloseable {
         if (route.provider().format() != endpoint) {
             throw GatewayException.wrongEndpoint(route.model(), route.provider().format());
         }
+        String user = userOf(config, caller, clientHeaders);
         Admission admission = traced(
                 "tollgate.guards", () -> admission(config, caller, route, request, requestBody.length, clientHeaders));
         Scanned scanned = traced("tollgate.redaction", () -> scan(request, endpoint, admission));
-        Call call =
-                new Call(traceId, snapshot, caller, permit, endpoint, route, scanned.admission(), scanned.redactor());
+        Call call = new Call(
+                traceId, snapshot, caller, permit, endpoint, route, scanned.admission(), scanned.redactor(), user);
         if (call.admission().decision() instanceof Decision.Deny denial) {
             throw refuse(call, requestBody, denial);
         }
@@ -908,6 +909,20 @@ public final class Gateway implements AutoCloseable {
         return route.definition().price().mostFor(inputTokens(forwarded), output, forwarded.webSearches());
     }
 
+    private @Nullable String userOf(
+            GatewayConfig config, TenantKey caller, Function<String, @Nullable String> clientHeaders) {
+        Tenant tenant = config.tenants().get(caller.tenant());
+        AuditLog trail = audit;
+        if (tenant == null || tenant.userHeader() == null || trail == null) {
+            return null;
+        }
+        String value = clientHeaders.apply(tenant.userHeader());
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return trail.hmac(value.strip().getBytes(StandardCharsets.UTF_8));
+    }
+
     private GatewayException refuse(Call call, byte[] requestBody, Decision.Deny denial) {
         metrics.refused(call.caller().tenant(), call.route(), denial.refusal().code());
         recordIntent(call, requestBody, denial, null, null);
@@ -944,7 +959,8 @@ public final class Gateway implements AutoCloseable {
                 call.admission().steps(),
                 decision,
                 reservation,
-                redactions);
+                redactions,
+                call.user());
         try {
             appendTraced(trail, intent);
         } catch (AuditUnavailableException e) {
@@ -1045,10 +1061,11 @@ public final class Gateway implements AutoCloseable {
             WireFormat endpoint,
             Route route,
             Admission admission,
-            @Nullable Redactor redactor) {
+            @Nullable Redactor redactor,
+            @Nullable String user) {
 
         Call fallback(String traceId, Route route, Admission admission) {
-            return new Call(traceId, snapshot, caller, permit, endpoint, route, admission, redactor);
+            return new Call(traceId, snapshot, caller, permit, endpoint, route, admission, redactor, user);
         }
 
         Placeholders placeholders() {

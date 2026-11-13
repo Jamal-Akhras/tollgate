@@ -47,6 +47,7 @@ abstract class GatewayTestSupport {
     static final ApiKey SINGLE_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey AGENT_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey WATCHED_KEY = ApiKey.generate(new SecureRandom());
+    static final ApiKey CHAT_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final Path CONFIG = writeConfig();
@@ -178,6 +179,11 @@ abstract class GatewayTestSupport {
                     models: [qwen3, cloud-model]
                     dataClass: internal
                     policy: watching
+                  chat:
+                    models: [qwen3]
+                    dataClass: internal
+                    policy: chatting
+                    userHeader: X-OpenWebUI-User-Id
                 keys:
                   - { id: %3$s, tenant: support-bot, sha256: %4$s }
                   - { id: %6$s, tenant: metered, sha256: %7$s }
@@ -191,6 +197,7 @@ abstract class GatewayTestSupport {
                   - { id: %24$s, tenant: single, sha256: %25$s }
                   - { id: %26$s, tenant: agent, sha256: %27$s }
                   - { id: %28$s, tenant: watched, sha256: %29$s }
+                  - { id: %30$s, tenant: chat, sha256: %31$s }
                 detectors:
                   customer-id: { pattern: "CUST-[0-9]{6}" }
                   account-number: { pattern: "account (?<value>[0-9]{8})" }
@@ -233,6 +240,11 @@ abstract class GatewayTestSupport {
                       - { type: request-size, maxBytes: 10, mode: monitor }
                       - type: data-class
                         regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                  chatting:
+                    guards:
+                      - type: data-class
+                        regions: { public: [us, local], internal: [us, local], confidential: [local] }
+                      - { type: tool-names, refuse: [run_command, "delete_*"] }
                   slow:
                     guards:
                       - type: data-class
@@ -274,7 +286,9 @@ abstract class GatewayTestSupport {
                         AGENT_KEY.id(),
                         AGENT_KEY.sha256(),
                         WATCHED_KEY.id(),
-                        WATCHED_KEY.sha256());
+                        WATCHED_KEY.sha256(),
+                        CHAT_KEY.id(),
+                        CHAT_KEY.sha256());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();
