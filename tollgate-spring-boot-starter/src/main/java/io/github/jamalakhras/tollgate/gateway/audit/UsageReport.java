@@ -28,6 +28,7 @@ public record UsageReport(Instant from, Instant to, String by, List<Row> rows) {
         TENANT,
         MODEL,
         KEY,
+        USER,
         DAY;
 
         String keyOf(Intent intent) {
@@ -35,6 +36,7 @@ public record UsageReport(Instant from, Instant to, String by, List<Row> rows) {
                 case TENANT -> intent.tenant();
                 case MODEL -> intent.model();
                 case KEY -> intent.key();
+                case USER -> intent.user() == null ? "unattributed" : intent.user();
                 case DAY -> intent.time().atZone(ZoneOffset.UTC).toLocalDate().toString();
             };
         }

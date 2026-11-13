@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditEntry;
+import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class AuditJsonTest {
                 Samples.refused("b"),
                 Samples.redacted("d"),
                 Samples.monitored("e"),
+                Samples.attributed("f"),
                 Samples.outcome("a"),
                 Samples.unreachable("c"),
                 SEAL);
@@ -80,6 +82,55 @@ class AuditJsonTest {
                 .contains("\"nanos\":2100},")
                 .contains("\"nanos\":3400,\"mode\":\"monitor\"}")
                 .contains("\"redactions\":");
+    }
+
+    @Test
+    void writesAnAttributedIntentAsVersion4() {
+        assertThat(AuditJson.write(Samples.attributed("7c0e")))
+                .startsWith("{\"v\":4,\"type\":\"intent\",")
+                .endsWith(",\"user\":\"" + Samples.USER + "\"}");
+    }
+
+    @Test
+    void keepsTheUserAndItsVersionTogether() {
+        String plain = AuditJson.write(Samples.intent("a"));
+        String attributed = AuditJson.write(Samples.attributed("a"));
+
+        assertThatThrownBy(() -> AuditJson.read(
+                        plain.replace("\"reservation\"", "\"user\":\"" + Samples.USER + "\",\"reservation\"")))
+                .hasMessage("'user' is not part of the line");
+        assertThatThrownBy(() -> AuditJson.read(attributed.replace(",\"user\":\"" + Samples.USER + "\"", "")))
+                .hasMessage("'user' is missing from the line");
+    }
+
+    @Test
+    void readsAVersion4IntentWithMonitoredStepsAndRedactions() {
+        Intent monitored = Samples.monitored("a");
+        Intent attributed = new Intent(
+                monitored.id(),
+                monitored.time(),
+                monitored.tenant(),
+                monitored.key(),
+                monitored.endpoint(),
+                monitored.model(),
+                monitored.provider(),
+                monitored.upstream(),
+                monitored.dataClass(),
+                monitored.configVersion(),
+                monitored.requestHmac(),
+                monitored.steps(),
+                monitored.decision(),
+                monitored.reservation(),
+                monitored.redactions(),
+                Samples.USER);
+
+        String line = AuditJson.write(attributed);
+
+        assertThat(line)
+                .startsWith("{\"v\":4,")
+                .contains("\"mode\":\"monitor\"")
+                .contains("\"redactions\":");
+        assertThat(AuditJson.read(line)).isEqualTo(attributed);
     }
 
     @Test

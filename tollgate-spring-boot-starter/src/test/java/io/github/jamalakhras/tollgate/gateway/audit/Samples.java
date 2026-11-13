@@ -25,6 +25,7 @@ final class Samples {
     static final Instant TIME = Instant.parse("2026-11-02T14:03:10.512Z");
 
     private static final String HASH = "3f1c" + "0".repeat(60);
+    static final String USER = "a91d" + "7".repeat(60);
 
     private Samples() {}
 
@@ -87,6 +88,27 @@ final class Samples {
                 Decision.ALLOW,
                 intent.reservation(),
                 new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
+    }
+
+    static Intent attributed(String id) {
+        Intent intent = intent(id);
+        return new Intent(
+                intent.id(),
+                intent.time(),
+                intent.tenant(),
+                intent.key(),
+                intent.endpoint(),
+                intent.model(),
+                intent.provider(),
+                intent.upstream(),
+                intent.dataClass(),
+                intent.configVersion(),
+                intent.requestHmac(),
+                intent.steps(),
+                intent.decision(),
+                intent.reservation(),
+                null,
+                USER);
     }
 
     static Intent refused(String id) {

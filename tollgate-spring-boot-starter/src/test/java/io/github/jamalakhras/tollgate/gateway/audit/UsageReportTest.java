@@ -79,6 +79,23 @@ class UsageReportTest {
     }
 
     @Test
+    void groupsByUserAndSumsTheRestAsUnattributed(@TempDir Path trail) throws Exception {
+        try (AuditLog log = AuditLog.start(JsonLinesAuditSink.open(trail), Samples.KEYS, CLOCK, true)) {
+            log.append(Samples.attributed("first"));
+            log.append(Samples.outcome("first"));
+            log.append(Samples.attributed("second"));
+            log.append(Samples.outcome("second"));
+            log.append(Samples.intent("anonymous"));
+            log.append(Samples.outcome("anonymous"));
+        }
+
+        assertThat(UsageReport.of(trail, NOVEMBER, DECEMBER, Grouping.USER).rows())
+                .containsExactly(
+                        new Row(Samples.USER, 2, 0, Map.of(), new Tokens(1_624, 608, 0, 0), Map.of("USD", "0.013992")),
+                        new Row("unattributed", 1, 0, Map.of(), new Tokens(812, 304, 0, 0), Map.of("USD", "0.006996")));
+    }
+
+    @Test
     void leavesOutRequestsOutsideThePeriod() throws Exception {
         assertThat(UsageReport.of(directory, DECEMBER, DECEMBER.plusSeconds(86_400), Grouping.TENANT)
                         .rows())
@@ -106,7 +123,7 @@ class UsageReportTest {
         assertThatThrownBy(() -> UsageReport.of(directory, "2026-11-02", "2026-11-02", "tenant", CLOCK))
                 .hasMessage("from must be before to, which is the first day not included");
         assertThatThrownBy(() -> UsageReport.of(directory, null, null, "week", CLOCK))
-                .hasMessage("by must be one of tenant, model, key, day, was week");
+                .hasMessage("by must be one of tenant, model, key, user, day, was week");
     }
 
     @Test

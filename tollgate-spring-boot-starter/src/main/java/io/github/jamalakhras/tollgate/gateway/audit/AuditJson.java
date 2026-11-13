@@ -43,13 +43,16 @@ public final class AuditJson {
     private static final int VERSION = 1;
     private static final int REDACTED_VERSION = 2;
     private static final int MONITORED_VERSION = 3;
+    private static final int USER_VERSION = 4;
 
     private AuditJson() {}
 
     public static String write(AuditEntry entry) {
         int version = VERSION;
         if (entry instanceof Intent intent) {
-            if (intent.monitored()) {
+            if (intent.user() != null) {
+                version = USER_VERSION;
+            } else if (intent.monitored()) {
                 version = MONITORED_VERSION;
             } else if (intent.redactions() != null) {
                 version = REDACTED_VERSION;
@@ -74,7 +77,8 @@ public final class AuditJson {
         Fields fields = Fields.of("the line", root);
         long version = fields.whole("v");
         String type = fields.text("type");
-        if ((version == REDACTED_VERSION || version == MONITORED_VERSION) && type.equals("intent")) {
+        if ((version == REDACTED_VERSION || version == MONITORED_VERSION || version == USER_VERSION)
+                && type.equals("intent")) {
             return readIntent(fields, version);
         }
         if (version != VERSION) {
@@ -119,6 +123,10 @@ public final class AuditJson {
             ObjectNode values = written.putObject("values");
             redactions.values().forEach(values::put);
             written.put("sentHmac", redactions.sentHmac());
+        }
+        String user = intent.user();
+        if (user != null) {
+            line.put("user", user);
         }
     }
 
@@ -173,8 +181,9 @@ public final class AuditJson {
     }
 
     private static Intent readIntent(Fields fields, long version) {
-        boolean redacted = version == REDACTED_VERSION
-                || (version == MONITORED_VERSION && fields.node().has("redactions"));
+        boolean modes = version == MONITORED_VERSION || version == USER_VERSION;
+        boolean redacted =
+                version == REDACTED_VERSION || (modes && fields.node().has("redactions"));
         List<String> names = new ArrayList<>(List.of(
                 "v",
                 "type",
@@ -195,10 +204,13 @@ public final class AuditJson {
         if (redacted) {
             names.add("redactions");
         }
+        if (version == USER_VERSION) {
+            names.add("user");
+        }
         fields.requireExactly(names.toArray(String[]::new));
         List<GuardStep> steps = new ArrayList<>();
         for (Fields step : fields.list("steps")) {
-            boolean monitored = version == MONITORED_VERSION && step.node().has("mode");
+            boolean monitored = modes && step.node().has("mode");
             if (monitored) {
                 step.requireExactly("guard", "decision", "nanos", "mode");
                 if (!step.text("mode").equals("monitor")) {
@@ -231,7 +243,8 @@ public final class AuditJson {
                 steps,
                 readDecision(fields.child("decision")),
                 fields.optionalChild("reservation", AuditJson::readMoney),
-                redacted ? readRedactions(fields.child("redactions")) : null));
+                redacted ? readRedactions(fields.child("redactions")) : null,
+                version == USER_VERSION ? fields.text("user") : null));
     }
 
     private static Redactions readRedactions(Fields fields) {
