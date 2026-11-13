@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
+import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
@@ -156,6 +158,55 @@ class BudgetReplayTest {
 
         try (Gateway restarted = start()) {
             assertThat(call(restarted)).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        }
+    }
+
+    @Test
+    void replaysAnAttributedIntentAndItsOutcomeForTheSameSpendAsAnUnattributedOne() throws Exception {
+        for (String user : new String[] {null, "a91d" + "7".repeat(60)}) {
+            try (Gateway gateway = start()) {
+                assertThat(gateway.auditHealthy()).isTrue();
+            }
+            Intent finished = new Intent(
+                    "finished",
+                    Instant.now(),
+                    "metered",
+                    KEY.id(),
+                    WireFormat.OPENAI,
+                    "metered-model",
+                    "ollama",
+                    "qwen3:32b",
+                    null,
+                    "a".repeat(64),
+                    "b".repeat(64),
+                    List.of(),
+                    Decision.ALLOW,
+                    Money.of(new BigDecimal("0.05"), Currency.getInstance("USD")),
+                    null,
+                    user);
+            Outcome outcome = new Outcome(
+                    "finished",
+                    Instant.now(),
+                    Outcome.Result.RESPONDED,
+                    200,
+                    new Usage(0, 40, 0, 0),
+                    Money.of(new BigDecimal("0.04"), Currency.getInstance("USD")),
+                    Duration.ofMillis(5),
+                    "c".repeat(64));
+            Path file = directory.resolve("audit").resolve("tollgate-audit-00000099.jsonl");
+            Files.writeString(file, AuditJson.write(finished) + "\n" + AuditJson.write(outcome) + "\n");
+            provider.respond(200, TEN_TOKENS);
+
+            try (Gateway restarted = start()) {
+                assertThat(call(restarted)).isEqualTo(HttpStatus.OK);
+                assertThat(call(restarted)).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+            }
+            Files.delete(file);
+            try (var files = Files.list(directory.resolve("audit"))) {
+                for (Path left : files.toList()) {
+                    Files.delete(left);
+                }
+            }
         }
     }
 

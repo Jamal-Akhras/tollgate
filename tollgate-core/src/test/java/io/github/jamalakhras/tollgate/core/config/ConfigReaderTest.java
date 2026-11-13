@@ -338,6 +338,14 @@ class ConfigReaderTest {
     }
 
     @Test
+    void rejectsUnknownSettingsInAToolNamesGuard() {
+        Map<String, Object> guard =
+                Map.of("type", "tool-names", "refuse", List.of("run_command"), "allows", List.of("x"));
+        assertThatThrownBy(() -> ConfigReader.read(withGuard(guard)))
+                .hasMessage("policies.default.guards[0].allows is not a recognised setting");
+    }
+
+    @Test
     void reportsGuardProblems() {
         assertThatThrownBy(() -> ConfigReader.read(withGuard(Map.of("type", "pii-redact"))))
                 .hasMessage(

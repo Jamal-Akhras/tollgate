@@ -135,6 +135,45 @@ class TrailVerifierTest {
     }
 
     @Test
+    void verifiesATrailWithAttributedIntentsAndCatchesAChangedUser() {
+        List<AuditRecord> records = new ArrayList<>(Trails.requests(2));
+        records.add(Records.attributed("attributed-1"));
+        records.add(Records.outcome("attributed-1"));
+        records.add(Records.redacted("redacted-1"));
+        records.add(Records.outcome("redacted-1"));
+        List<AuditEntry> trail = Trails.sealed(records, 3);
+
+        assertThat(Trails.verify(trail).intact()).isTrue();
+
+        int at = trail.indexOf(Records.attributed("attributed-1"));
+        Intent attributed = (Intent) trail.get(at);
+        for (String user : new String[] {"c4d8" + "7".repeat(60), null}) {
+            List<AuditEntry> changed = new ArrayList<>(trail);
+            changed.set(
+                    at,
+                    new Intent(
+                            attributed.id(),
+                            attributed.time(),
+                            attributed.tenant(),
+                            attributed.key(),
+                            attributed.endpoint(),
+                            attributed.model(),
+                            attributed.provider(),
+                            attributed.upstream(),
+                            attributed.dataClass(),
+                            attributed.configVersion(),
+                            attributed.requestHmac(),
+                            attributed.steps(),
+                            attributed.decision(),
+                            attributed.reservation(),
+                            attributed.redactions(),
+                            user));
+
+            assertThat(Trails.verify(changed).intact()).isFalse();
+        }
+    }
+
+    @Test
     void detectsADeletedRecord() {
         List<AuditEntry> trail = trail();
         trail.remove(5);

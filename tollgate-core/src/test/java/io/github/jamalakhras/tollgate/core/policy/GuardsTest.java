@@ -186,6 +186,7 @@ class GuardsTest {
         "write_*, write_file",
         "*_command, run_command",
         "a*c*e, abcde",
+        "a*c*e, ace",
         "*, anything"
     })
     void refusesARequestThatDefinesARefusedTool(String pattern, String name) {
