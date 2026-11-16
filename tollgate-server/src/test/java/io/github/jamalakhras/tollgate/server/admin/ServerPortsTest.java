@@ -73,6 +73,46 @@ class ServerPortsTest {
         assertThat(get(gatewayPort, path).statusCode()).isIn(400, 404);
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "/console/",
+                "/%63onsole/",
+                "/console%2F",
+                "/admin/../console/",
+                "/./console/",
+                "/console/../admin/v1/info",
+                "/%2e/console/"
+            })
+    void hidesTheConsoleOnTheGatewayPort(String path) throws Exception {
+        assertThat(get(gatewayPort, path).statusCode()).isIn(400, 404);
+    }
+
+    @Test
+    void servesTheConsoleOnTheAdminPortWhenAnEncodedPathNamesIt() throws Exception {
+        assertThat(get(ADMIN_PORT, "/%63onsole/").statusCode())
+                .isEqualTo(get(ADMIN_PORT, "/console/").statusCode());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/admin/../console/", "/./console/", "/console/../console/"})
+    void neverRoutesTheConsoleWrongOnTheAdminPortWhenDotSegmentsNameIt(String path) throws Exception {
+        assertThat(get(ADMIN_PORT, path).statusCode())
+                .isIn(get(ADMIN_PORT, "/console/").statusCode(), 400, 404);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "/console/../v1/chat/completions",
+                "/admin/../v1/chat/completions",
+                "/./v1/chat/completions",
+                "/%76%31/chat/completions"
+            })
+    void hidesGatewayRoutesOnTheAdminPortHoweverThePathIsWritten(String path) throws Exception {
+        assertThat(get(ADMIN_PORT, path).statusCode()).isIn(400, 404);
+    }
+
     @Test
     void asksForTheAdminTokenOnTheAdminPort() throws Exception {
         assertThat(get(ADMIN_PORT, "/admin/v1/info").statusCode()).isEqualTo(401);
