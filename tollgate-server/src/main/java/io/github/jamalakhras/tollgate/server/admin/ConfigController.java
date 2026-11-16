@@ -21,12 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = "/admin/v1/config", produces = MediaType.APPLICATION_JSON_VALUE)
 class ConfigController {
 
-    private final Gateway gateway;
     private final ConfigEditor editor;
 
-    ConfigController(Gateway gateway, ConfigEditor editor) {
+    ConfigController(ConfigEditor editor) {
         this.editor = editor;
-        this.gateway = gateway;
     }
 
     @PostMapping("/reload")
@@ -45,10 +43,7 @@ class ConfigController {
             description = "The file is not a valid configuration",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
     ReloadResult reload() {
-        Gateway.Reload reload = gateway.reload();
-        if (reload.changed()) {
-            editor.reloaded();
-        }
+        Gateway.Reload reload = editor.reload();
         return new ReloadResult(reload.version(), reload.changed());
     }
 

@@ -63,9 +63,13 @@ class ConfigEditor {
         return Files.exists(ConfigFile.original(config));
     }
 
-    void reloaded() {
-        if (on) {
-            gateway.keepVersion();
+    Gateway.Reload reload() {
+        synchronized (gateway) {
+            Gateway.Reload reload = gateway.reload();
+            if (on && reload.changed()) {
+                gateway.keepVersion();
+            }
+            return reload;
         }
     }
 

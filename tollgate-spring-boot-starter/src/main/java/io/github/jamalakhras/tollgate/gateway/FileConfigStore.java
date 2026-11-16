@@ -76,7 +76,13 @@ final class FileConfigStore implements ConfigStore {
         if (Files.exists(file)) {
             return false;
         }
-        Files.write(file, bytes);
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try {
+            Files.write(tmp, bytes);
+            Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
         return true;
     }
 }
