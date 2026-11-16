@@ -18,6 +18,7 @@ const rules: Rule[] = [
     allowedIn: 'state/session.ts',
   },
   { name: 'import of state/session outside api/client.ts', pattern: /state\/session/, allowedIn: 'api/client.ts' },
+  { name: 'console.log, info or debug', pattern: /console\.(log|info|debug)\(/ },
   {
     name: 'colour outside styles/tokens.css',
     pattern: /#[0-9a-fA-F]{3,8}\b|\brgb\(|\bhsl\(/,
@@ -64,6 +65,9 @@ test('theMatcherCatchesEachRule', () => {
     'new Function(x)',
     '<p style="color: red">',
     'fetch(url)',
+    'console.log(key)',
+    'console.info(key)',
+    'console.debug(key)',
     'sessionStorage.getItem(k)',
     "import { token } from '../state/session';",
     'color: #fff;',

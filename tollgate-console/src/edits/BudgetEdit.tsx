@@ -64,7 +64,7 @@ export function BudgetEdit({ config, tenant, state, onChanged, onClose }: Budget
     confirmLabel = `Set ${money(limit)} anyway`;
   } else if (current && current.period !== period) {
     warning =
-      'Changing the period starts the count from zero. Tollgate sums the audit trail again for the new period when it next restarts.';
+      'Changing the period counts the spend for the new period again from the audit trail.';
   } else if (!current) {
     note = 'The count starts at zero now. Calls made before this are not counted.';
   }

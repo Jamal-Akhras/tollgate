@@ -1,6 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { budgetsBusyFixture, changeFixture, configBusyFixture, configFixture, configManagedFixture } from '../../api/fixtures';
+import {
+  budgetsBusyFixture,
+  changeFixture,
+  configBusyFixture,
+  configFixture,
+  configManagedFixture,
+  createdKeyFixture,
+} from '../../api/fixtures';
 import { Toasts } from '../../ui/Toast';
 import { Config } from './Config';
 
@@ -228,4 +235,56 @@ test('withEditsOnTheBudgetButtonOpensTheFormWithTheTenantsSpendAndWritesIt', asy
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(paths()).toContain('PUT /admin/v1/tenants/support-bot/budget');
   await waitFor(() => expect(paths().filter((path) => path.endsWith('/budgets'))).toHaveLength(2));
+});
+test('withEditsOffCreateAndRevokeOpenTheYamlPanel', async () => {
+  send.mockResolvedValue(answer(200, configBusyFixture));
+  open();
+  const keys = within(await screen.findByRole('region', { name: 'Keys' }));
+  fireEvent.click(keys.getByRole('button', { name: 'Create a key' }));
+  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
+    'tollgate keys create --tenant',
+  );
+  cleanup();
+  send.mockResolvedValue(answer(200, configBusyFixture));
+  open();
+  const again = within(await screen.findByRole('region', { name: 'Keys' }));
+  fireEvent.click(again.getAllByRole('button', { name: /^Revoke key/ })[0]!);
+  const panel = screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' });
+  expect(panel.textContent).toContain('Delete this line under keys');
+  expect(paths().filter((path) => !path.endsWith('/config'))).toEqual([]);
+});
+
+test('withEditsOnCreatingAKeyShowsItOnceAndReloadsTheList', async () => {
+  send.mockImplementation((path: string, init: { method: string }) => {
+    if (init.method === 'POST') {
+      return Promise.resolve(answer(200, createdKeyFixture));
+    }
+    return Promise.resolve(answer(200, path.endsWith('/budgets') ? [] : configManagedFixture));
+  });
+  open();
+  const keys = within(await screen.findByRole('region', { name: 'Keys' }));
+  fireEvent.click(keys.getByRole('button', { name: 'Create a key' }));
+  fireEvent.change(screen.getByLabelText('Tenant'), { target: { value: 'my-app' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
+  const input = (await screen.findByLabelText('API key for my-app')) as HTMLInputElement;
+  expect(input.value).toBe(createdKeyFixture.key);
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(document.body.textContent).not.toContain(createdKeyFixture.key);
+  expect(document.querySelector('input')).toBeNull();
+  expect(paths()).toContain('POST /admin/v1/tenants/my-app/keys');
+});
+
+test('withEditsOnRevokingAKeyDeletesIt', async () => {
+  send.mockImplementation((path: string, init: { method: string }) => {
+    if (init.method === 'DELETE') {
+      return Promise.resolve(answer(200, changeFixture));
+    }
+    return Promise.resolve(answer(200, path.endsWith('/budgets') ? [] : configManagedFixture));
+  });
+  open();
+  fireEvent.click(await screen.findByRole('button', { name: 'Revoke key a81d07b4' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Revoke key' }));
+  await waitFor(() => expect(paths()).toContain('DELETE /admin/v1/keys/a81d07b4'));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });

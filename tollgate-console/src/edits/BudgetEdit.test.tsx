@@ -124,11 +124,11 @@ test('theBelowSpendWarningNamesTodayAndInTotalForThoseCurrentPeriods', () => {
   expect(screen.getByText(/has already spent \$41\.18 in total\./)).toBeTruthy();
 });
 
-test('changingThePeriodWarnsAndSaysTheTrailIsSummedAgain', () => {
+test('changingThePeriodWarnsAndSaysTheSpendIsCountedAgainFromTheTrail', () => {
   open('research', state);
   period('Daily');
   const text =
-    'Changing the period starts the count from zero. Tollgate sums the audit trail again for the new period when it next restarts.';
+    'Changing the period counts the spend for the new period again from the audit trail.';
   expect(screen.getByText(text)).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Set budget' })).toBeTruthy();
   expect(screen.queryByText(/resets spend to zero/)).toBeNull();

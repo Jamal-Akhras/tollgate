@@ -3,7 +3,9 @@ import { useEffect, useState } from 'preact/hooks';
 import { get } from '../../api/client';
 import type { BudgetState, BudgetView, ConfigView, GuardView, LimitsView, PolicyView } from '../../api/types';
 import { BudgetEdit } from '../../edits/BudgetEdit';
+import { CreateKey } from '../../edits/CreateKey';
 import { GuardSwitch } from '../../edits/GuardSwitch';
+import { RevokeKey } from '../../edits/RevokeKey';
 import { editsOn } from '../../edits/edit';
 import { href } from '../../router';
 import { Badge } from '../../ui/Badge';
@@ -15,7 +17,7 @@ import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
 import styles from './Config.module.css';
 import { HowToChange, useReload } from './HowToChange';
-import { forSection, setBudget, type SectionName, type Snippet } from './snippets';
+import { forSection, removeKey, setBudget, type SectionName, type Snippet } from './snippets';
 
 type Change = (snippet: Snippet) => void;
 type SectionProps = { config: ConfigView; change: Change };
@@ -169,13 +171,40 @@ function Tenants({ config, change, budgets, onChanged }: SectionProps & Budgets)
   );
 }
 
-function Keys({ config, change }: SectionProps) {
+function Keys({ config, change, onChanged }: SectionProps & { onChanged: () => void }) {
+  const [creating, setCreating] = useState(false);
+  const [revoking, setRevoking] = useState<ConfigView['keys'][number] | null>(null);
   const columns: Column<ConfigView['keys'][number]>[] = [
     { key: 'id', header: 'Key ID', cell: (key) => <Hash value={key.id} /> },
     { key: 'tenant', header: 'Tenant', cell: (key) => <Jump kind="tenant" name={key.tenant} /> },
+    {
+      key: 'revoke',
+      header: 'Revoke',
+      cell: (key) => (
+        <button
+          type="button"
+          class={styles.button}
+          aria-label={`Revoke key ${key.id}`}
+          onClick={() =>
+            editsOn(config) ? setRevoking(key) : change(removeKey(key.id, key.tenant))
+          }
+        >
+          Revoke
+        </button>
+      ),
+    },
   ];
   return (
     <Section title="Keys" name="keys" config={config} change={change}>
+      <div>
+        <button
+          type="button"
+          class={styles.button}
+          onClick={() => (editsOn(config) ? setCreating(true) : change(forSection('keys', config)))}
+        >
+          Create a key
+        </button>
+      </div>
       <DataTable
         label="Keys"
         columns={columns}
@@ -183,6 +212,17 @@ function Keys({ config, change }: SectionProps) {
         rowKey={(key) => key.id}
         empty={<p class={styles.empty}>No keys yet.</p>}
       />
+      {creating && (
+        <CreateKey config={config} onChanged={onChanged} onClose={() => setCreating(false)} />
+      )}
+      {revoking && (
+        <RevokeKey
+          config={config}
+          keyView={revoking}
+          onChanged={onChanged}
+          onClose={() => setRevoking(null)}
+        />
+      )}
     </Section>
   );
 }
@@ -419,7 +459,11 @@ export function Config() {
             budgets={budgets}
             onChanged={() => setRound((value) => value + 1)}
           />
-          <Keys config={config} change={setSnippet} />
+          <Keys
+            config={config}
+            change={setSnippet}
+            onChanged={() => setRound((value) => value + 1)}
+          />
           <Policies
             config={config}
             change={setSnippet}
