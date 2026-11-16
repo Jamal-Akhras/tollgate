@@ -1,6 +1,8 @@
 package io.github.jamalakhras.tollgate.core.audit;
 
+import java.security.PublicKey;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 public record Seal(
@@ -31,5 +33,14 @@ public record Seal(
 
     Seal withSignature(String signature) {
         return new Seal(batch, records, time, previous, root, key, hmacKey, signature);
+    }
+
+    public boolean signedBy(PublicKey publicKey) {
+        return AuditKeys.keyId(publicKey).equals(key) && AuditKeys.verify(publicKey, Encoding.of(this), signature);
+    }
+
+    public boolean seals(List<? extends AuditRecord> batch) {
+        return records == batch.size()
+                && root.equals(Digests.HEX.formatHex(MerkleTree.root(InclusionProof.hashes(batch))));
     }
 }

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.money.Prices;
+import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -133,6 +135,116 @@ class RecordValidationTest {
                 .hasMessage("batch must be at least 1");
         assertThatThrownBy(() -> new Seal(1, 0, Records.TIME, HASH, HASH, "b81e44a0c3f2d917", "4c07a2e19b5d3f60", ""))
                 .hasMessage("records must be at least 1");
+    }
+
+    @Test
+    void sealsAreSignedByTheirKeyAndNoOther() {
+        Seal seal = sealOf(Trails.requests(2));
+
+        assertThat(seal.signedBy(TestKeys.PUBLIC_KEY)).isTrue();
+        assertThat(seal.signedBy(AuditKeys.publicKey(
+                        AuditKeys.generate(new SecureRandom()).publicKey())))
+                .isFalse();
+    }
+
+    @Test
+    void sealsAreNotSignedByTheirKeyOnceAnyFieldChanges() {
+        Seal seal = sealOf(Trails.requests(2));
+        String other = "f".repeat(64);
+        List<Seal> changed = List.of(
+                new Seal(
+                        seal.batch() + 1,
+                        seal.records(),
+                        seal.time(),
+                        seal.previous(),
+                        seal.root(),
+                        seal.key(),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records() + 1,
+                        seal.time(),
+                        seal.previous(),
+                        seal.root(),
+                        seal.key(),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time().plusMillis(1),
+                        seal.previous(),
+                        seal.root(),
+                        seal.key(),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time(),
+                        other,
+                        seal.root(),
+                        seal.key(),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time(),
+                        seal.previous(),
+                        other,
+                        seal.key(),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time(),
+                        seal.previous(),
+                        seal.root(),
+                        "0".repeat(16),
+                        seal.hmacKey(),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time(),
+                        seal.previous(),
+                        seal.root(),
+                        seal.key(),
+                        "0".repeat(16),
+                        seal.signature()),
+                new Seal(
+                        seal.batch(),
+                        seal.records(),
+                        seal.time(),
+                        seal.previous(),
+                        seal.root(),
+                        seal.key(),
+                        seal.hmacKey(),
+                        "AAAA"));
+
+        assertThat(changed).noneMatch(candidate -> candidate.signedBy(TestKeys.PUBLIC_KEY));
+    }
+
+    @Test
+    void sealsSealTheirRecordsAndNoOtherList() {
+        List<AuditRecord> records = Trails.requests(2);
+        Seal seal = sealOf(records);
+        List<AuditRecord> oneMore = new ArrayList<>(records);
+        oneMore.add(Records.intent("extra"));
+        List<AuditRecord> changed = new ArrayList<>(records);
+        changed.set(1, Records.intent("changed"));
+
+        assertThat(seal.seals(records)).isTrue();
+        assertThat(seal.seals(records.subList(0, records.size() - 1))).isFalse();
+        assertThat(seal.seals(oneMore)).isFalse();
+        assertThat(seal.seals(changed)).isFalse();
+    }
+
+    private static Seal sealOf(List<AuditRecord> records) {
+        return (Seal) Trails.sealed(records, records.size()).getLast();
     }
 
     @ParameterizedTest

@@ -8,6 +8,7 @@ import java.util.stream.IntStream;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -43,6 +44,54 @@ class MerkleTreeTest {
         assertThat(Digests.HEX.formatHex(MerkleTree.root(leafHashes))).isEqualTo(root);
     }
 
+    @Test
+    void givesAnEmptyPathForOneLeaf() {
+        assertThat(MerkleTree.path(hashes(1), 0)).isEmpty();
+    }
+
+    @Test
+    void givesTheOtherLeafForTwo() {
+        List<byte[]> leafHashes = hashes(2);
+
+        assertThat(MerkleTree.path(leafHashes, 0)).containsExactly(leafHashes.get(1));
+        assertThat(MerkleTree.path(leafHashes, 1)).containsExactly(leafHashes.get(0));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "1, 6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "2, fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+        "3, aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+        "4, d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+        "5, 4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+        "6, 76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+        "7, ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+        "8, 5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
+    })
+    void pathsOverTheRfcLeavesLeadToThePinnedRoots(int size, String root) {
+        List<byte[]> leafHashes = hashes(size);
+        for (int index = 0; index < size; index++) {
+            byte[] reached = leafHashes.get(index);
+            int fn = index;
+            int sn = size - 1;
+            for (byte[] sibling : MerkleTree.path(leafHashes, index)) {
+                if ((fn & 1) == 1 || fn == sn) {
+                    reached = Digests.sha256(new byte[] {1}, sibling, reached);
+                    while ((fn & 1) == 0 && fn != 0) {
+                        fn >>= 1;
+                        sn >>= 1;
+                    }
+                } else {
+                    reached = Digests.sha256(new byte[] {1}, reached, sibling);
+                }
+                fn >>= 1;
+                sn >>= 1;
+            }
+
+            assertThat(Digests.HEX.formatHex(reached)).isEqualTo(root);
+        }
+    }
+
     @Property
     void changesWhenAnyLeafChanges(
             @ForAll @IntRange(min = 1, max = 300) int size, @ForAll @IntRange(min = 0, max = 299) int changed) {
@@ -54,6 +103,12 @@ class MerkleTreeTest {
         leafHashes.set(changed % size, MerkleTree.leafHash(new byte[] {-1, -1, -1}));
 
         assertThat(MerkleTree.root(leafHashes)).isNotEqualTo(root);
+    }
+
+    private static List<byte[]> hashes(int size) {
+        return RFC_6962_LEAVES.subList(0, size).stream()
+                .map(MerkleTree::leafHash)
+                .toList();
     }
 
     private static byte[] bytes(int first, int count) {
