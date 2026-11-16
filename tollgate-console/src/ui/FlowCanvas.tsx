@@ -28,7 +28,7 @@ type FlowCanvasProps = {
 };
 
 function place(rect: Rect) {
-  return { left: rect.x, top: rect.y, width: rect.w, height: rect.h };
+  return { left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.w}px`, height: `${rect.h}px` };
 }
 
 function useWidth() {
@@ -119,7 +119,7 @@ export function FlowCanvas({
     <div class={`${styles.root} ${preview ? styles.previewing : ''}`} ref={element}>
       {!drawing && fallback}
       {drawing && (
-        <div class={styles.picture} style={{ height: drawing.height }}>
+        <div class={styles.picture} style={{ height: `${drawing.height}px` }}>
           <svg class={styles.lines} width={drawing.width} height={drawing.height} aria-hidden="true">
             {lines.map((line) => (
               <g key={line.id}>

@@ -138,3 +138,10 @@ test('theLegendSitsBelowTheDrawingAndIsLeftOutOfTheList', () => {
   canvas();
   expect(screen.queryByText('the legend')).toBeNull();
 });
+
+test('placesTheBoxesInPixels', () => {
+  canvas();
+  const box = screen.getByRole('region', { name: 'Policy strict' });
+  expect(box.style.left).toMatch(/^\d+(\.\d+)?px$/);
+  expect(box.style.height).toMatch(/^\d+(\.\d+)?px$/);
+});
