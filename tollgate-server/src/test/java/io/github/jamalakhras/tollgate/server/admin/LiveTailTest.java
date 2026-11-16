@@ -18,10 +18,12 @@ import java.nio.file.StandardOpenOption;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -30,11 +32,28 @@ class LiveTailTest {
     private static final Instant T = Instant.parse("2026-11-16T10:00:00Z");
     private static final String HASH = "a".repeat(64);
     private static final Clock CLOCK = Clock.fixed(T, ZoneOffset.UTC);
+    private final AtomicReference<Instant> now = new AtomicReference<>(T);
+    private final Clock moving = new Clock() {
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now.get();
+        }
+    };
 
     @TempDir
     Path directory;
 
-    private final LiveTail tail = new LiveTail(() -> Optional.of(directory), CLOCK, 2_000);
+    private final LiveTail tail = new LiveTail(() -> Optional.of(directory), moving, 2_000);
 
     private static Intent intent(String id) {
         return new Intent(
@@ -143,9 +162,13 @@ class LiveTailTest {
 
         assertThat(tail.current().skipped()).isTrue();
         append(file, intent("c1"), outcome("c1"));
+        now.set(T.plusSeconds(30));
+        tail.tick();
+        assertThat(tail.current().skipped()).isTrue();
+        assertThat(sent()).isEqualTo(1);
+        now.set(T.plusSeconds(61));
         tail.tick();
         assertThat(tail.current().skipped()).isFalse();
-        assertThat(sent()).isEqualTo(1);
     }
 
     @Test

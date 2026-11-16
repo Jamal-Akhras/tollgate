@@ -100,7 +100,7 @@ final class LiveTail implements AutoCloseable {
         offset = AuditDirectory.follow(newest, offset, passBytes, window::add);
         if (behind) {
             offset = size;
-            window.skipped();
+            window.skipped(clock.instant());
         }
     }
 

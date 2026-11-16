@@ -19,6 +19,7 @@ import io.github.jamalakhras.tollgate.server.admin.LiveViews.OutcomeView;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.SealView;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.StepView;
 import java.io.Serial;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +39,7 @@ final class LiveWindow {
     private static final int MINUTES = 15;
     private static final int KEYS = 2000;
     private static final int CALLS = 200;
+    private static final Duration SKIPPED_FOR = Duration.ofSeconds(60);
     private static final int WAITING = 10_000;
     private static final int STEPS = 40;
     private static final String OTHER = "other";
@@ -51,7 +53,7 @@ final class LiveWindow {
 
     private final Instant started;
     private Instant latest;
-    private boolean skipped;
+    private @Nullable Instant skippedAt;
     private @Nullable Seal lastSeal;
     private final TreeMap<Long, BucketData> buckets = new TreeMap<>();
     private final TreeMap<Long, Map<FlowKey, FlowData>> flows = new TreeMap<>();
@@ -72,8 +74,8 @@ final class LiveWindow {
         }
     }
 
-    void skipped() {
-        skipped = true;
+    void skipped(Instant at) {
+        skippedAt = at;
     }
 
     Live snapshot(Instant now) {
@@ -105,8 +107,8 @@ final class LiveWindow {
         List<CallView> callViews = new ArrayList<>();
         calls.values().forEach(call -> callViews.add(call.view()));
         Collections.reverse(callViews);
-        boolean wasSkipped = skipped;
-        skipped = false;
+        Instant skip = skippedAt;
+        boolean wasSkipped = skip != null && !skip.isAfter(now) && now.isBefore(skip.plus(SKIPPED_FOR));
         Seal seal = lastSeal;
         return new Live(
                 now,

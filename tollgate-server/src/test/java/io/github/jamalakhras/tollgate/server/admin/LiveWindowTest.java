@@ -418,11 +418,12 @@ class LiveWindowTest {
     }
 
     @Test
-    void skippedShowsOnceAfterEachSkip() {
+    void skippedShowsForAMinuteAfterASkip() {
         assertThat(window.snapshot(T).skipped()).isFalse();
-        window.skipped();
+        window.skipped(T);
         assertThat(window.snapshot(T).skipped()).isTrue();
-        assertThat(window.snapshot(T).skipped()).isFalse();
+        assertThat(window.snapshot(T.plusSeconds(59)).skipped()).isTrue();
+        assertThat(window.snapshot(T.plusSeconds(60)).skipped()).isFalse();
     }
 
     @Test
