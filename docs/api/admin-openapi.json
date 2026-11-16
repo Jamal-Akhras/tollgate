@@ -734,6 +734,101 @@
         "tags" : [ "Configuration" ]
       }
     },
+    "/admin/v1/tenants/{tenant}/keys" : {
+      "post" : {
+        "description" : "Makes a key as 'tollgate keys create' does, writes only its id, tenant and hash to tollgate.yaml, and swaps the new configuration in. The key is in this response and nowhere else: it is not logged, not kept and cannot be asked for again. Needs If-Match with the config version, and TOLLGATE_ADMIN_EDITS=file.",
+        "operationId" : "createKey",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "tenant",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "If-Match",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        } ],
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CreatedKey"
+                }
+              }
+            },
+            "description" : "The new key, shown once"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No such tenant"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Edits are off, or the change needs a restart"
+          },
+          "412" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is not the running version, or the file is no longer the running one"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The changed file is not a valid configuration"
+          },
+          "428" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is missing"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The file could not be written; nothing changed"
+          }
+        },
+        "summary" : "Create a key for a tenant",
+        "tags" : [ "Configuration" ]
+      }
+    },
     "/admin/v1/usage" : {
       "get" : {
         "description" : "Counts calls, refusals, tokens and cost from the signed audit trail, by the day each request arrived in UTC. Each provider attempt is a call, so a request that fell back to another model counts twice. Dry runs are not counted.",
@@ -1154,6 +1249,31 @@
             "type" : "string"
           }
         }
+      },
+      "CreatedKey" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string",
+            "description" : "The whole key. It is in this response and nowhere else",
+            "example" : "tg_EXAMPLEKEYID_0000000000000000000000000000000000000000000"
+          },
+          "previous" : {
+            "type" : "string",
+            "description" : "The version the edit was made against"
+          },
+          "tenant" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string",
+            "description" : "SHA-256 of the configuration now running"
+          }
+        },
+        "required" : [ "id", "key", "previous", "tenant", "version" ]
       },
       "Flow" : {
         "type" : "object",

@@ -44,6 +44,29 @@ class ConfigEditsOffTest extends ServerTestSupport {
     }
 
     @Test
+    void refusesToCreateAKey() throws Exception {
+        byte[] before = Files.readAllBytes(CONFIG);
+
+        HttpResponse<String> created = send("POST", "/tenants/metered/keys");
+
+        assertThat(created.statusCode()).isEqualTo(409);
+        assertThat(created.body()).contains("\"code\":\"edits_off\"").doesNotContain("tg_");
+        assertThat(Files.readAllBytes(CONFIG)).isEqualTo(before);
+    }
+
+    private static HttpResponse<String> send(String method, String path) throws Exception {
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            return client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1" + path))
+                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
+                            .header("If-Match", "\"anything\"")
+                            .method(method, HttpRequest.BodyPublishers.noBody())
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+        }
+    }
+
+    @Test
     void answersEditsOffBeforeCheckingTheBody() throws Exception {
         assertThat(put("/policies/default/guards/0/mode", "{\"mode\":\"off\"}").statusCode())
                 .isEqualTo(409);

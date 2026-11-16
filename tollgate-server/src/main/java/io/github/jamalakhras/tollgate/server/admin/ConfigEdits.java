@@ -75,6 +75,23 @@ final class ConfigEdits {
         });
     }
 
+    static ConfigOperation addKey(String tenant, String id, String sha256) {
+        return new ConfigOperation("key-create", "keys[" + id + "]", document -> {
+            Map<String, Object> root = new LinkedHashMap<>(document);
+            if (!mapOf(root.get("tenants")).containsKey(tenant)) {
+                throw new NotFound("No tenant named '" + tenant + "'");
+            }
+            Map<String, Object> key = new LinkedHashMap<>();
+            key.put("id", id);
+            key.put("tenant", tenant);
+            key.put("sha256", sha256);
+            List<Object> keys = listOf(root.get("keys"));
+            keys.add(key);
+            root.put("keys", keys);
+            return root;
+        });
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> mapOf(@Nullable Object value) {
         return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : new LinkedHashMap<>();

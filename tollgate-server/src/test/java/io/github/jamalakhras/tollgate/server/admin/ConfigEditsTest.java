@@ -172,6 +172,59 @@ class ConfigEditsTest {
                 .hasMessageContaining("was weekly");
     }
 
+    private static Map<String, Object> withKeys() {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("tenants", new LinkedHashMap<>(Map.of("bare", new LinkedHashMap<>())));
+        root.put(
+                "keys",
+                new ArrayList<>(List.of(
+                        new LinkedHashMap<>(Map.of("id", "one", "tenant", "bare", "sha256", "aa")),
+                        new LinkedHashMap<>(Map.of("id", "two", "tenant", "bare", "sha256", "bb")))));
+        return root;
+    }
+
+    private static List<String> keyIds(Map<String, Object> document) {
+        return ((List<?>) Objects.requireNonNull(document.get("keys")))
+                .stream()
+                        .map(key -> String.valueOf(((Map<?, ?>) key).get("id")))
+                        .toList();
+    }
+
+    @Test
+    void appendsAKeyAndKeepsTheOnesThatWereThere() {
+        Map<String, Object> changed =
+                ConfigEdits.addKey("bare", "three", "cc").change().apply(withKeys());
+
+        assertThat(keyIds(changed)).containsExactly("one", "two", "three");
+        assertThat(((List<?>) Objects.requireNonNull(changed.get("keys"))).get(2))
+                .isEqualTo(Map.of("id", "three", "tenant", "bare", "sha256", "cc"));
+    }
+
+    @Test
+    void makesTheKeyListWhenThereIsNone() {
+        Map<String, Object> document = withKeys();
+        document.remove("keys");
+
+        Map<String, Object> changed =
+                ConfigEdits.addKey("bare", "one", "aa").change().apply(document);
+
+        assertThat(keyIds(changed)).containsExactly("one");
+    }
+
+    @Test
+    void doesNotAddAKeyToAMissingTenant() {
+        assertThatThrownBy(() ->
+                        ConfigEdits.addKey("nobody", "three", "cc").change().apply(withKeys()))
+                .isInstanceOf(ConfigEdits.NotFound.class)
+                .hasMessage("No tenant named 'nobody'");
+    }
+
+    @Test
+    void namesTheKeyOperations() {
+        assertThat(ConfigEdits.addKey("bare", "x", "cc").name()).isEqualTo("key-create");
+        assertThat(ConfigEdits.addKey("bare", "x", "cc").path()).isEqualTo("keys[x]");
+    }
+
     @Test
     void refusesAModeItDoesNotKnow() {
         assertThatThrownBy(() -> ConfigEdits.guardMode("default", 0, "off"))

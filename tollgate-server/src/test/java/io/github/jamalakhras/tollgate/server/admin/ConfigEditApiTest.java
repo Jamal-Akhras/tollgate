@@ -18,12 +18,16 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+@ExtendWith(OutputCaptureExtension.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = "management.server.port=0")
 class ConfigEditApiTest {
 
@@ -34,6 +38,7 @@ class ConfigEditApiTest {
     private static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0004";
     private static final Path FOLDER = temporaryFolder();
     private static final Path CONFIG = FOLDER.resolve("tollgate.yaml");
+    private static final ApiKey STARTING_KEY = ApiKey.generate(new SecureRandom());
     private static final String TEXT = handWritten();
     private static final Pattern VERSION = Pattern.compile("\"version\":\"([0-9a-f]{64})\"");
     private static final String BUDGET_20_DAILY = "{\"limit\":\"20\",\"period\":\"daily\"}";
@@ -58,7 +63,7 @@ class ConfigEditApiTest {
     }
 
     private static String handWritten() {
-        ApiKey key = ApiKey.generate(new SecureRandom());
+        ApiKey key = STARTING_KEY;
         String text = """
                 # Written by hand
                 dataClasses: [public, internal]
@@ -319,6 +324,98 @@ class ConfigEditApiTest {
 
         assertThat(response.statusCode()).isEqualTo(422);
         assertThat(response.body()).contains("has more than 9 decimal places");
+    }
+
+    private static final Pattern KEY = Pattern.compile("\"key\":\"(tg_[^\"]+)\"");
+
+    private HttpResponse<String> post(String path, String ifMatch) throws IOException, InterruptedException {
+        return call(
+                ADMIN_PORT,
+                "POST",
+                path,
+                "",
+                "Authorization",
+                "Bearer " + ADMIN_TOKEN,
+                "If-Match",
+                "\"" + ifMatch + "\"");
+    }
+
+    private int models(String key) throws IOException, InterruptedException {
+        return call(port, "GET", "/v1/models", "", "Authorization", "Bearer " + key)
+                .statusCode();
+    }
+
+    private static String keyOf(HttpResponse<String> created) {
+        Matcher matcher = KEY.matcher(created.body());
+        assertThat(matcher.find()).isTrue();
+        return matcher.group(1);
+    }
+
+    private static String everythingOnDisk() throws IOException {
+        StringBuilder text = new StringBuilder(Files.readString(CONFIG));
+        try (Stream<Path> files = Files.list(FOLDER.resolve("config-history"))) {
+            for (Path file : files.toList()) {
+                text.append(Files.readString(file));
+            }
+        }
+        return text.toString();
+    }
+
+    @Test
+    void createsAKeyThatWorksAndIsShownOnce(CapturedOutput output) throws Exception {
+        String started = version();
+
+        HttpResponse<String> created = post("/admin/v1/tenants/support-bot/keys", started);
+
+        assertThat(created.statusCode()).isEqualTo(201);
+        assertThat(created.headers().firstValue("Cache-Control"))
+                .hasValueSatisfying(value -> assertThat(value).contains("no-store"));
+        String key = keyOf(created);
+        ApiKey parsed = ApiKey.parse(key).orElseThrow();
+        assertThat(created.body())
+                .contains("\"id\":\"" + parsed.id() + "\"")
+                .contains("\"tenant\":\"support-bot\"")
+                .contains("\"previous\":\"" + started + "\"")
+                .doesNotContain("\"version\":\"" + started + "\"");
+        assertThat(models(key)).isEqualTo(200);
+        String disk = everythingOnDisk();
+        assertThat(disk).contains(parsed.id()).contains(parsed.sha256()).doesNotContain(key);
+        assertThat(send("GET", "/admin/v1/config").body())
+                .contains("{\"id\":\"" + parsed.id() + "\",\"tenant\":\"support-bot\"}")
+                .doesNotContain(key);
+        assertThat(output.getAll()).contains(parsed.id()).doesNotContain(key).doesNotContain(parsed.secret());
+    }
+
+    @Test
+    void createsADifferentKeyEachTime() throws Exception {
+        HttpResponse<String> first = post("/admin/v1/tenants/support-bot/keys", version());
+        HttpResponse<String> second = post("/admin/v1/tenants/support-bot/keys", version());
+
+        String one = keyOf(first);
+        String two = keyOf(second);
+        assertThat(ApiKey.parse(one).orElseThrow().id())
+                .isNotEqualTo(ApiKey.parse(two).orElseThrow().id());
+        assertThat(models(one)).isEqualTo(200);
+        assertThat(models(two)).isEqualTo(200);
+    }
+
+    @Test
+    void doesNotCreateAKeyForAnUnknownTenant() throws Exception {
+        String before = Files.readString(CONFIG);
+
+        HttpResponse<String> response = post("/admin/v1/tenants/nobody/keys", version());
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body()).contains("No tenant named 'nobody'").doesNotContain("tg_");
+        assertThat(Files.readString(CONFIG)).isEqualTo(before);
+    }
+
+    @Test
+    void doesNotShowAKeyWhenTheVersionIsStale() throws Exception {
+        HttpResponse<String> response = post("/admin/v1/tenants/support-bot/keys", "0".repeat(64));
+
+        assertThat(response.statusCode()).isEqualTo(412);
+        assertThat(response.body()).doesNotContain("tg_");
     }
 
     @Test
