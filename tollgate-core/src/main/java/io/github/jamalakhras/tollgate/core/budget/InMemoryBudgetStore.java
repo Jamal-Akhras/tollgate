@@ -47,6 +47,14 @@ public final class InMemoryBudgetStore implements BudgetStore {
     }
 
     @Override
+    public void forget(String tenant) {
+        Ledger ledger = ledgers.get(tenant);
+        if (ledger != null) {
+            ledger.forget();
+        }
+    }
+
+    @Override
     public Money spent(String tenant, Budget budget) {
         Ledger ledger = ledgers.get(tenant);
         long nanos = ledger == null ? 0 : ledger.spent(budget, clock.instant());
@@ -92,6 +100,11 @@ public final class InMemoryBudgetStore implements BudgetStore {
         synchronized long available(Budget budget, Instant now) {
             enterPeriod(budget, now);
             return Math.max(0, budget.limit().nanos() - spent - reserved);
+        }
+
+        synchronized void forget() {
+            periodStart = Instant.MIN;
+            spent = 0;
         }
 
         synchronized long reserved() {

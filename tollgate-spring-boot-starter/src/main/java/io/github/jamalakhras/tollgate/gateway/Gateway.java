@@ -61,6 +61,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -527,7 +529,36 @@ public final class Gateway implements AutoCloseable {
         }
     }
 
+    private void recountBudgets(Snapshot before, Snapshot after) {
+        Set<String> recount = new TreeSet<>();
+        after.config().tenants().forEach((name, tenant) -> {
+            Budget budget = tenant.budget();
+            Tenant old = before.config().tenants().get(name);
+            Budget oldBudget = old == null ? null : old.budget();
+            if (budget != null && (oldBudget == null || oldBudget.period() != budget.period())) {
+                recount.add(name);
+            }
+        });
+        if (recount.isEmpty()) {
+            return;
+        }
+        if (!(after.config().audit() instanceof AuditSettings.Enabled audit)) {
+            recount.forEach(name -> log.warn(
+                    "The budget of tenant {} changed period or is new, and its spend starts from zero because the audit trail is off",
+                    name));
+            return;
+        }
+        Path directory = after.loaded().resolve(audit.directory());
+        try {
+            recount.forEach(budgets::forget);
+            BudgetReplay.replay(directory, after.config(), budgets, recount);
+        } catch (IOException e) {
+            log.warn("Could not recount the spend of tenants {} from {}: {}", recount, directory, e.getMessage());
+        }
+    }
+
     private Reload swap(Snapshot before, Snapshot after) {
+        recountBudgets(before, after);
         current = after;
         warnAboutMonitoredDataClasses(after.config());
         metrics.watch(after.config(), budgets, providerCalls);

@@ -14,24 +14,32 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 final class BudgetReplay {
 
     private final GatewayConfig config;
     private final BudgetStore budgets;
+    private final Set<String> tenants;
     private final Map<String, Intent> open = new LinkedHashMap<>();
     private int settled;
 
-    private BudgetReplay(GatewayConfig config, BudgetStore budgets) {
+    private BudgetReplay(GatewayConfig config, BudgetStore budgets, Set<String> tenants) {
         this.config = config;
         this.budgets = budgets;
+        this.tenants = tenants;
     }
 
     record Replayed(int settled, int unfinished) {}
 
     static Replayed replay(Path directory, GatewayConfig config, BudgetStore budgets) throws IOException {
-        BudgetReplay replay = new BudgetReplay(config, budgets);
+        return replay(directory, config, budgets, config.tenants().keySet());
+    }
+
+    static Replayed replay(Path directory, GatewayConfig config, BudgetStore budgets, Set<String> tenants)
+            throws IOException {
+        BudgetReplay replay = new BudgetReplay(config, budgets, tenants);
         AuditDirectory.records(directory, record -> {
             switch (record) {
                 case Intent intent -> replay.intent(intent);
@@ -57,6 +65,9 @@ final class BudgetReplay {
     }
 
     private void charge(String tenantName, @Nullable Money cost, Instant at) {
+        if (!tenants.contains(tenantName)) {
+            return;
+        }
         Tenant tenant = config.tenants().get(tenantName);
         Budget budget = tenant == null ? null : tenant.budget();
         if (budget != null
