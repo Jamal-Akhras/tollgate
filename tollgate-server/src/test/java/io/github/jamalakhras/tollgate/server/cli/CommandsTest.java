@@ -18,6 +18,7 @@ import io.github.jamalakhras.tollgate.core.redact.Detector;
 import io.github.jamalakhras.tollgate.gateway.ConfigFile;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.gateway.audit.JsonLinesAuditSink;
+import io.github.jamalakhras.tollgate.server.admin.AdminProperties;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -114,6 +115,7 @@ class CommandsTest {
         String secrets = Files.readString(directory.resolve(Init.SECRETS));
         assertThat(printed).doesNotContain(valueAfter(secrets, "TOLLGATE_AUDIT_SIGNING_KEY="));
         assertThat(valueAfter(secrets, "TOLLGATE_ADMIN_TOKEN=")).hasSize(64);
+        assertThat(valueAfter(secrets, "TOLLGATE_ADMIN_EDITS=")).isEqualTo("file");
         assertThat(config.audit())
                 .isInstanceOfSatisfying(
                         AuditSettings.Enabled.class,
@@ -127,6 +129,27 @@ class CommandsTest {
             assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(directory.resolve(Init.SECRETS))))
                     .isEqualTo("rw-------");
         }
+    }
+
+    @Test
+    void initSaysTheConsoleMayChangeTheConfig() {
+        commands.run(List.of("init", trail.resolve("new").toString()));
+
+        assertThat(out.toString(StandardCharsets.UTF_8)).contains("TOLLGATE_ADMIN_EDITS=file");
+    }
+
+    @Test
+    void initWritesAnEditsValueTheServerAccepts() throws IOException {
+        Path directory = trail.resolve("new");
+        commands.run(List.of("init", directory.toString()));
+        String secrets = Files.readString(directory.resolve(Init.SECRETS));
+
+        assertThat(new AdminProperties(
+                        8081,
+                        "127.0.0.1",
+                        valueAfter(secrets, "TOLLGATE_ADMIN_TOKEN="),
+                        valueAfter(secrets, "TOLLGATE_ADMIN_EDITS=")))
+                .isNotNull();
     }
 
     @Test

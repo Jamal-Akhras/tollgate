@@ -45,6 +45,7 @@ final class Init {
                 TOLLGATE_AUDIT_SIGNING_KEY=%s
                 TOLLGATE_AUDIT_HMAC_KEY=%s
                 TOLLGATE_ADMIN_TOKEN=%s
+                TOLLGATE_ADMIN_EDITS=file
                 """.formatted(
                 auditKeys.signingKey(), auditKeys.hmacKey(), HexFormat.of().formatHex(adminToken)));
         Files.writeString(

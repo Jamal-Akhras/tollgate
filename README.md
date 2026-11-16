@@ -160,8 +160,9 @@ tollgate init
 ```
 
 - **`tollgate.yaml`** is ready for Ollama with `qwen3:8b`, and holds no secrets.
-- **`tollgate.env`** holds the audit keys and an admin token. Only you can read
-  it, and `init` never overwrites it. Keep it out of version control and back
+- **`tollgate.env`** holds the audit keys, an admin token, and the line that
+  lets the console change `tollgate.yaml`. Only you can read it, and `init`
+  never overwrites it. Keep it out of version control and back
   it up.
 - **The API key** for the tenant `my-app` is printed once.
 
@@ -225,6 +226,11 @@ Get-Content tollgate.env | ForEach-Object { $name, $value = $_ -split '=', 2; Se
 tollgate
 ```
 
+The console is at `http://127.0.0.1:8081/console/`; sign in with the admin
+token from `tollgate.env`. Edits are on, so it can change `tollgate.yaml`,
+keeping each earlier version in `config-history/`. Remove the
+`TOLLGATE_ADMIN_EDITS` line from `tollgate.env` to keep the file read-only.
+
 **4. Call it** with the OpenAI SDK, using the tenant key:
 
 ```python
@@ -261,32 +267,33 @@ writing them to the current folder as your own user:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-  ghcr.io/jamal-akhras/tollgate:0.1.0 init
+  ghcr.io/jamal-akhras/tollgate:0.2.0 init
 ```
 
 On Windows, Docker Desktop writes the files as you, so leave out `--user`. In
 PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.1.0 init
+docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.2.0 init
 ```
 
 The other commands here are for bash; in PowerShell, end each continued line
 with a backtick instead of `\`, and write `${PWD}` for `$PWD`.
 
 In `tollgate.yaml`, point the provider at `host.docker.internal` instead of
-`localhost`, and set `audit.directory` to `/home/nonroot/audit` so the trail
-lands on the volume. Then start it:
+`localhost`. Then start it in the same folder, as you, so the audit trail
+lands in `./audit`:
 
 ```bash
-docker run -d --name tollgate \
-  -v "$PWD/tollgate.yaml:/etc/tollgate/tollgate.yaml:ro" \
-  -v tollgate-data:/home/nonroot \
-  --env-file tollgate.env \
-  --add-host=host.docker.internal:host-gateway \
-  -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
-  ghcr.io/jamal-akhras/tollgate:0.1.0
+docker run -d --name tollgate --user "$(id -u):$(id -g)"   -v "$PWD:/work" -w /work -e TOLLGATE_CONFIG=/work/tollgate.yaml   --env-file tollgate.env   --add-host=host.docker.internal:host-gateway   -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090   ghcr.io/jamal-akhras/tollgate:0.2.0
 ```
+
+On Windows, leave out `--user`, as for `init`. The folder is mounted, not the
+file, because the console replaces `tollgate.yaml` and keeps earlier versions
+in `config-history/`. The console is at `http://127.0.0.1:8081/console/`, and
+edits are on. For a config the console must not change, remove
+`TOLLGATE_ADMIN_EDITS` from `tollgate.env` and add `:ro` to the mount of a
+folder that holds only the config.
 
 The `--add-host` line makes `host.docker.internal` work on Linux too; Docker
 Desktop provides it already.
@@ -325,6 +332,10 @@ WantedBy=multi-user.target
   `NAME=value` lines. Make it readable by root only.
 - **Set `audit.directory` to `/var/lib/tollgate/audit`.** A relative directory
   is resolved next to the config file, and `/etc/tollgate` is not writable.
+- **`/etc/tollgate` is not writable**, so remove `TOLLGATE_ADMIN_EDITS=file`
+  from `tollgate.env`, or Tollgate stops at startup and says so. To use the
+  console's edits, keep `tollgate.yaml` in `/var/lib/tollgate` and point
+  `TOLLGATE_CONFIG` there.
 - **Start it** with `systemctl enable --now tollgate`. `journalctl -u tollgate`
   shows the address each port listens on.
 - **Memory:** each call in flight holds its request and answer, up to

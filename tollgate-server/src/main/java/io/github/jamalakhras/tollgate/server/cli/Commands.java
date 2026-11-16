@@ -121,6 +121,9 @@ public final class Commands {
                 Keep it out of version control, and back it up: without the keys, new audit
                 records cannot be signed.
 
+                The console may change %s, because %s sets TOLLGATE_ADMIN_EDITS=file.
+                Remove that line to keep the file read-only.
+
                 The API key for tenant %s. It is shown only once:
 
                     %s
@@ -136,6 +139,8 @@ public final class Commands {
                 """,
                 created.config(),
                 created.secrets(),
+                Init.SECRETS,
+                created.config(),
                 Init.SECRETS,
                 Init.TENANT,
                 created.key().value(),
