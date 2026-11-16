@@ -12,7 +12,11 @@ export type Poll<T> = {
 
 const busyRetryMillis = 2000;
 
-export function usePoll<T>(load: () => Promise<T>, everyMillis: number): Poll<T> {
+export function usePoll<T>(
+  load: () => Promise<T>,
+  everyMillis: number,
+  paused?: () => boolean,
+): Poll<T> {
   const [poll] = useState(() => ({
     data: signal<T | null>(null),
     error: signal<Error | null>(null),
@@ -21,7 +25,9 @@ export function usePoll<T>(load: () => Promise<T>, everyMillis: number): Poll<T>
   }));
   const latest = useRef(load);
   const again = useRef<() => void>(() => undefined);
+  const holding = useRef(paused);
   latest.current = load;
+  holding.current = paused;
 
   useEffect(() => {
     let stopped = false;
@@ -44,6 +50,10 @@ export function usePoll<T>(load: () => Promise<T>, everyMillis: number): Poll<T>
         return;
       }
       clearTimeout(timer);
+      if (holding.current?.()) {
+        schedule(everyMillis);
+        return;
+      }
       running = true;
       poll.loading.value = true;
       let next = everyMillis;

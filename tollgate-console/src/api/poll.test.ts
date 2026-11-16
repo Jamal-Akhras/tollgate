@@ -126,3 +126,15 @@ test('stopsWhenTheComponentUnmounts', async () => {
   await tick(5000);
   expect(load).toHaveBeenCalledTimes(1);
 });
+
+test('skipsALoadWhilePausedAndLoadsAgainWhenResumed', async () => {
+  let paused = true;
+  const load = vi.fn().mockResolvedValue('one');
+  renderHook(() => usePoll(load, 1000, () => paused));
+  await tick(0);
+  await tick(3000);
+  expect(load).not.toHaveBeenCalled();
+  paused = false;
+  await tick(1000);
+  expect(load).toHaveBeenCalledTimes(1);
+});

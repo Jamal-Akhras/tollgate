@@ -27,3 +27,15 @@
 .dry {
   color: var(--text-muted);
 }
+
+.sent {
+  color: var(--ok);
+}
+
+.waiting {
+  color: var(--text-muted);
+}
+
+.failed {
+  color: var(--danger-text);
+}

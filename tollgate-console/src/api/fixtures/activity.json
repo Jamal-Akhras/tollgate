@@ -1,6 +1,6 @@
 [
   {
-    "endpoint": "/v1/chat/completions",
+    "endpoint": "openai",
     "dataClass": null,
     "attributed": false,
     "fallback": false,
@@ -35,7 +35,7 @@
     }
   },
   {
-    "endpoint": "/v1/chat/completions",
+    "endpoint": "openai",
     "dataClass": null,
     "attributed": false,
     "fallback": false,

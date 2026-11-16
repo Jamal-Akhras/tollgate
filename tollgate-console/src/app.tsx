@@ -1,4 +1,5 @@
 import { signedIn } from './api/client';
+import { Activity } from './pages/Activity/Activity';
 import { Config } from './pages/Config/Config';
 import { Flow } from './pages/Flow/Flow';
 import { SignIn } from './pages/SignIn/SignIn';
@@ -22,6 +23,8 @@ function page() {
     case 'flow':
     case 'sign-in':
       return <Flow />;
+    case 'activity':
+      return <Activity />;
     case 'config':
       return <Config />;
     default:
