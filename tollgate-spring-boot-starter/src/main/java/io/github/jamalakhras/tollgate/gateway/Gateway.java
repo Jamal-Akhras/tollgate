@@ -104,6 +104,7 @@ public final class Gateway implements AutoCloseable {
     private final CircuitBreakers breakers = new CircuitBreakers(System::nanoTime);
     private final GatewayMetrics metrics = new GatewayMetrics(Metrics.globalRegistry);
     private final Map<String, Long> warnings = new ConcurrentHashMap<>();
+    private final ConfigStore store;
     private volatile Snapshot current;
 
     Gateway(
@@ -118,6 +119,7 @@ public final class Gateway implements AutoCloseable {
             Duration maxScanTime,
             Tracer tracer) {
         this.environment = environment;
+        this.store = new FileConfigStore(loaded.path());
         this.current = new Snapshot(loaded, environment);
         warnAboutMonitoredDataClasses(current.config());
         this.client = client;
@@ -508,26 +510,103 @@ public final class Gateway implements AutoCloseable {
         if (next.version().equals(before.loaded().version())) {
             return new Reload(next.version(), false);
         }
+        Snapshot after = accepted(before, next);
+        return swap(before, after);
+    }
+
+    private Snapshot accepted(Snapshot before, LoadedConfig next) {
         if (!next.config().audit().equals(before.config().audit())) {
             throw new ReloadRejected(
                     ReloadRejected.RESTART_REQUIRED,
                     "The audit settings changed; restart Tollgate to apply them. The running config is unchanged");
         }
-        Snapshot after;
         try {
-            after = new Snapshot(next, environment);
+            return new Snapshot(next, environment);
         } catch (IllegalStateException e) {
             throw new ReloadRejected(ReloadRejected.INVALID_CONFIG, String.valueOf(e.getMessage()));
         }
+    }
+
+    private Reload swap(Snapshot before, Snapshot after) {
         current = after;
         warnAboutMonitoredDataClasses(after.config());
         metrics.watch(after.config(), budgets, providerCalls);
         log.info(
                 "Reloaded {}: config version {} replaces {}",
-                next.path(),
-                next.version(),
+                after.loaded().path(),
+                after.loaded().version(),
                 before.loaded().version());
-        return new Reload(next.version(), true);
+        return new Reload(after.loaded().version(), true);
+    }
+
+    public synchronized Reload edit(String expected, List<ConfigOperation> operations) {
+        Snapshot before = current;
+        Path path = before.loaded().path();
+        String running = before.loaded().version();
+        ConfigStore.Head head;
+        try {
+            head = store.head();
+        } catch (IOException e) {
+            throw new EditRejected(EditRejected.WRITE_FAILED, "Could not read " + path + ": " + e.getMessage());
+        }
+        if (!expected.equals(running)) {
+            throw new EditRejected(
+                    EditRejected.CONFIG_CHANGED,
+                    "The running config is version " + shortVersion(running) + "…, not " + shortVersion(expected)
+                            + "…. Read it again");
+        }
+        if (!head.version().equals(running)) {
+            throw changedOnDisk(path);
+        }
+        Map<String, Object> changed = ConfigFile.document(head.bytes());
+        for (ConfigOperation operation : operations) {
+            changed = operation.change().apply(changed);
+        }
+        if (changed.equals(ConfigFile.document(head.bytes()))) {
+            return new Reload(running, false);
+        }
+        byte[] nextBytes = ConfigFile.write(changed);
+        LoadedConfig next;
+        try {
+            next = ConfigFile.parse(path, nextBytes);
+        } catch (IllegalStateException e) {
+            throw new ReloadRejected(ReloadRejected.INVALID_CONFIG, String.valueOf(e.getMessage()));
+        }
+        Snapshot after = accepted(before, next);
+        try {
+            if (!store.replace(head.version(), next.version(), nextBytes)) {
+                throw changedOnDisk(path);
+            }
+        } catch (IOException e) {
+            throw new EditRejected(EditRejected.WRITE_FAILED, "Could not write " + path + ": " + e.getMessage());
+        }
+        return swap(before, after);
+    }
+
+    public synchronized void keepVersion() {
+        Snapshot snapshot = current;
+        try {
+            ConfigStore.Head head = store.head();
+            if (head.version().equals(snapshot.loaded().version())) {
+                store.keep(head);
+            }
+        } catch (IOException e) {
+            log.warn(
+                    "Could not keep config version {} in {}: {}",
+                    snapshot.loaded().version(),
+                    FileConfigStore.history(snapshot.loaded().path()),
+                    e.getMessage());
+        }
+    }
+
+    private static EditRejected changedOnDisk(Path path) {
+        return new EditRejected(
+                EditRejected.CONFIG_CHANGED,
+                path + " was changed and has not been reloaded. Reload it or put it back, then try again");
+    }
+
+    private static String shortVersion(String version) {
+        return version.substring(0, 12);
     }
 
     public GatewayConfig config() {
