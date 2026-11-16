@@ -42,4 +42,18 @@ class ConfigEditsOffTest extends ServerTestSupport {
         assertThat(response.statusCode()).isEqualTo(409);
         assertThat(response.body()).contains("\"code\":\"edits_off\"");
     }
+
+    @Test
+    void answersEditsOffBeforeCheckingTheBody() throws Exception {
+        assertThat(put("/policies/default/guards/0/mode", "{\"mode\":\"off\"}").statusCode())
+                .isEqualTo(409);
+        assertThat(put("/policies/default/guards/0/mode", "not json").statusCode())
+                .isEqualTo(409);
+        assertThat(put("/policies/default/guards/x/mode", "{\"mode\":\"monitor\"}")
+                        .statusCode())
+                .isEqualTo(409);
+        assertThat(put("/tenants/metered/budget", "{\"limit\":\"abc\",\"period\":\"daily\"}")
+                        .statusCode())
+                .isEqualTo(409);
+    }
 }

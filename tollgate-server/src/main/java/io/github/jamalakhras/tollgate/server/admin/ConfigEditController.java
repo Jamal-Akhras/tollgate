@@ -135,10 +135,18 @@ class ConfigEditController {
 
     @ExceptionHandler
     ResponseEntity<AdminError> editsOff(ConfigEditor.EditsOff e) {
+        return editsOff();
+    }
+
+    private static ResponseEntity<AdminError> editsOff() {
         return error(
                 HttpStatus.CONFLICT,
                 "edits_off",
                 "Edits are off. Set TOLLGATE_ADMIN_EDITS=file to let the admin API rewrite tollgate.yaml");
+    }
+
+    private ResponseEntity<AdminError> invalid(String message) {
+        return editor.on() ? error(HttpStatus.BAD_REQUEST, "invalid_request", message) : editsOff();
     }
 
     @ExceptionHandler
@@ -172,17 +180,17 @@ class ConfigEditController {
 
     @ExceptionHandler
     ResponseEntity<AdminError> badEdit(ConfigEdits.BadEdit e) {
-        return error(HttpStatus.BAD_REQUEST, "invalid_request", String.valueOf(e.getMessage()));
+        return invalid(String.valueOf(e.getMessage()));
     }
 
     @ExceptionHandler
     ResponseEntity<AdminError> unreadable(HttpMessageNotReadableException e) {
-        return error(HttpStatus.BAD_REQUEST, "invalid_request", "The request body is not valid");
+        return invalid("The request body is not valid");
     }
 
     @ExceptionHandler
     ResponseEntity<AdminError> mismatch(MethodArgumentTypeMismatchException e) {
-        return error(HttpStatus.BAD_REQUEST, "invalid_request", e.getName() + " must be a number");
+        return invalid(e.getName() + " must be a number");
     }
 
     private static ResponseEntity<AdminError> error(HttpStatus status, String code, String message) {
