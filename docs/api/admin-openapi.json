@@ -870,6 +870,9 @@
               "$ref" : "#/components/schemas/ProviderView"
             }
           },
+          "rewritten" : {
+            "type" : "boolean"
+          },
           "tenants" : {
             "type" : "array",
             "items" : {

@@ -56,4 +56,16 @@ class AdminTokenFilterTest {
         assertThat(response.getStatus()).isEqualTo(503);
         assertThat(response.getContentAsString()).contains("\"code\":\"admin_disabled\"", "TOLLGATE_ADMIN_TOKEN");
     }
+
+    @Test
+    void tellsTheChainWhoIsCalling() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/admin/v1/config/reload");
+        request.addHeader("Authorization", "Bearer " + TOKEN);
+        MockFilterChain chain = new MockFilterChain();
+
+        new AdminTokenFilter(TOKEN).doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(request.getAttribute(AdminCaller.ATTRIBUTE)).isEqualTo(AdminCaller.ADMIN);
+    }
 }

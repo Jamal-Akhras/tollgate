@@ -35,8 +35,10 @@ import org.springframework.web.bind.annotation.RestController;
 class ConfigViewController {
 
     private final Gateway gateway;
+    private final ConfigEditor editor;
 
-    ConfigViewController(Gateway gateway) {
+    ConfigViewController(Gateway gateway, ConfigEditor editor) {
+        this.editor = editor;
         this.gateway = gateway;
     }
 
@@ -47,13 +49,14 @@ class ConfigViewController {
                     + " variable that holds them, and key hashes, detector patterns and detector terms are left out.")
     @ApiResponse(responseCode = "200", description = "The running config")
     ConfigView config() {
-        return view(gateway.configVersion(), gateway.config());
+        return view(gateway.configVersion(), editor.on(), editor.rewritten(), gateway.config());
     }
 
-    static ConfigView view(String version, GatewayConfig config) {
+    static ConfigView view(String version, boolean managed, boolean rewritten, GatewayConfig config) {
         return new ConfigView(
                 version,
-                "read-only",
+                managed ? "managed" : "read-only",
+                rewritten,
                 config.dataClasses(),
                 sorted(config.providers(), ConfigViewController::provider),
                 sorted(config.models(), ConfigViewController::model),
@@ -168,6 +171,7 @@ class ConfigViewController {
     record ConfigView(
             String version,
             String edits,
+            boolean rewritten,
             List<String> dataClasses,
             List<ProviderView> providers,
             List<ModelView> models,

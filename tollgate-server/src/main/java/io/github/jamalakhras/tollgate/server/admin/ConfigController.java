@@ -22,8 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 class ConfigController {
 
     private final Gateway gateway;
+    private final ConfigEditor editor;
 
-    ConfigController(Gateway gateway) {
+    ConfigController(Gateway gateway, ConfigEditor editor) {
+        this.editor = editor;
         this.gateway = gateway;
     }
 
@@ -44,6 +46,9 @@ class ConfigController {
             content = @Content(schema = @Schema(implementation = AdminError.class)))
     ReloadResult reload() {
         Gateway.Reload reload = gateway.reload();
+        if (reload.changed()) {
+            editor.reloaded();
+        }
         return new ReloadResult(reload.version(), reload.changed());
     }
 

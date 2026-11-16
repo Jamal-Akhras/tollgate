@@ -57,7 +57,7 @@ class ConfigViewTest extends ServerTestSupport {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body())
-                .contains("\"edits\":\"read-only\"")
+                .contains("\"edits\":\"read-only\",\"rewritten\":false")
                 .contains("\"name\":\"support-bot\"")
                 .contains("\"policy\":\"default\"")
                 .contains("\"type\":\"data-class\",\"mode\":\"enforce\"")
@@ -138,7 +138,7 @@ class ConfigViewTest extends ServerTestSupport {
                         new Policy(List.of(new MonitoredGuard(new ToolNamesGuard(List.of(), List.of("shell")))))),
                 new AuditSettings.Enabled(false, "audit", "public", new SecretRef("SIGN"), new SecretRef("HMAC")));
 
-        var view = ConfigViewController.view("abc", config);
+        var view = ConfigViewController.view("abc", false, false, config);
 
         assertThat(view.providers().getFirst())
                 .isEqualTo(new ConfigViewController.ProviderView(

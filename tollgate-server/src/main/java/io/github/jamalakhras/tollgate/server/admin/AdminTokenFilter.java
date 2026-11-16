@@ -45,6 +45,7 @@ final class AdminTokenFilter extends OncePerRequestFilter {
                     "The admin token is missing or not valid");
             return;
         }
+        request.setAttribute(AdminCaller.ATTRIBUTE, AdminCaller.ADMIN);
         chain.doFilter(request, response);
     }
 

@@ -39,6 +39,15 @@ class AdminConfigurationTest {
     }
 
     @Test
+    void keepsEditsOffUnlessToldOtherwise() {
+        assertThat(new AdminProperties(8081, "127.0.0.1", null).edits()).isEqualTo("off");
+        assertThat(new AdminProperties(8081, "127.0.0.1", null, "file").edits()).isEqualTo("file");
+        assertThatThrownBy(() -> new AdminProperties(8081, "127.0.0.1", null, "yes"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("tollgate.admin.edits must be off or file, was yes");
+    }
+
+    @Test
     void refusesToShareTheGatewayPort() {
         var customizer = new AdminPortConfiguration().adminConnector(new AdminProperties(8080, "127.0.0.1", null));
         assertThatThrownBy(() -> customizer.customize(new TomcatServletWebServerFactory(8080)))
