@@ -593,8 +593,8 @@ public final class Gateway implements AutoCloseable {
         if (!expected.equals(running)) {
             throw new EditRejected(
                     EditRejected.CONFIG_CHANGED,
-                    "The running config is version " + shortVersion(running) + "…, not " + shortVersion(expected)
-                            + "…. Read it again");
+                    "The running config is version " + running.substring(0, 12)
+                            + "…, which is not the version sent. Read it again");
         }
         if (!head.version().equals(running)) {
             throw changedOnDisk(path);
@@ -644,10 +644,6 @@ public final class Gateway implements AutoCloseable {
         return new EditRejected(
                 EditRejected.CONFIG_CHANGED,
                 path + " was changed and has not been reloaded. Reload it or put it back, then try again");
-    }
-
-    private static String shortVersion(String version) {
-        return version.substring(0, 12);
     }
 
     public GatewayConfig config() {

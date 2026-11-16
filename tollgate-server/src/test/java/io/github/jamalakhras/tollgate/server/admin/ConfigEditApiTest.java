@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -229,6 +230,17 @@ class ConfigEditApiTest {
     }
 
     @Test
+    void refusesAVersionThatIsNotAVersion() throws Exception {
+        for (String sent : List.of("*", "\"abc\"", "W/\"abc\"", "x", "W/\"" + "0".repeat(64) + "\"")) {
+            HttpResponse<String> response = put(GUARD_1 + "/mode", "{\"mode\":\"monitor\"}", sent);
+
+            assertThat(response.statusCode()).as(sent).isEqualTo(412);
+            assertThat(response.body()).contains("\"code\":\"config_changed\"");
+        }
+        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+    }
+
+    @Test
     void refusesAFileChangedByHandAndNotReloaded() throws Exception {
         String started = version();
         Files.writeString(CONFIG, TEXT + "# changed by hand\n");
@@ -318,12 +330,25 @@ class ConfigEditApiTest {
     }
 
     @Test
-    void reportsWhatATinyLimitDoes() throws Exception {
+    void refusesALimitWithTooManyDecimalPlaces() throws Exception {
         HttpResponse<String> response =
                 put("/admin/v1/tenants/metered/budget", "{\"limit\":\"0.0000000001\",\"period\":\"daily\"}", version());
 
-        assertThat(response.statusCode()).isEqualTo(422);
+        assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("has more than 9 decimal places");
+    }
+
+    @Test
+    void refusesALimitThatCannotBeCounted() throws Exception {
+        for (String limit : List.of("1e999999999", "1e-999999999", "9223372037", "99999999999")) {
+            HttpResponse<String> response = put(
+                    "/admin/v1/tenants/metered/budget",
+                    "{\"limit\":\"" + limit + "\",\"period\":\"daily\"}",
+                    version());
+
+            assertThat(response.statusCode()).as(limit).isEqualTo(400);
+        }
+        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
     }
 
     private static final Pattern KEY = Pattern.compile("\"key\":\"(tg_[^\"]+)\"");

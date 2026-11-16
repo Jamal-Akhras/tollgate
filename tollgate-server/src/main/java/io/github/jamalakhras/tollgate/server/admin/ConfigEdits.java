@@ -11,6 +11,8 @@ import org.jspecify.annotations.Nullable;
 
 final class ConfigEdits {
 
+    private static final BigDecimal LARGEST_LIMIT = BigDecimal.valueOf(Long.MAX_VALUE, 9);
+
     private ConfigEdits() {}
 
     static ConfigOperation guardMode(String policy, int index, @Nullable String mode) {
@@ -51,6 +53,13 @@ final class ConfigEdits {
         }
         if (amount.signum() < 0) {
             throw new BadEdit("limit must be a number that is not negative, was " + limit);
+        }
+        BigDecimal trimmed = amount.stripTrailingZeros();
+        if (trimmed.scale() > 9) {
+            throw new BadEdit("limit has more than 9 decimal places, was " + limit);
+        }
+        if (trimmed.precision() - trimmed.scale() > 10 || trimmed.compareTo(LARGEST_LIMIT) > 0) {
+            throw new BadEdit("limit is too large, was " + limit);
         }
         String name;
         try {
