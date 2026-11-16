@@ -20,6 +20,9 @@
     "description" : "The configuration this instance runs",
     "name" : "Configuration"
   }, {
+    "description" : "The configuration this instance is running",
+    "name" : "Config"
+  }, {
     "description" : "About this running instance",
     "name" : "Instance"
   }, {
@@ -48,6 +51,26 @@
         },
         "summary" : "Show each budget",
         "tags" : [ "Usage" ]
+      }
+    },
+    "/admin/v1/config" : {
+      "get" : {
+        "description" : "The config this instance is running, as a view and not the file: secrets are shown as the variable that holds them, and key hashes, detector patterns and detector terms are left out.",
+        "operationId" : "config",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigView"
+                }
+              }
+            },
+            "description" : "The running config"
+          }
+        },
+        "summary" : "Show the running config",
+        "tags" : [ "Config" ]
       }
     },
     "/admin/v1/config/reload" : {
@@ -205,6 +228,17 @@
         },
         "required" : [ "service", "version" ]
       },
+      "AuditView" : {
+        "type" : "object",
+        "properties" : {
+          "mode" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
+          }
+        }
+      },
       "BudgetState" : {
         "type" : "object",
         "properties" : {
@@ -239,6 +273,226 @@
           }
         },
         "required" : [ "available", "currency", "limit", "period", "reserved", "spent", "tenant" ]
+      },
+      "BudgetView" : {
+        "type" : "object",
+        "properties" : {
+          "currency" : {
+            "type" : "string"
+          },
+          "limit" : {
+            "type" : "string"
+          },
+          "period" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ConfigView" : {
+        "type" : "object",
+        "properties" : {
+          "audit" : {
+            "$ref" : "#/components/schemas/AuditView"
+          },
+          "dataClasses" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "edits" : {
+            "type" : "string"
+          },
+          "keys" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/KeyView"
+            }
+          },
+          "models" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ModelView"
+            }
+          },
+          "policies" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/PolicyView"
+            }
+          },
+          "providers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProviderView"
+            }
+          },
+          "tenants" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/TenantView"
+            }
+          },
+          "version" : {
+            "type" : "string"
+          }
+        }
+      },
+      "GuardView" : {
+        "type" : "object",
+        "properties" : {
+          "allow" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "maxBytes" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "refuse" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "regions" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "type" : {
+            "type" : "string"
+          }
+        }
+      },
+      "KeyView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "tenant" : {
+            "type" : "string"
+          }
+        }
+      },
+      "LimitsView" : {
+        "type" : "object",
+        "properties" : {
+          "concurrent" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "requestsPerMinute" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "tokensPerMinute" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ModelView" : {
+        "type" : "object",
+        "properties" : {
+          "fallback" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "free" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "outputCap" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "provider" : {
+            "type" : "string"
+          },
+          "upstream" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PolicyView" : {
+        "type" : "object",
+        "properties" : {
+          "features" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "guards" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GuardView"
+            }
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "redact" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "refuse" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      },
+      "ProviderView" : {
+        "type" : "object",
+        "properties" : {
+          "apiKey" : {
+            "type" : "string"
+          },
+          "concurrent" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "format" : {
+            "type" : "string"
+          },
+          "host" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "region" : {
+            "type" : "string"
+          }
+        }
       },
       "ReloadResult" : {
         "type" : "object",
@@ -284,6 +538,38 @@
           "unfinished" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "TenantView" : {
+        "type" : "object",
+        "properties" : {
+          "attributesUsers" : {
+            "type" : "boolean"
+          },
+          "budget" : {
+            "$ref" : "#/components/schemas/BudgetView"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/LimitsView"
+          },
+          "models" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "policy" : {
+            "type" : "string"
+          },
+          "showsCosts" : {
+            "type" : "boolean"
           }
         }
       },

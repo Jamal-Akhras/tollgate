@@ -534,6 +534,10 @@ public final class Gateway implements AutoCloseable {
         return current.config();
     }
 
+    public String configVersion() {
+        return current.loaded().version();
+    }
+
     public BudgetStore budgetStore() {
         return budgets;
     }
