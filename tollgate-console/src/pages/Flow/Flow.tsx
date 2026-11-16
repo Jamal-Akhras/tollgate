@@ -3,19 +3,28 @@ import { ApiError, get } from '../../api/client';
 import { usePoll } from '../../api/poll';
 import type { BudgetState, ConfigView, LiveSnapshot } from '../../api/types';
 import {
+  blockedProviders,
   checksFor,
+  previewProviders,
   providersFor,
   tenantCalls,
   tenantCaption,
-  type Check,
-  type ProviderNode,
 } from '../../flow/describe';
+import { describeRule } from '../../flow/rule';
 import { navigate, route } from '../../router';
 import { Banner } from '../../ui/Banner';
-import { FlowCanvas, type TenantNode } from '../../ui/FlowCanvas';
+import { FlowCanvas } from '../../ui/FlowCanvas';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
+import { HowToChange } from '../Config/HowToChange';
+import type { Snippet } from '../Config/snippets';
+import { FirstRun } from './FirstRun';
 import styles from './Flow.module.css';
+import { FlowTable } from './FlowTable';
+import { Legend } from './Legend';
+import { usePreview } from './Preview';
+import { RuleCard } from './RuleCard';
+import { StatTiles } from './StatTiles';
 
 const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 
@@ -53,56 +62,18 @@ function Loading() {
   );
 }
 
-type ListProps = {
-  tenants: TenantNode[];
-  selected: string;
-  checks: Check[];
-  providers: ProviderNode[];
-  onSelect: (tenant: string) => void;
-};
-
-function FlowList({ tenants, selected, checks, providers, onSelect }: ListProps) {
-  return (
-    <section class={styles.list} aria-label="Flow as a list">
-      <label class={styles.pick}>
-        Tenant
-        <select value={selected} onChange={(event) => onSelect(event.currentTarget.value)}>
-          {tenants.map((tenant) => (
-            <option key={tenant.name} value={tenant.name}>
-              {tenant.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <h2 class={styles.heading}>Checks, in the order requests meet them</h2>
-      <ol class={styles.items}>
-        {checks.map((check) => (
-          <li key={check.id}>
-            {check.label}: {check.detail}
-          </li>
-        ))}
-      </ol>
-      <h2 class={styles.heading}>Providers</h2>
-      <ul class={styles.items}>
-        {providers.map((provider) => (
-          <li key={provider.name}>
-            {provider.name}: {provider.caption}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function Diagram({
-  config,
-  live,
-  budgets,
-}: {
+type DiagramProps = {
   config: ConfigView;
   live: LiveSnapshot | null;
   budgets: BudgetState[];
-}) {
+  withTollgate: boolean;
+  table: boolean;
+  onChanged: () => void;
+};
+
+function Diagram({ config, live, budgets, withTollgate, table, onChanged }: DiagramProps) {
+  const [open, setOpen] = useState<{ tenant: string; id: string } | null>(null);
+  const [snippet, setSnippet] = useState<Snippet | null>(null);
   const names = config.tenants
     .map((tenant) => tenant.name)
     .sort((a, b) => tenantCalls(live, b) - tenantCalls(live, a) || a.localeCompare(b));
@@ -117,28 +88,76 @@ function Diagram({
     return item ? [{ name, caption: tenantCaption(config, item), selected: name === selected }] : [];
   });
   const checks = checksFor(config, selected, budgets, live);
-  const providers = providersFor(config, selected, live);
+  const own = providersFor(config, selected, live);
+  const providers = withTollgate ? own : previewProviders(config, selected, live);
+  const refusedProviders = blockedProviders(config, selected);
   const choose = (name: string) => navigate('flow', { tenant: name });
-  return (
-    <FlowCanvas
-      tenants={nodes}
-      policy={tenant.policy}
+
+  const openId = open && open.tenant === selected ? open.id : null;
+  const check = checks.find((item) => item.id === openId);
+  const rule = check ? describeRule(config, selected, check, live, budgets) : null;
+  const noCalls = live !== null && !live.flows.some((flow) => flow.tenant === selected);
+  const tables = (
+    <FlowTable
+      tenants={names}
+      selected={selected}
+      live={live}
       checks={checks}
-      providers={providers}
-      flows={live?.flows.filter((flow) => flow.tenant === selected) ?? []}
-      guards={live?.guards.filter((guard) => guard.tenant === selected) ?? []}
-      now={live ? Date.parse(live.now) : Date.now()}
+      providers={own}
       onSelect={choose}
-      fallback={
-        <FlowList
+    />
+  );
+
+  return (
+    <>
+      {!withTollgate && (
+        <Banner kind="info">
+          <strong>Without Tollgate.</strong> Your tools would call providers directly with their own
+          keys. None of these rules would run, nothing would be recorded
+          {refusedProviders.length > 0 &&
+            `, and ${refusedProviders.map((p) => `${p.name} in ${p.region ?? 'no region'}`).join(' and ')} would be reachable`}
+          . This is a preview; nothing has changed.
+        </Banner>
+      )}
+      {table ? (
+        tables
+      ) : (
+        <FlowCanvas
           tenants={nodes}
-          selected={selected}
+          policy={tenant.policy}
           checks={checks}
           providers={providers}
+          flows={live?.flows.filter((flow) => flow.tenant === selected) ?? []}
+          guards={live?.guards.filter((guard) => guard.tenant === selected) ?? []}
+          now={live ? Date.parse(live.now) : Date.now()}
+          preview={!withTollgate}
+          openCheck={openId}
+          onCheck={(id) => setOpen(openId === id ? null : { tenant: selected, id })}
           onSelect={choose}
+          legend={<Legend />}
+          fallback={tables}
         />
-      }
-    />
+      )}
+      <div class={styles.below}>
+        <div class={styles.panel}>
+          {rule && check ? (
+            <RuleCard
+              rule={rule}
+              tenant={selected}
+              guard={check.guard}
+              onChange={setSnippet}
+              onClose={() => setOpen(null)}
+            />
+          ) : (
+            noCalls && <FirstRun config={config} tenant={selected} />
+          )}
+        </div>
+      </div>
+      {live && <StatTiles live={live} />}
+      {snippet && (
+        <HowToChange snippet={snippet} onClose={() => setSnippet(null)} onChanged={onChanged} />
+      )}
+    </>
   );
 }
 
@@ -146,6 +165,8 @@ export function Flow() {
   const { config, error, retry } = useConfig();
   const live = usePoll(() => get<LiveSnapshot>('/live', { minutes: 15 }), 2000);
   const budgets = usePoll(() => get<BudgetState[]>('/budgets'), 30_000);
+  const withTollgate = usePreview();
+  const [table, setTable] = useState(false);
 
   const liveError = live.error.value;
   const auditOff =
@@ -168,6 +189,14 @@ export function Flow() {
             Live
           </span>
         )}
+        <button
+          type="button"
+          class={styles.button}
+          aria-pressed={table}
+          onClick={() => setTable(!table)}
+        >
+          {table ? 'Show as diagram' : 'Show as table'}
+        </button>
       </PageHeader>
       {auditOff && <Banner kind="info">{auditOffText}</Banner>}
       {snapshot?.skipped && (
@@ -186,7 +215,16 @@ export function Flow() {
         </Banner>
       )}
       {!config && !error && <Loading />}
-      {config && <Diagram config={config} live={snapshot} budgets={budgets.data.value ?? []} />}
+      {config && (
+        <Diagram
+          config={config}
+          live={snapshot}
+          budgets={budgets.data.value ?? []}
+          withTollgate={withTollgate}
+          table={table}
+          onChanged={retry}
+        />
+      )}
     </div>
   );
 }

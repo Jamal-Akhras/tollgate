@@ -1,9 +1,12 @@
 import type { Ref } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { signOut } from '../api/client';
+import { tollgateOn } from '../pages/Flow/Preview';
+import { route } from '../router';
 import { setTheme, theme, type Theme } from '../state/theme';
 import { ChevronsUpDown, Menu, SidebarToggle, TollgateMark } from './icons';
 import { Segmented } from './Segmented';
+import { Switch } from './Switch';
 import styles from './TopBar.module.css';
 
 type TopBarProps = {
@@ -119,7 +122,20 @@ export function TopBar({
         </button>
       </div>
       <div class={styles.right}>
-        <div class={styles.preview} data-slot="preview" />
+        <div class={styles.preview} data-slot="preview">
+          {route.value.name === 'flow' && (
+            <>
+              <span class={styles.previewLabel}>Preview</span>
+              <Switch
+                label="Preview this page without Tollgate"
+                checked={tollgateOn.value}
+                onChange={(on) => {
+                  tollgateOn.value = on;
+                }}
+              />
+            </>
+          )}
+        </div>
         <span class={styles.divider} aria-hidden="true" />
         <InstanceMenu version={version} />
       </div>

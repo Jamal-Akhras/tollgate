@@ -143,3 +143,25 @@ test('theTenantLineRunsFromTheSelectedCardToThePolicyBox', () => {
   expect(line.from).toEqual({ x: card.x + card.w + 8, y: card.y + card.h / 2 });
   expect(line.d.endsWith(`${picture.policy.x} ${card.y + card.h / 2}`)).toBe(true);
 });
+
+test('thePreviewDrawsOneGreyLineFromTheTenantToEveryProviderAndNothingElse', () => {
+  const lines = linesFor(
+    picture,
+    {
+      ...input([
+        flow({ lastSent: seconds(1), refused: { data_class: 1 }, lastRefused: seconds(1) }),
+      ]),
+      preview: true,
+    },
+    now,
+  );
+  expect(lines.map((line) => line.id)).toEqual([
+    'direct-anthropic',
+    'direct-ollama',
+    'direct-openai',
+  ]);
+  expect(lines.every((line) => line.kind === 'idle' && !line.moving && line.end === null)).toBe(true);
+  const card = picture.tenants[0]!;
+  expect(lines[0]!.from).toEqual({ x: card.x + card.w + 8, y: card.y + card.h / 2 });
+  expect(lines[1]!.d.endsWith(`${picture.providers[1]!.x - 8} ${picture.providers[1]!.y + 48}`)).toBe(true);
+});

@@ -16,7 +16,7 @@ export function Pill({ label, detail, state, selected = false, onClick }: PillPr
     <button
       type="button"
       class={`${styles.pill} ${selected ? styles.selected : ''}`}
-      aria-pressed={selected}
+      aria-expanded={selected}
       onClick={onClick}
     >
       {state === 'refused' ? (

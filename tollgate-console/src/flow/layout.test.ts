@@ -46,7 +46,7 @@ test('nothingOverlapsAndEverythingFitsTheWidthInEveryBand', () => {
     for (const count of counts) {
       const result = layout(width, count)!;
       const rects = topLevel(result);
-      expect(result.tenants).toHaveLength(count.tenants);
+      expect(result.tenants).toHaveLength(Math.min(count.tenants, 8));
       expect(result.pills).toHaveLength(count.checks);
       expect(result.providers).toHaveLength(count.providers);
       for (const rect of [...rects, ...result.pills]) {
@@ -76,4 +76,14 @@ test('noTenantsOrProvidersStillLaysOutThePolicyBox', () => {
   expect(result.tenants).toEqual([]);
   expect(result.providers).toEqual([]);
   expect(result.policy.h).toBeGreaterThan(0);
+});
+
+test('moreThanEightTenantsShowEightAndMakeRoomForAFilterAboveThem', () => {
+  const result = layout(1200, counts[2]!)!;
+  expect(result.tenants).toHaveLength(8);
+  const filter = result.filter!;
+  expect(filter.y).toBeGreaterThanOrEqual(0);
+  expect(filter.y + filter.h).toBeLessThanOrEqual(result.tenants[0]!.y);
+  expect(filter.x).toBe(result.tenants[0]!.x);
+  expect(layout(1200, counts[1]!)!.filter).toBeNull();
 });

@@ -7,6 +7,7 @@ export type Layout = {
   width: number;
   height: number;
   tenants: Rect[];
+  filter: Rect | null;
   policy: Rect;
   pills: Rect[];
   providers: Rect[];
@@ -26,6 +27,8 @@ const bands: Record<Layout['band'], Band> = {
   medium: { tenant: 200, policy: 240, provider: 200, pad: 16, minGap: 48, maxGap: 120 },
 };
 
+export const visibleTenants = 8;
+const filterHeight = 36;
 const tenantHeight = 72;
 const providerHeight = 96;
 const nodeGap = 16;
@@ -66,13 +69,20 @@ export function layout(width: number, counts: Counts): Layout | null {
     h: pillHeight,
   }));
 
-  const firstTenant = Math.max(sizes.pad, middle - tenantHeight / 2);
-  const tenants = Array.from({ length: counts.tenants }, (_, index) => ({
+  const scrolls = counts.tenants > visibleTenants;
+  const filterRoom = scrolls ? filterHeight + nodeGap / 2 : 0;
+  const firstTenant = Math.max(sizes.pad + filterRoom, middle - tenantHeight / 2);
+  const shown = Math.min(counts.tenants, visibleTenants);
+  const tenants = Array.from({ length: shown }, (_, index) => ({
     x: tenantX,
     y: firstTenant + index * (tenantHeight + nodeGap),
     w: sizes.tenant,
     h: tenantHeight,
   }));
+
+  const filter = scrolls
+    ? { x: tenantX, y: firstTenant - filterRoom, w: sizes.tenant, h: filterHeight }
+    : null;
 
   const firstProvider = Math.max(
     sizes.pad,
@@ -90,5 +100,5 @@ export function layout(width: number, counts: Counts): Layout | null {
     ...tenants.map((rect) => rect.y + rect.h),
     ...providers.map((rect) => rect.y + rect.h),
   );
-  return { band, width, height: bottom + sizes.pad, tenants, policy, pills, providers };
+  return { band, width, height: bottom + sizes.pad, tenants, filter, policy, pills, providers };
 }

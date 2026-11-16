@@ -196,7 +196,7 @@
           "refuse": null
         },
         {
-          "type": "body-size",
+          "type": "request-size",
           "mode": "enforce",
           "maxBytes": 65536,
           "regions": null,

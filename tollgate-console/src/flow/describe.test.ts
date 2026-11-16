@@ -7,7 +7,14 @@ import {
   liveFixture,
 } from '../api/fixtures';
 import type { ConfigView } from '../api/types';
-import { checksFor, providersFor, tenantCalls, tenantCaption } from './describe';
+import {
+  blockedProviders,
+  checksFor,
+  previewProviders,
+  providersFor,
+  tenantCalls,
+  tenantCaption,
+} from './describe';
 
 function summary(config: ConfigView, tenant: string, busy: boolean) {
   const checks = busy
@@ -32,7 +39,7 @@ test('aTenantWithRedactionAndRefusalCountsBothDetectors', () => {
   expect(summary(configBusyFixture, 'research', true)).toEqual([
     ['Request review', 'built in', 'ok'],
     ['data-class', 'restricted → local', 'ok'],
-    ['body-size', '64 KB', 'ok'],
+    ['request-size', '64 KB', 'ok'],
     ['Personal data', '1 redacted, 1 refused', 'ok'],
     ['Rate limits', '30/min', 'ok'],
     ['Signed audit trail', 'batch 5', 'ok'],
@@ -186,4 +193,21 @@ test('aTenantCaptionCountsKeysAndNamesTheClass', () => {
   expect(tenantCaption(configBusyFixture, bot!)).toBe('2 keys, internal');
   expect(tenantCaption(configBusyFixture, research!)).toBe('1 key, restricted');
   expect(tenantCaption(configFixture, { ...mine!, dataClass: null })).toBe('1 key, no data class');
+});
+
+test('aTenantsClassBlocksTheProvidersInRegionsItMayNotReach', () => {
+  expect(blockedProviders(configBusyFixture, 'research').map((p) => p.name)).toEqual([
+    'anthropic',
+    'openai',
+  ]);
+  expect(blockedProviders(configBusyFixture, 'support-bot')).toEqual([]);
+  expect(blockedProviders(configBusyFixture, 'nobody')).toEqual([]);
+});
+
+test('thePreviewListsEveryProviderInTheConfigAsReachableDirectly', () => {
+  const nodes = previewProviders(configBusyFixture, 'research', liveBusyFixture);
+  expect(nodes.map((node) => node.name)).toEqual(['anthropic', 'ollama', 'openai']);
+  expect(nodes.every((node) => node.reachable)).toBe(true);
+  expect(nodes[0]!.caption).toBe('us · reachable directly');
+  expect(nodes[1]!.caption).toContain('local · ');
 });

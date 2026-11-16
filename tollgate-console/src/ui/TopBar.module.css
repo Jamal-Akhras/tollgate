@@ -43,8 +43,19 @@
   color: var(--text);
 }
 
+.preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .preview:empty {
   display: none;
+}
+
+.previewLabel {
+  color: var(--text-muted);
+  font-size: var(--size-cell);
 }
 
 .divider {

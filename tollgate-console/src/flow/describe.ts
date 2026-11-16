@@ -5,6 +5,7 @@ import type {
   GuardView,
   LiveSnapshot,
   PolicyView,
+  ProviderView,
   TenantView,
 } from '../api/types';
 import type { PillState } from '../ui/Pill';
@@ -34,7 +35,7 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-function sumDecimals(values: string[]): string {
+export function sumDecimals(values: string[]): string {
   const scale = Math.max(0, ...values.map((value) => value.split('.')[1]?.length ?? 0));
   const total = values.reduce((sum, value) => {
     const [whole = '0', fraction = ''] = value.split('.');
@@ -275,4 +276,38 @@ export function providersFor(
         caption: parts.join(' · '),
       };
     });
+}
+
+export function blockedProviders(config: ConfigView, tenantName: string): ProviderView[] {
+  const tenant = config.tenants.find((item) => item.name === tenantName);
+  const policy = config.policies.find((item) => item.name === tenant?.policy);
+  return tenant
+    ? config.providers.filter(
+        (provider) => !reachable(policy, tenant.dataClass, provider.region),
+      )
+    : [];
+}
+
+export function previewProviders(
+  config: ConfigView,
+  tenantName: string,
+  live: LiveSnapshot | null,
+): ProviderNode[] {
+  const own = providersFor(config, tenantName, live);
+  return config.providers.map((provider) => {
+    const node = own.find((item) => item.name === provider.name);
+    if (node?.reachable) {
+      return node;
+    }
+    return {
+      name: provider.name,
+      region: provider.region,
+      reachable: true,
+      fallbackOnly: false,
+      calls: 0,
+      spend: null,
+      inFlight: 0,
+      caption: `${provider.region ?? 'no region'} · reachable directly`,
+    };
+  });
 }

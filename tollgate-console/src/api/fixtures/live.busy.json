@@ -2407,7 +2407,7 @@
     },
     {
       "tenant": "research",
-      "guard": "body-size",
+      "guard": "request-size",
       "allowed": 38,
       "refused": 2,
       "monitored": 0,

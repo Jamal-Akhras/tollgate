@@ -44,37 +44,23 @@
   gap: var(--space-3);
 }
 
-.list {
+.below {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
 }
 
-.pick {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--size-caption);
+.below:empty {
+  display: none;
 }
 
-.pick select {
-  min-height: 30px;
-  padding: var(--space-1) var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-button);
-  font-size: var(--size-body);
+.panel {
+  flex: 1 1 360px;
+  min-width: 0;
 }
 
-.heading {
-  color: var(--text-muted);
-  font-size: var(--size-cell);
-  font-weight: 600;
-}
-
-.items {
-  margin: 0;
-  padding-left: var(--space-5);
-  font-size: var(--size-cell);
+.panel:empty {
+  display: none;
 }

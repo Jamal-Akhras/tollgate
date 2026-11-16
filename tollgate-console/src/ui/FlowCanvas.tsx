@@ -19,7 +19,11 @@ type FlowCanvasProps = {
   flows: Flow[];
   guards: GuardCount[];
   now: number;
+  preview: boolean;
+  openCheck: string | null;
+  onCheck: (id: string) => void;
   onSelect: (tenant: string) => void;
+  legend: ComponentChildren;
   fallback: ComponentChildren;
 };
 
@@ -56,24 +60,39 @@ export function FlowCanvas({
   flows,
   guards,
   now,
+  preview,
+  openCheck,
+  onCheck,
   onSelect,
+  legend,
   fallback,
 }: FlowCanvasProps) {
   const { element, width } = useWidth();
+  const [filter, setFilter] = useState('');
   const selected = tenants.find((tenant) => tenant.selected);
   const ordered = useMemo(
     () => (selected ? [selected, ...tenants.filter((tenant) => !tenant.selected)] : tenants),
     [tenants, selected],
+  );
+  const needle = filter.trim().toLowerCase();
+  const visible = ordered.filter(
+    (tenant) => tenant.selected || tenant.name.toLowerCase().includes(needle),
   );
   const drawing = layout(width, {
     tenants: tenants.length,
     checks: checks.length,
     providers: providers.length,
   });
+  const first = drawing?.tenants[0];
+  const last = drawing?.tenants[drawing.tenants.length - 1];
+  const column =
+    first && last
+      ? { x: first.x - 3, y: first.y - 3, w: first.w + 11, h: last.y + last.h - first.y + 6 }
+      : { x: 0, y: 0, w: 0, h: 0 };
   const lines = drawing
     ? linesFor(
         drawing,
-        { flows, providers: providers.map((provider) => provider.name), checks, guards },
+        { flows, providers: providers.map((provider) => provider.name), checks, guards, preview },
         now,
       )
     : [];
@@ -85,7 +104,7 @@ export function FlowCanvas({
         : event.key === 'ArrowUp' || event.key === 'ArrowLeft'
           ? -1
           : 0;
-    const next = tenants[(index + step + tenants.length) % tenants.length];
+    const next = visible[(index + step + visible.length) % visible.length];
     if (step === 0 || !next) {
       return;
     }
@@ -97,7 +116,7 @@ export function FlowCanvas({
   }
 
   return (
-    <div class={styles.root} ref={element}>
+    <div class={`${styles.root} ${preview ? styles.previewing : ''}`} ref={element}>
       {!drawing && fallback}
       {drawing && (
         <div class={styles.picture} style={{ height: drawing.height }}>
@@ -124,20 +143,19 @@ export function FlowCanvas({
               </g>
             ))}
           </svg>
-          {tenants.map((tenant, index) => {
-            const rect = drawing.tenants[ordered.indexOf(tenant)];
-            return (
-              rect && (
+          {first && (
+            <div class={styles.column} style={place(column)}>
+              {tenants.filter((tenant) => visible.includes(tenant)).map((tenant) => (
                 <button
                   key={tenant.name}
                   type="button"
                   data-tenant={tenant.name}
                   class={styles.tenant}
-                  style={place(rect)}
+                  style={{ order: visible.indexOf(tenant) }}
                   aria-pressed={tenant.selected}
                   tabIndex={tenant.selected ? 0 : -1}
                   onClick={() => onSelect(tenant.name)}
-                  onKeyDown={(event) => onKeyDown(event, index)}
+                  onKeyDown={(event) => onKeyDown(event, visible.indexOf(tenant))}
                 >
                   <NodeCard
                     icon={<Key />}
@@ -147,9 +165,20 @@ export function FlowCanvas({
                     off={!tenant.selected}
                   />
                 </button>
-              )
-            );
-          })}
+              ))}
+            </div>
+          )}
+          {drawing.filter && (
+            <input
+              type="search"
+              class={styles.filter}
+              style={place(drawing.filter)}
+              aria-label="Filter tenants"
+              placeholder="Filter tenants"
+              value={filter}
+              onInput={(event) => setFilter(event.currentTarget.value)}
+            />
+          )}
           <section class={styles.box} style={place(drawing.policy)} aria-label={`Policy ${policy}`}>
             <h2 class={styles.boxTitle}>
               <Shield size={16} />
@@ -161,7 +190,13 @@ export function FlowCanvas({
             return (
               rect && (
                 <div key={check.id} class={styles.pill} style={place(rect)}>
-                  <Pill label={check.label} detail={check.detail} state={check.state} />
+                  <Pill
+                    label={check.label}
+                    detail={check.detail}
+                    state={check.state}
+                    selected={openCheck === check.id}
+                    onClick={() => onCheck(check.id)}
+                  />
                 </div>
               )
             );
@@ -185,6 +220,7 @@ export function FlowCanvas({
           })}
         </div>
       )}
+      {drawing && <div class={styles.legend}>{legend}</div>}
     </div>
   );
 }

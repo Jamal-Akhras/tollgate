@@ -1,0 +1,29 @@
+.tables {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 320px;
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+}
+
+.pick select {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-button);
+  font-size: var(--size-body);
+}
+
+.heading {
+  color: var(--text-muted);
+  font-size: var(--size-cell);
+  font-weight: 600;
+}

@@ -21,6 +21,7 @@ export type LineInput = {
   providers: string[];
   checks: Check[];
   guards: GuardCount[];
+  preview?: boolean;
 };
 
 const recentMillis = 10_000;
@@ -76,6 +77,26 @@ export function linesFor(layout: Layout, input: LineInput, now: number): Line[] 
   }
   const { flows, providers, checks, guards } = input;
   const lines: Line[] = [];
+
+  if (input.preview) {
+    const origin = right(tenant, stub);
+    providers.forEach((name, index) => {
+      const card = layout.providers[index];
+      if (card) {
+        const to = left(card, stub);
+        lines.push({
+          id: `direct-${name}`,
+          kind: 'idle',
+          moving: false,
+          d: curve(origin, to),
+          from: origin,
+          end: null,
+          pill: null,
+        });
+      }
+    });
+    return lines;
+  }
 
   const active = flows.some(
     (flow) =>

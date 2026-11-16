@@ -12,9 +12,9 @@ test('pillShowsLabelAndDetailInsideAButton', () => {
 
 test('pillReportsWhetherItIsSelected', () => {
   const { rerender } = render(<Pill label="Guard" detail="enforce" state="ok" />);
-  expect(screen.getByRole('button').getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false');
   rerender(<Pill label="Guard" detail="enforce" state="ok" selected />);
-  expect(screen.getByRole('button').getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('true');
 });
 
 test('pillMarksEachStateWithMoreThanColour', () => {
@@ -34,3 +34,4 @@ test('pillCallsOnClick', () => {
   fireEvent.click(screen.getByRole('button'));
   expect(onClick).toHaveBeenCalledTimes(1);
 });
+

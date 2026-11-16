@@ -9,6 +9,7 @@ import {
 } from '../../api/fixtures';
 import { parse, route } from '../../router';
 import { Flow } from './Flow';
+import { tollgateOn } from './Preview';
 
 const send = vi.fn();
 let width = 1200;
@@ -49,6 +50,7 @@ beforeEach(() => {
   route.value = parse('#/flow');
   vi.stubGlobal('fetch', send);
   vi.stubGlobal('ResizeObserver', Observer);
+  tollgateOn.value = true;
 });
 
 afterEach(() => {
@@ -69,7 +71,7 @@ test('rendersTheBusyFixturesForTheBusiestTenant', async () => {
   render(<Flow />);
   await screen.findByRole('region', { name: 'Policy default' });
   expect(screen.getByRole('heading', { level: 1, name: 'Flow' })).toBeTruthy();
-  expect(screen.getByText('Last 15 minutes')).toBeTruthy();
+  expect(screen.getAllByText('Last 15 minutes').length).toBeGreaterThan(0);
   await screen.findByText('Live');
   expect(screen.getByRole('button', { name: /support-bot/ }).getAttribute('aria-pressed')).toBe(
     'true',
@@ -163,14 +165,138 @@ test('showsTheConfigError', async () => {
   expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
 });
 
-test('underEightHundredPixelsItListsTheSameThings', async () => {
+test('underEightHundredPixelsItShowsTheSameThingsAsTables', async () => {
   width = 700;
   serve(configBusyFixture, () => answer(200, liveBusyFixture));
   const { container } = render(<Flow />);
-  const list = await screen.findByRole('region', { name: 'Flow as a list' });
-  expect(container.querySelector('svg')).toBeNull();
-  expect(within(list).getByText(/Budget: /)).toBeTruthy();
-  expect(within(list).getByText(/^anthropic: /)).toBeTruthy();
-  fireEvent.change(within(list).getByRole('combobox'), { target: { value: 'research' } });
+  const checks = await screen.findByRole('table', { name: 'Checks for support-bot' });
+  expect(container.querySelector('svg path[data-kind]')).toBeNull();
+  expect(within(checks).getByText('Budget')).toBeTruthy();
+  expect(
+    within(screen.getByRole('table', { name: 'Providers for support-bot' })).getByText(/^anthropic$/),
+  ).toBeTruthy();
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'research' } });
   expect(location.hash).toBe('#/flow?tenant=research');
+});
+
+test('showAsTableSwapsTheDiagramForARowPerFlow', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  fireEvent.click(screen.getByRole('button', { name: 'Show as table' }));
+  expect(screen.queryByRole('region', { name: 'Policy default' })).toBeNull();
+  const table = screen.getByRole('table', { name: 'Calls by tenant, model and provider' });
+  expect(within(table).getAllByRole('row')).toHaveLength(liveBusyFixture.flows.length + 1);
+  fireEvent.click(screen.getByRole('button', { name: 'Show as diagram' }));
+  expect(screen.getByRole('region', { name: 'Policy default' })).toBeTruthy();
+});
+
+test('aPillOpensItsRuleCardAndASecondClickOrEscapeClosesIt', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture), budgetsBusyFixture);
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  const pill = screen.getByRole('button', { name: /data-class/ });
+  expect(pill.getAttribute('aria-expanded')).toBe('false');
+  fireEvent.click(pill);
+  expect(pill.getAttribute('aria-expanded')).toBe('true');
+  expect(screen.getByRole('region', { name: 'Rule data-class' })).toBeTruthy();
+  fireEvent.click(pill);
+  expect(screen.queryByRole('region', { name: 'Rule data-class' })).toBeNull();
+  fireEvent.click(pill);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('region', { name: 'Rule data-class' })).toBeNull();
+  expect(pill.getAttribute('aria-expanded')).toBe('false');
+});
+
+test('theRuleCardOffersTheHowToPanel', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture), budgetsBusyFixture);
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  fireEvent.click(screen.getByRole('button', { name: /tool-names/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'How to switch this to enforce' }));
+  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' })).toBeTruthy();
+  expect(screen.getByText(/mode: enforce/)).toBeTruthy();
+});
+
+test('theCardClosesWhenAnotherTenantIsChosen', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  fireEvent.click(screen.getByRole('button', { name: /data-class/ }));
+  expect(screen.getByRole('region', { name: 'Rule data-class' })).toBeTruthy();
+  route.value = parse('#/flow?tenant=research');
+  await screen.findByRole('region', { name: 'Policy strict' });
+  expect(screen.queryByRole('region', { name: /^Rule / })).toBeNull();
+});
+
+test('withThePreviewOffEveryProviderGetsAGreyLineAndTheNoteAppears', async () => {
+  tollgateOn.value = false;
+  location.hash = '#/flow?tenant=research';
+  route.value = parse(location.hash);
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  const { container, unmount } = render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy strict' });
+  const lines = container.querySelectorAll('svg path[data-kind]');
+  expect(lines).toHaveLength(configBusyFixture.providers.length);
+  expect([...lines].every((line) => line.getAttribute('data-kind') === 'idle')).toBe(true);
+  expect(screen.getByText('Without Tollgate.')).toBeTruthy();
+  expect(screen.getByText('Without Tollgate.').parentElement?.textContent).toContain(
+    'anthropic in us and openai in us would be reachable. This is a preview; nothing has changed.',
+  );
+  expect(screen.getAllByText(/us · reachable directly/)).toHaveLength(2);
+  unmount();
+  expect(tollgateOn.value).toBe(true);
+});
+
+test('fourTilesLinkToMetricsAndNameTheirWindows', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  await screen.findByText('Calls per minute');
+  const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '#/metrics');
+  expect(links).toHaveLength(4);
+  expect(links.map((link) => link.textContent).join(' ')).toMatch(/Last minute.*Last 15 minutes.*Last 15 minutes.*Last 5 minutes/);
+});
+
+test('aTenantWithNoFlowGetsTheFirstRunPanelUntilItsFirstCall', async () => {
+  const quiet = { ...liveBusyFixture, flows: [], guards: [] };
+  serve(configBusyFixture, () => answer(200, quiet));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  await screen.findByRole('region', { name: 'First call' });
+  expect(screen.getByText(/v1\/chat\/completions/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /data-class/ }));
+  expect(screen.queryByRole('region', { name: 'First call' })).toBeNull();
+});
+
+test('theBusiestTenantHasNoFirstRunPanel', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  await screen.findByText('Calls per minute');
+  expect(screen.queryByRole('region', { name: 'First call' })).toBeNull();
+});
+
+test('moreThanEightTenantsGetAFilterBox', async () => {
+  const template = configBusyFixture.tenants[0]!;
+  const many = {
+    ...configBusyFixture,
+    tenants: Array.from({ length: 12 }, (_, index) => ({ ...template, name: `team-${index + 1}` })),
+  };
+  serve(many, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  expect(screen.getAllByRole('button', { name: /team-/ })).toHaveLength(12);
+  fireEvent.input(screen.getByRole('searchbox', { name: 'Filter tenants' }), {
+    target: { value: 'team-12' },
+  });
+  const left = screen.getAllByRole('button', { name: /team-/ });
+  expect(left.map((button) => button.getAttribute('data-tenant'))).toEqual(['team-1', 'team-12']);
+});
+
+test('eightTenantsOrFewerHaveNoFilterBox', async () => {
+  serve(configBusyFixture, () => answer(200, liveBusyFixture));
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  expect(screen.queryByRole('searchbox')).toBeNull();
 });

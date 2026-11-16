@@ -37,7 +37,9 @@ const tenants = [
   { name: 'research', caption: '1 key, restricted', selected: true },
 ];
 
-function canvas(onSelect = vi.fn()) {
+type Extra = { preview?: boolean; openCheck?: string | null; onCheck?: (id: string) => void };
+
+function canvas(onSelect = vi.fn(), extra: Extra = {}) {
   return render(
     <FlowCanvas
       tenants={tenants}
@@ -47,7 +49,11 @@ function canvas(onSelect = vi.fn()) {
       flows={liveBusyFixture.flows.filter((flow) => flow.tenant === 'research')}
       guards={liveBusyFixture.guards.filter((guard) => guard.tenant === 'research')}
       now={Date.parse(liveBusyFixture.now)}
+      preview={extra.preview ?? false}
+      openCheck={extra.openCheck ?? null}
+      onCheck={extra.onCheck ?? vi.fn()}
       onSelect={onSelect}
+      legend={<p>the legend</p>}
       fallback={<p>as a list</p>}
     />,
   );
@@ -101,4 +107,34 @@ test('underEightHundredPixelsItShowsTheFallbackAndNoDrawing', () => {
   const { container } = canvas();
   expect(screen.getByText('as a list')).toBeTruthy();
   expect(container.querySelector('svg')).toBeNull();
+});
+
+test('aPillIsClickableAndReportsWhetherItsCardIsOpen', () => {
+  const onCheck = vi.fn();
+  canvas(vi.fn(), { onCheck, openCheck: 'guard-0' });
+  const open = screen.getByRole('button', { name: /data-class/ });
+  expect(open.getAttribute('aria-expanded')).toBe('true');
+  expect(screen.getByRole('button', { name: /Personal data/ }).getAttribute('aria-expanded')).toBe(
+    'false',
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Personal data/ }));
+  expect(onCheck).toHaveBeenCalledWith('personal-data');
+});
+
+test('thePreviewDimsThePillsAndDrawsOneDirectLinePerProvider', () => {
+  const { container } = canvas(vi.fn(), { preview: true });
+  const kinds = [...container.querySelectorAll('svg path[data-kind]')].map((path) =>
+    path.getAttribute('data-kind'),
+  );
+  expect(kinds).toEqual(['idle']);
+  expect(container.firstElementChild?.className).toContain('previewing');
+});
+
+test('theLegendSitsBelowTheDrawingAndIsLeftOutOfTheList', () => {
+  canvas();
+  expect(screen.getByText('the legend')).toBeTruthy();
+  cleanup();
+  width = 700;
+  canvas();
+  expect(screen.queryByText('the legend')).toBeNull();
 });

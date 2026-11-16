@@ -7,6 +7,12 @@
   position: relative;
 }
 
+.legend {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-5) 0;
+}
+
 .lines {
   position: absolute;
   inset: 0;
@@ -68,9 +74,29 @@
   text-anchor: middle;
 }
 
-.tenant {
+.column {
   position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 3px 8px 3px 3px;
+  overflow-y: auto;
+}
+
+.filter {
+  position: absolute;
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-button);
+  font-size: var(--size-cell);
+}
+
+.tenant {
+  flex: none;
   display: block;
+  width: 100%;
+  height: 72px;
   padding: 0;
   background: none;
   border: 0;
@@ -111,6 +137,11 @@
 
 .pill {
   position: absolute;
+  transition: opacity var(--motion-fade);
+}
+
+.previewing .pill {
+  opacity: 0.3;
 }
 
 .pill > button {

@@ -266,7 +266,7 @@
         "micros": 175
       },
       {
-        "guard": "body-size",
+        "guard": "request-size",
         "monitored": false,
         "allowed": false,
         "code": "body_too_large",
