@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { configBusyFixture, configFixture } from '../../api/fixtures';
+import { changeFixture, configBusyFixture, configFixture, configManagedFixture } from '../../api/fixtures';
 import { Toasts } from '../../ui/Toast';
 import { Config } from './Config';
 
@@ -136,4 +136,50 @@ test('reloadRefusedShowsTheServersMessageInABanner', async () => {
   await screen.findByRole('table', { name: 'Tenants' });
   fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
   expect((await screen.findByRole('alert')).textContent).toBe('tenants.x: no such policy');
+});
+
+test('eachGuardInThePoliciesTableHasASwitchBesideItsBadge', async () => {
+  send.mockResolvedValue(answer(200, configBusyFixture));
+  open();
+  const policies = within(await screen.findByRole('region', { name: 'Policies' }));
+  expect(policies.getAllByRole('switch')).toHaveLength(4);
+  const monitored = policies.getByRole('switch', { name: 'Enforce tool-names' });
+  expect(monitored.getAttribute('aria-checked')).toBe('false');
+  fireEvent.click(monitored);
+  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' })).toBeTruthy();
+});
+
+test('switchingAGuardWithEditsOnWritesAndShowsTheNewConfig', async () => {
+  const changed = {
+    ...configManagedFixture,
+    version: changeFixture.version,
+    policies: configManagedFixture.policies.map((policy) => ({
+      ...policy,
+      guards: policy.guards.map((guard) =>
+        guard.type === 'tool-names' ? { ...guard, mode: 'enforce' } : guard,
+      ),
+    })),
+  };
+  let written = false;
+  send.mockImplementation((path: string, init: { method: string }) => {
+    if (init.method === 'PUT') {
+      written = true;
+      return Promise.resolve(answer(200, changeFixture));
+    }
+    return Promise.resolve(answer(200, written ? changed : configManagedFixture));
+  });
+  open();
+  const toggle = await screen.findByRole('switch', { name: 'Enforce tool-names' });
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByRole('button', { name: 'Enforce' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('switch', { name: 'Enforce tool-names' }).getAttribute('aria-checked'),
+    ).toBe('true'),
+  );
+  expect(paths()).toEqual([
+    'GET /admin/v1/config',
+    'PUT /admin/v1/policies/default/guards/1/mode',
+    'GET /admin/v1/config',
+  ]);
 });

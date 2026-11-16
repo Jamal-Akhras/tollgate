@@ -10,6 +10,7 @@ import type { ConfigView } from '../api/types';
 import {
   blockedProviders,
   checksFor,
+  opensFor,
   previewProviders,
   providersFor,
   tenantCalls,
@@ -210,4 +211,22 @@ test('thePreviewListsEveryProviderInTheConfigAsReachableDirectly', () => {
   expect(nodes.every((node) => node.reachable)).toBe(true);
   expect(nodes[0]!.caption).toBe('us · reachable directly');
   expect(nodes[1]!.caption).toContain('local · ');
+});
+
+test('aClassWithAnOpenRegionNamesIt', () => {
+  expect(opensFor(configBusyFixture, 'strict')).toEqual([{ dataClass: 'restricted', regions: ['us'] }]);
+});
+
+test('aClassWhoseProvidersAreAllInAllowedRegionsOpensNothing', () => {
+  expect(opensFor(configBusyFixture, 'default')).toEqual([]);
+});
+
+test('aPolicyNoTenantUsesOrWithoutADataClassGuardOpensNothing', () => {
+  const config = {
+    ...configBusyFixture,
+    policies: [...configBusyFixture.policies, { ...configBusyFixture.policies[0]!, name: 'spare' }],
+  };
+  expect(opensFor(config, 'spare')).toEqual([]);
+  expect(opensFor(configFixture, 'default')).toEqual([]);
+  expect(opensFor(config, 'gone')).toEqual([]);
 });

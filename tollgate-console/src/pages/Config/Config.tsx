@@ -2,6 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { get } from '../../api/client';
 import type { BudgetView, ConfigView, GuardView, LimitsView, PolicyView } from '../../api/types';
+import { GuardSwitch } from '../../edits/GuardSwitch';
 import { href } from '../../router';
 import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
@@ -170,7 +171,7 @@ function describe(map: Record<string, string[]>): string {
     : entries.map(([key, values]) => `${key}: ${values.join(', ')}`).join('; ');
 }
 
-function Guards({ policy }: { policy: PolicyView }) {
+function Guards({ policy, config, onChanged }: { policy: PolicyView; config: ConfigView; onChanged: () => void }) {
   if (policy.guards.length === 0) {
     return <span class={styles.none}>none</span>;
   }
@@ -179,7 +180,8 @@ function Guards({ policy }: { policy: PolicyView }) {
       {policy.guards.map((guard, index) => (
         <li key={index}>
           <span class={styles.mono}>{guard.type}</span>{' '}
-          <Badge kind={guard.mode === 'monitor' ? 'monitor' : 'enforce'} />
+          <Badge kind={guard.mode === 'monitor' ? 'monitor' : 'enforce'} />{' '}
+          <GuardSwitch config={config} policy={policy.name} index={index} onChanged={onChanged} />
           {settings(guard) && <span class={styles.settings}> {settings(guard)}</span>}
         </li>
       ))}
@@ -187,10 +189,10 @@ function Guards({ policy }: { policy: PolicyView }) {
   );
 }
 
-function Policies({ config, change }: SectionProps) {
+function Policies({ config, change, onChanged }: SectionProps & { onChanged: () => void }) {
   const columns: Column<PolicyView>[] = [
     { key: 'name', header: 'Policy', cell: (policy) => <Name kind="policy" name={policy.name} /> },
-    { key: 'guards', header: 'Guards, in order', cell: (policy) => <Guards policy={policy} /> },
+    { key: 'guards', header: 'Guards, in order', cell: (policy) => <Guards policy={policy} config={config} onChanged={onChanged} /> },
     { key: 'features', header: 'Features', cell: (policy) => describe(policy.features), priority: 2 },
     { key: 'redact', header: 'Redact', cell: (policy) => describe(policy.redact), priority: 2 },
     { key: 'refuse', header: 'Refuse', cell: (policy) => describe(policy.refuse), priority: 3 },
@@ -362,7 +364,11 @@ export function Config() {
         <>
           <Tenants config={config} change={setSnippet} />
           <Keys config={config} change={setSnippet} />
-          <Policies config={config} change={setSnippet} />
+          <Policies
+            config={config}
+            change={setSnippet}
+            onChanged={() => setRound((value) => value + 1)}
+          />
           <Providers config={config} change={setSnippet} />
           <Models config={config} change={setSnippet} />
           <DataClasses config={config} change={setSnippet} />

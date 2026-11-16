@@ -2,8 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   budgetsBusyFixture,
+  changeFixture,
   configBusyFixture,
   configFixture,
+  configManagedFixture,
   liveBusyFixture,
   liveFixture,
 } from '../../api/fixtures';
@@ -208,16 +210,53 @@ test('aPillOpensItsRuleCardAndASecondClickOrEscapeClosesIt', async () => {
   expect(pill.getAttribute('aria-expanded')).toBe('false');
 });
 
-test('theRuleCardOffersTheHowToPanel', async () => {
+test('theRuleCardSwitchOffersTheHowToPanelWithEditsOff', async () => {
   serve(configBusyFixture, () => answer(200, liveBusyFixture), budgetsBusyFixture);
   render(<Flow />);
   await screen.findByRole('region', { name: 'Policy default' });
   fireEvent.click(screen.getByRole('button', { name: /tool-names/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'How to switch this to enforce' }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Enforce tool-names' }));
   expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' })).toBeTruthy();
   expect(screen.getByText(/mode: enforce/)).toBeTruthy();
 });
 
+test('theRuleCardSwitchWritesWithEditsOnAndFollowsTheNewConfig', async () => {
+  const managed = { ...configManagedFixture };
+  const enforced = {
+    ...managed,
+    version: changeFixture.version,
+    policies: managed.policies.map((policy) => ({
+      ...policy,
+      guards: policy.guards.map((guard) =>
+        guard.type === 'tool-names' ? { ...guard, mode: 'enforce' } : guard,
+      ),
+    })),
+  };
+  let written = false;
+  send.mockImplementation((path: string, init: { method: string }) => {
+    if (init.method === 'PUT') {
+      written = true;
+      return Promise.resolve(answer(200, changeFixture));
+    }
+    if (path.includes('/live')) {
+      return Promise.resolve(answer(200, liveBusyFixture));
+    }
+    if (path.includes('/budgets')) {
+      return Promise.resolve(answer(200, budgetsBusyFixture));
+    }
+    return Promise.resolve(answer(200, written ? enforced : managed));
+  });
+  render(<Flow />);
+  await screen.findByRole('region', { name: 'Policy default' });
+  fireEvent.click(screen.getByRole('button', { name: /tool-names/ }));
+  fireEvent.click(screen.getByRole('switch', { name: 'Enforce tool-names' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enforce' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('switch', { name: 'Enforce tool-names' }).getAttribute('aria-checked'),
+    ).toBe('true'),
+  );
+});
 test('theCardClosesWhenAnotherTenantIsChosen', async () => {
   serve(configBusyFixture, () => answer(200, liveBusyFixture));
   render(<Flow />);

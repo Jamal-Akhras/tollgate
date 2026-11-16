@@ -1,18 +1,21 @@
 import { useEffect } from 'preact/hooks';
+import type { ConfigView } from '../../api/types';
+import { GuardSwitch } from '../../edits/GuardSwitch';
 import type { Rule } from '../../flow/rule';
 import { href } from '../../router';
 import { formatCount } from '../../ui/format';
 import { Meter } from '../../ui/Meter';
 import { moneyText } from '../../ui/Money';
-import { Switch } from '../../ui/Switch';
-import { guardMode, setBudget, type Snippet } from '../Config/snippets';
+import { setBudget, type Snippet } from '../Config/snippets';
 import styles from './RuleCard.module.css';
 
 type RuleCardProps = {
   rule: Rule;
+  config: ConfigView;
   tenant: string;
   guard: string | null;
   onChange: (snippet: Snippet) => void;
+  onChanged: () => void;
   onClose: () => void;
 };
 
@@ -25,7 +28,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function RuleCard({ rule, tenant, guard, onChange, onClose }: RuleCardProps) {
+export function RuleCard({ rule, config, tenant, guard, onChange, onChanged, onClose }: RuleCardProps) {
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
@@ -36,12 +39,8 @@ export function RuleCard({ rule, tenant, guard, onChange, onClose }: RuleCardPro
     return () => document.removeEventListener('keydown', escape);
   }, [onClose]);
 
-  const { counts, budget, mode } = rule;
-  const other = mode === 'enforce' ? 'monitor' : 'enforce';
+  const { counts, budget } = rule;
   const target = rule.guard;
-  const how = target
-    ? () => onChange(guardMode(target.policy, target.index, target.type, other))
-    : null;
   const currency = budget?.tenant.budget?.currency ?? '';
   const money = (n: number) => moneyText({ amount: String(n), currency });
   const query: Record<string, string> = guard ? { tenant, guard } : { tenant };
@@ -76,18 +75,14 @@ export function RuleCard({ rule, tenant, guard, onChange, onClose }: RuleCardPro
           format={money}
         />
       )}
-      {target && how ? (
+      {target ? (
         <div class={styles.mode}>
-          <Switch
-            label={`Enforce ${target.type}`}
-            checked={mode === 'enforce'}
-            onWord="Enforcing"
-            offWord="Monitoring"
-            onChange={how}
+          <GuardSwitch
+            config={config}
+            policy={target.policy}
+            index={target.index}
+            onChanged={onChanged}
           />
-          <button type="button" class={styles.button} onClick={how}>
-            How to switch this to {other}
-          </button>
         </div>
       ) : (
         <p class={styles.always}>Always enforces</p>

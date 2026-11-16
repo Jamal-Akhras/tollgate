@@ -143,9 +143,11 @@ function Diagram({ config, live, budgets, withTollgate, table, onChanged }: Diag
           {rule && check ? (
             <RuleCard
               rule={rule}
+              config={config}
               tenant={selected}
               guard={check.guard}
               onChange={setSnippet}
+              onChanged={onChanged}
               onClose={() => setOpen(null)}
             />
           ) : (

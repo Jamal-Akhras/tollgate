@@ -222,6 +222,30 @@ function reachable(
   return region !== null && (allowed?.includes(region) ?? false);
 }
 
+export function opensFor(
+  config: ConfigView,
+  policyName: string,
+): { dataClass: string; regions: string[] }[] {
+  const guard = config.policies
+    .find((item) => item.name === policyName)
+    ?.guards.find((item) => item.type === 'data-class');
+  if (!guard) {
+    return [];
+  }
+  const regions = [...new Set(config.providers.flatMap((provider) => provider.region ?? []))];
+  const classes = [
+    ...new Set(
+      config.tenants
+        .filter((tenant) => tenant.policy === policyName)
+        .flatMap((tenant) => tenant.dataClass ?? []),
+    ),
+  ];
+  return classes.flatMap((dataClass) => {
+    const allowed = guard.regions?.[dataClass] ?? [];
+    const open = regions.filter((region) => !allowed.includes(region));
+    return open.length > 0 ? [{ dataClass, regions: open }] : [];
+  });
+}
 export function providersFor(
   config: ConfigView,
   tenantName: string,

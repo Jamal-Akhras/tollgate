@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 const checks = checksFor(configBusyFixture, 'support-bot', budgetsBusyFixture, liveBusyFixture);
 
-function card(id: string, onChange = vi.fn(), onClose = vi.fn()) {
+function card(id: string, onChange = vi.fn(), onClose = vi.fn(), onChanged = vi.fn()) {
   const check = checks.find((item) => item.id === id)!;
   const rule = describeRule(
     configBusyFixture,
@@ -21,13 +21,15 @@ function card(id: string, onChange = vi.fn(), onClose = vi.fn()) {
   render(
     <RuleCard
       rule={rule}
+      config={configBusyFixture}
       tenant="support-bot"
       guard={check.guard}
       onChange={onChange}
+      onChanged={onChanged}
       onClose={onClose}
     />,
   );
-  return { onChange, onClose };
+  return { onChange, onClose, onChanged };
 }
 
 function row(label: string): string {
@@ -35,7 +37,7 @@ function row(label: string): string {
 }
 
 test('anEnforcedGuardShowsItsTotalsSettingsAndAnEnforceSwitch', () => {
-  const { onChange } = card('guard-0');
+  card('guard-0');
   const region = screen.getByRole('region', { name: 'Rule data-class' });
   expect(region.textContent).toContain('495 calls in the last 15 minutes');
   expect(row('Allowed')).toBe('486');
@@ -45,25 +47,33 @@ test('anEnforcedGuardShowsItsTotalsSettingsAndAnEnforceSwitch', () => {
   const toggle = screen.getByRole('switch', { name: 'Enforce data-class' });
   expect(toggle.getAttribute('aria-checked')).toBe('true');
   expect(within(toggle).getByText('Enforcing')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /How to switch this/ })).toBeNull();
+});
+
+test('withEditsOffTheSwitchOpensTheYamlAndStaysWhereItIs', () => {
+  const { onChange } = card('guard-0');
+  const toggle = screen.getByRole('switch', { name: 'Enforce data-class' });
   fireEvent.click(toggle);
-  expect(onChange.mock.calls[0]![0].code).toContain('mode: monitor');
+  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
+    'mode: monitor',
+  );
   expect(toggle.getAttribute('aria-checked')).toBe('true');
-  fireEvent.click(screen.getByRole('button', { name: 'How to switch this to monitor' }));
-  expect(onChange).toHaveBeenCalledTimes(2);
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 test('aMonitoredGuardShowsWhatItWouldHaveRefusedAndOffersToEnforce', () => {
-  const { onChange } = card('guard-1');
+  card('guard-1');
   expect(row('Would have refused (monitor)')).toBe('3');
   expect(row('Allowed tools')).toBe('search, lookup_order');
   expect(row('Refused tools')).toBe('shell');
   const toggle = screen.getByRole('switch', { name: 'Enforce tool-names' });
   expect(toggle.getAttribute('aria-checked')).toBe('false');
   expect(within(toggle).getByText('Monitoring')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'How to switch this to enforce' }));
-  expect(onChange.mock.calls[0]![0].code).toContain('mode: enforce');
+  fireEvent.click(toggle);
+  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
+    'mode: enforce',
+  );
 });
-
 test('aBuiltInCheckWithoutATotalSaysWhatItDoesAndAlwaysEnforces', () => {
   card('budget');
   expect(screen.getByText(/Refuses calls once the tenant has spent its limit/)).toBeTruthy();
