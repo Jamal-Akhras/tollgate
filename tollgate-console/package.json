@@ -1,11 +1,13 @@
 {
   "name": "tollgate-console",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/size.mjs",
-    "check": "tsc --noEmit && vitest run"
+    "check": "tsc --noEmit && tsc --noEmit -p e2e && vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@preact/signals": "2.11.4",
@@ -13,6 +15,7 @@
     "uplot": "1.6.32"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "@testing-library/preact": "3.2.6",
     "happy-dom": "21.0.4",
     "typescript": "7.0.2",
