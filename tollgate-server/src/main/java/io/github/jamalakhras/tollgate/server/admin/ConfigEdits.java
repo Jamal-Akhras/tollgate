@@ -92,6 +92,18 @@ final class ConfigEdits {
         });
     }
 
+    static ConfigOperation removeKey(String id) {
+        return new ConfigOperation("key-revoke", "keys[" + id + "]", document -> {
+            Map<String, Object> root = new LinkedHashMap<>(document);
+            List<Object> keys = listOf(root.get("keys"));
+            if (!keys.removeIf(key -> id.equals(mapOf(key).get("id")))) {
+                throw new NotFound("No key with the ID " + id);
+            }
+            root.put("keys", keys);
+            return root;
+        });
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> mapOf(@Nullable Object value) {
         return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : new LinkedHashMap<>();

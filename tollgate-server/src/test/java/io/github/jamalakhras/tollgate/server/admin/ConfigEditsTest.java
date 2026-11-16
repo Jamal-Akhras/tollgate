@@ -223,6 +223,27 @@ class ConfigEditsTest {
     void namesTheKeyOperations() {
         assertThat(ConfigEdits.addKey("bare", "x", "cc").name()).isEqualTo("key-create");
         assertThat(ConfigEdits.addKey("bare", "x", "cc").path()).isEqualTo("keys[x]");
+        assertThat(ConfigEdits.removeKey("x").name()).isEqualTo("key-revoke");
+        assertThat(ConfigEdits.removeKey("x").path()).isEqualTo("keys[x]");
+    }
+
+    @Test
+    void removesTheOneEntryAndKeepsTheOrder() {
+        Map<String, Object> changed = ConfigEdits.removeKey("one").change().apply(withKeys());
+
+        assertThat(keyIds(changed)).containsExactly("two");
+        assertThat(keyIds(withKeys())).containsExactly("one", "two");
+    }
+
+    @Test
+    void doesNotFindAnUnknownKeyOrAFileWithNoKeys() {
+        assertThatThrownBy(() -> ConfigEdits.removeKey("nope").change().apply(withKeys()))
+                .isInstanceOf(ConfigEdits.NotFound.class)
+                .hasMessage("No key with the ID nope");
+        Map<String, Object> none = withKeys();
+        none.remove("keys");
+        assertThatThrownBy(() -> ConfigEdits.removeKey("one").change().apply(none))
+                .isInstanceOf(ConfigEdits.NotFound.class);
     }
 
     @Test

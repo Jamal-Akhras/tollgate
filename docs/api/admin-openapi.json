@@ -445,6 +445,101 @@
         "tags" : [ "Instance" ]
       }
     },
+    "/admin/v1/keys/{id}" : {
+      "delete" : {
+        "description" : "Removes the key's entry from tollgate.yaml and swaps the new configuration in. The key gets 401 from then on; calls already running finish. A tenant's last key may be revoked. Needs If-Match with the config version, and TOLLGATE_ADMIN_EDITS=file.",
+        "operationId" : "revokeKey",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "If-Match",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigChange"
+                }
+              }
+            },
+            "description" : "The version now running, and whether the file changed"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No key with that ID"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Edits are off, or the change needs a restart"
+          },
+          "412" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is not the running version, or the file is no longer the running one"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The changed file is not a valid configuration"
+          },
+          "428" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is missing"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The file could not be written; nothing changed"
+          }
+        },
+        "summary" : "Revoke a key",
+        "tags" : [ "Configuration" ]
+      }
+    },
     "/admin/v1/live" : {
       "get" : {
         "description" : "Totals for each 5 seconds, the calls of each tenant, model and provider and the verdicts of each guard over the last 15 minutes, the calls in flight to each provider, the calls refused by a rate limit for each tenant since the start, and the last seal. Counted from the audit trail since this instance started.",

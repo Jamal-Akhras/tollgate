@@ -44,13 +44,15 @@ class ConfigEditsOffTest extends ServerTestSupport {
     }
 
     @Test
-    void refusesToCreateAKey() throws Exception {
+    void refusesToCreateOrRevokeAKey() throws Exception {
         byte[] before = Files.readAllBytes(CONFIG);
 
         HttpResponse<String> created = send("POST", "/tenants/metered/keys");
+        HttpResponse<String> revoked = send("DELETE", "/keys/" + KEY.id());
 
         assertThat(created.statusCode()).isEqualTo(409);
         assertThat(created.body()).contains("\"code\":\"edits_off\"").doesNotContain("tg_");
+        assertThat(revoked.statusCode()).isEqualTo(409);
         assertThat(Files.readAllBytes(CONFIG)).isEqualTo(before);
     }
 

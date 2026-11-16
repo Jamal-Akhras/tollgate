@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -174,6 +175,44 @@ class ConfigEditController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .cacheControl(CacheControl.noStore())
                 .body(new CreatedKey(key.value(), key.id(), tenant, change.version(), change.previous()));
+    }
+
+    @DeleteMapping("/keys/{id}")
+    @Operation(
+            summary = "Revoke a key",
+            description = "Removes the key's entry from tollgate.yaml and swaps the new configuration in. The key gets"
+                    + " 401 from then on; calls already running finish. A tenant's last key may be revoked. Needs"
+                    + " If-Match with the config version, and TOLLGATE_ADMIN_EDITS=file.")
+    @ApiResponse(responseCode = "200", description = "The version now running, and whether the file changed")
+    @ApiResponse(
+            responseCode = "404",
+            description = "No key with that ID",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Edits are off, or the change needs a restart",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "412",
+            description = "If-Match is not the running version, or the file is no longer the running one",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "422",
+            description = "The changed file is not a valid configuration",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "428",
+            description = "If-Match is missing",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "500",
+            description = "The file could not be written; nothing changed",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    ConfigChange revokeKey(
+            @PathVariable String id,
+            @RequestHeader(value = "If-Match", required = false) @Nullable String ifMatch,
+            @RequestAttribute(AdminCaller.ATTRIBUTE) AdminCaller caller) {
+        return change(caller, ifMatch, ConfigEdits.removeKey(id));
     }
 
     private ConfigChange change(AdminCaller caller, @Nullable String ifMatch, ConfigOperation operation) {

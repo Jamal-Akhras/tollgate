@@ -340,6 +340,18 @@ class ConfigEditApiTest {
                 "\"" + ifMatch + "\"");
     }
 
+    private HttpResponse<String> delete(String path, String ifMatch) throws IOException, InterruptedException {
+        return call(
+                ADMIN_PORT,
+                "DELETE",
+                path,
+                "",
+                "Authorization",
+                "Bearer " + ADMIN_TOKEN,
+                "If-Match",
+                "\"" + ifMatch + "\"");
+    }
+
     private int models(String key) throws IOException, InterruptedException {
         return call(port, "GET", "/v1/models", "", "Authorization", "Bearer " + key)
                 .statusCode();
@@ -416,6 +428,44 @@ class ConfigEditApiTest {
 
         assertThat(response.statusCode()).isEqualTo(412);
         assertThat(response.body()).doesNotContain("tg_");
+    }
+
+    @Test
+    void revokesAKeyAndTheGatewayRefusesItAtOnce() throws Exception {
+        String key = keyOf(post("/admin/v1/tenants/support-bot/keys", version()));
+        String other = keyOf(post("/admin/v1/tenants/support-bot/keys", version()));
+        String id = ApiKey.parse(key).orElseThrow().id();
+        assertThat(models(key)).isEqualTo(200);
+
+        HttpResponse<String> revoked = delete("/admin/v1/keys/" + id, version());
+
+        assertThat(revoked.statusCode()).isEqualTo(200);
+        assertThat(revoked.body()).contains("\"changed\":true");
+        assertThat(models(key)).isEqualTo(401);
+        assertThat(models(other)).isEqualTo(200);
+        assertThat(Files.readString(CONFIG)).doesNotContain(id);
+    }
+
+    @Test
+    void revokesATenantsLastKeyAndKeepsTheTenant() throws Exception {
+        assertThat(models(STARTING_KEY.value())).isEqualTo(200);
+
+        HttpResponse<String> revoked = delete("/admin/v1/keys/" + STARTING_KEY.id(), version());
+
+        assertThat(revoked.statusCode()).isEqualTo(200);
+        String view = send("GET", "/admin/v1/config").body();
+        assertThat(view).contains("\"name\":\"support-bot\"").doesNotContain(STARTING_KEY.id());
+        assertThat(models(STARTING_KEY.value())).isEqualTo(401);
+    }
+
+    @Test
+    void doesNotRevokeAnUnknownKeyAndChecksTheVersion() throws Exception {
+        HttpResponse<String> missing = delete("/admin/v1/keys/nope", version());
+        assertThat(missing.statusCode()).isEqualTo(404);
+        assertThat(missing.body()).contains("No key with the ID nope");
+
+        HttpResponse<String> stale = delete("/admin/v1/keys/nope", "0".repeat(64));
+        assertThat(stale.statusCode()).isEqualTo(412);
     }
 
     @Test
