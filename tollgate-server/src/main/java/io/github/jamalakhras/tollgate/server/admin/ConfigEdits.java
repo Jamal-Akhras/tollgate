@@ -1,6 +1,8 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
+import io.github.jamalakhras.tollgate.core.budget.Period;
 import io.github.jamalakhras.tollgate.gateway.ConfigOperation;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +38,39 @@ final class ConfigEdits {
             entry.put("guards", guards);
             policies.put(policy, entry);
             root.put("policies", policies);
+            return root;
+        });
+    }
+
+    static ConfigOperation budget(String tenant, @Nullable String limit, @Nullable String period) {
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(String.valueOf(limit));
+        } catch (NumberFormatException e) {
+            throw new BadEdit("limit must be a number that is not negative, was " + limit);
+        }
+        if (amount.signum() < 0) {
+            throw new BadEdit("limit must be a number that is not negative, was " + limit);
+        }
+        String name;
+        try {
+            name = Period.fromConfigName(String.valueOf(period)).configName();
+        } catch (IllegalArgumentException e) {
+            throw new BadEdit(String.valueOf(e.getMessage()));
+        }
+        return new ConfigOperation("tenant-budget", "tenants." + tenant + ".budget", document -> {
+            Map<String, Object> root = new LinkedHashMap<>(document);
+            Map<String, Object> tenants = mapOf(root.get("tenants"));
+            if (!tenants.containsKey(tenant)) {
+                throw new NotFound("No tenant named '" + tenant + "'");
+            }
+            Map<String, Object> entry = mapOf(tenants.get(tenant));
+            Map<String, Object> budget = new LinkedHashMap<>();
+            budget.put("limit", amount);
+            budget.put("period", name);
+            entry.put("budget", budget);
+            tenants.put(tenant, entry);
+            root.put("tenants", tenants);
             return root;
         });
     }

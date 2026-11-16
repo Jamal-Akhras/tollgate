@@ -36,6 +36,7 @@ class ConfigEditApiTest {
     private static final Path CONFIG = FOLDER.resolve("tollgate.yaml");
     private static final String TEXT = handWritten();
     private static final Pattern VERSION = Pattern.compile("\"version\":\"([0-9a-f]{64})\"");
+    private static final String BUDGET_20_DAILY = "{\"limit\":\"20\",\"period\":\"daily\"}";
     private static final String GUARD_1 = "/admin/v1/policies/default/guards/1";
 
     @DynamicPropertySource
@@ -73,6 +74,9 @@ class ConfigEditApiTest {
                 tenants:
                   support-bot:
                     models: [qwen3]
+                    dataClass: internal
+                  unbudgeted:
+                    models: [metered-model]
                     dataClass: internal
                   metered:
                     models: [metered-model]
@@ -257,6 +261,64 @@ class ConfigEditApiTest {
         HttpResponse<String> text = put(GUARD_1 + "/mode", "monitor", version());
         assertThat(text.statusCode()).isEqualTo(400);
         assertThat(text.body()).contains("The request body is not valid");
+    }
+
+    @Test
+    void setsABudgetOnATenantThatHadNone() throws Exception {
+        HttpResponse<String> response = put("/admin/v1/tenants/unbudgeted/budget", BUDGET_20_DAILY, version());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"changed\":true");
+        HttpResponse<String> budgets = send("GET", "/admin/v1/budgets");
+        assertThat(budgets.body())
+                .contains("\"tenant\":\"unbudgeted\",\"period\":\"daily\",\"currency\":\"USD\",\"limit\":\"20\","
+                        + "\"spent\":\"0\"");
+    }
+
+    @Test
+    void explainsWhyATenantOfFreeModelsCannotHaveABudget() throws Exception {
+        HttpResponse<String> response = put("/admin/v1/tenants/support-bot/budget", BUDGET_20_DAILY, version());
+
+        assertThat(response.statusCode()).isEqualTo(422);
+        assertThat(response.body()).contains("\"code\":\"invalid_config\"").contains("tenants.support-bot.budget");
+        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+    }
+
+    @Test
+    void changesTheLimitOfAnExistingBudget() throws Exception {
+        HttpResponse<String> response =
+                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"20\",\"period\":\"monthly\"}", version());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(send("GET", "/admin/v1/budgets").body())
+                .contains("\"tenant\":\"metered\",\"period\":\"monthly\",\"currency\":\"USD\",\"limit\":\"20\"");
+        assertThat(send("GET", "/admin/v1/config").body()).contains("\"budget\":{\"limit\":\"20\"");
+    }
+
+    @Test
+    void rejectsABudgetItCannotSet() throws Exception {
+        assertThat(put("/admin/v1/tenants/nobody/budget", BUDGET_20_DAILY, version())
+                        .statusCode())
+                .isEqualTo(404);
+        assertThat(put("/admin/v1/tenants/metered/budget", "{\"limit\":\"abc\",\"period\":\"daily\"}", version())
+                        .statusCode())
+                .isEqualTo(400);
+        assertThat(put("/admin/v1/tenants/metered/budget", "{\"limit\":\"-1\",\"period\":\"daily\"}", version())
+                        .statusCode())
+                .isEqualTo(400);
+        HttpResponse<String> period =
+                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"1\",\"period\":\"weekly\"}", version());
+        assertThat(period.statusCode()).isEqualTo(400);
+        assertThat(period.body()).contains("period must be one of daily, monthly, total, was weekly");
+    }
+
+    @Test
+    void reportsWhatATinyLimitDoes() throws Exception {
+        HttpResponse<String> response =
+                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"0.0000000001\",\"period\":\"daily\"}", version());
+
+        assertThat(response.statusCode()).isEqualTo(422);
+        assertThat(response.body()).contains("has more than 9 decimal places");
     }
 
     @Test

@@ -83,6 +83,51 @@ class ConfigEditController {
         return change(caller, ifMatch, ConfigEdits.guardMode(policy, index, body.mode()));
     }
 
+    @PutMapping("/tenants/{tenant}/budget")
+    @Operation(
+            summary = "Set a tenant's budget",
+            description = "Rewrites tollgate.yaml with the tenant's budget, in the config's currency, and swaps the"
+                    + " new configuration in. It sets a budget on a tenant that had none and replaces one that"
+                    + " existed. What is already spent stays counted when only the limit changes; changing the"
+                    + " period starts the count from zero. Needs If-Match with the config version, and"
+                    + " TOLLGATE_ADMIN_EDITS=file.")
+    @ApiResponse(responseCode = "200", description = "The version now running, and whether the file changed")
+    @ApiResponse(
+            responseCode = "400",
+            description = "The body, the limit or the period is not valid",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "404",
+            description = "No such tenant",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Edits are off, or the change needs a restart",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "412",
+            description = "If-Match is not the running version, or the file is no longer the running one",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "422",
+            description = "The changed file is not a valid configuration",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "428",
+            description = "If-Match is missing",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @ApiResponse(
+            responseCode = "500",
+            description = "The file could not be written; nothing changed",
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    ConfigChange budget(
+            @PathVariable String tenant,
+            @RequestBody BudgetChange body,
+            @RequestHeader(value = "If-Match", required = false) @Nullable String ifMatch,
+            @RequestAttribute(AdminCaller.ATTRIBUTE) AdminCaller caller) {
+        return change(caller, ifMatch, ConfigEdits.budget(tenant, body.limit(), body.period()));
+    }
+
     private ConfigChange change(AdminCaller caller, @Nullable String ifMatch, ConfigOperation operation) {
         Gateway.Reload reload = editor.apply(caller, ifMatch, List.of(operation));
         return new ConfigChange(reload.version(), ConfigEditor.unquoted(String.valueOf(ifMatch)), reload.changed());
@@ -149,6 +194,15 @@ class ConfigEditController {
                     requiredMode = RequiredMode.REQUIRED,
                     allowableValues = {"enforce", "monitor"})
             String mode) {}
+
+    record BudgetChange(
+            @Schema(requiredMode = RequiredMode.REQUIRED, description = "A decimal, not negative", example = "50")
+            String limit,
+
+            @Schema(
+                    requiredMode = RequiredMode.REQUIRED,
+                    allowableValues = {"daily", "monthly", "total"})
+            String period) {}
 
     record ConfigChange(
             @Schema(requiredMode = RequiredMode.REQUIRED, description = "SHA-256 of the configuration now running")

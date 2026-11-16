@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.server.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -98,6 +99,77 @@ class ConfigEditsTest {
                         ConfigEdits.guardMode("default", 3, "monitor").change().apply(document()))
                 .isInstanceOf(ConfigEdits.NotFound.class)
                 .hasMessage("Policy 'default' has no guard 3");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> tenant(Map<String, Object> document, String name) {
+        return (Map<String, Object>) Objects.requireNonNull(
+                ((Map<String, Object>) Objects.requireNonNull(document.get("tenants"))).get(name));
+    }
+
+    private static Map<String, Object> withTenants() {
+        Map<String, Object> bare = new LinkedHashMap<>();
+        bare.put("dataClass", "internal");
+        Map<String, Object> existing = new LinkedHashMap<>();
+        existing.put("dataClass", "public");
+        existing.put("budget", new LinkedHashMap<>(Map.of("limit", 50, "period", "monthly")));
+        Map<String, Object> tenants = new LinkedHashMap<>();
+        tenants.put("bare", bare);
+        tenants.put("existing", existing);
+        tenants.put("empty", null);
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("tenants", tenants);
+        return root;
+    }
+
+    @Test
+    void setsABudgetWhereThereWasNone() {
+        Map<String, Object> changed =
+                ConfigEdits.budget("bare", "12.50", "daily").change().apply(withTenants());
+
+        assertThat(tenant(changed, "bare"))
+                .containsEntry("dataClass", "internal")
+                .containsEntry("budget", Map.of("limit", new BigDecimal("12.50"), "period", "daily"));
+    }
+
+    @Test
+    void replacesABudgetAndKeepsTheTenantsOtherKeys() {
+        Map<String, Object> changed =
+                ConfigEdits.budget("existing", "20", "total").change().apply(withTenants());
+
+        assertThat(tenant(changed, "existing"))
+                .containsEntry("dataClass", "public")
+                .containsEntry("budget", Map.of("limit", new BigDecimal("20"), "period", "total"));
+    }
+
+    @Test
+    void turnsAnEmptyTenantIntoAMap() {
+        Map<String, Object> changed =
+                ConfigEdits.budget("empty", "1", "monthly").change().apply(withTenants());
+
+        assertThat(tenant(changed, "empty")).containsOnlyKeys("budget");
+    }
+
+    @Test
+    void doesNotFindAMissingTenant() {
+        assertThatThrownBy(() ->
+                        ConfigEdits.budget("nobody", "1", "monthly").change().apply(withTenants()))
+                .isInstanceOf(ConfigEdits.NotFound.class)
+                .hasMessage("No tenant named 'nobody'");
+    }
+
+    @Test
+    void refusesALimitOrPeriodItCannotUse() {
+        assertThatThrownBy(() -> ConfigEdits.budget("bare", "abc", "daily"))
+                .isInstanceOf(ConfigEdits.BadEdit.class)
+                .hasMessage("limit must be a number that is not negative, was abc");
+        assertThatThrownBy(() -> ConfigEdits.budget("bare", "-1", "daily"))
+                .isInstanceOf(ConfigEdits.BadEdit.class)
+                .hasMessage("limit must be a number that is not negative, was -1");
+        assertThatThrownBy(() -> ConfigEdits.budget("bare", "1", "weekly"))
+                .isInstanceOf(ConfigEdits.BadEdit.class)
+                .hasMessageContaining("daily")
+                .hasMessageContaining("was weekly");
     }
 
     @Test

@@ -34,4 +34,12 @@ class ConfigEditsOffTest extends ServerTestSupport {
         assertThat(response.body()).contains("\"code\":\"edits_off\"").contains("TOLLGATE_ADMIN_EDITS=file");
         assertThat(Files.readAllBytes(CONFIG)).isEqualTo(before);
     }
+
+    @Test
+    void refusesABudgetEdit() throws Exception {
+        HttpResponse<String> response = put("/tenants/metered/budget", "{\"limit\":\"5\",\"period\":\"daily\"}");
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(response.body()).contains("\"code\":\"edits_off\"");
+    }
 }

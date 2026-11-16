@@ -619,6 +619,121 @@
         "tags" : [ "Configuration" ]
       }
     },
+    "/admin/v1/tenants/{tenant}/budget" : {
+      "put" : {
+        "description" : "Rewrites tollgate.yaml with the tenant's budget, in the config's currency, and swaps the new configuration in. It sets a budget on a tenant that had none and replaces one that existed. What is already spent stays counted when only the limit changes; changing the period starts the count from zero. Needs If-Match with the config version, and TOLLGATE_ADMIN_EDITS=file.",
+        "operationId" : "budget",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "tenant",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "If-Match",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BudgetChange"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigChange"
+                }
+              }
+            },
+            "description" : "The version now running, and whether the file changed"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The body, the limit or the period is not valid"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No such tenant"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Edits are off, or the change needs a restart"
+          },
+          "412" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is not the running version, or the file is no longer the running one"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The changed file is not a valid configuration"
+          },
+          "428" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is missing"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The file could not be written; nothing changed"
+          }
+        },
+        "summary" : "Set a tenant's budget",
+        "tags" : [ "Configuration" ]
+      }
+    },
     "/admin/v1/usage" : {
       "get" : {
         "description" : "Counts calls, refusals, tokens and cost from the signed audit trail, by the day each request arrived in UTC. Each provider attempt is a call, so a request that fell back to another model counts twice. Dry runs are not counted.",
@@ -837,6 +952,21 @@
             "format" : "int64"
           }
         }
+      },
+      "BudgetChange" : {
+        "type" : "object",
+        "properties" : {
+          "limit" : {
+            "type" : "string",
+            "description" : "A decimal, not negative",
+            "example" : "50"
+          },
+          "period" : {
+            "type" : "string",
+            "enum" : [ "daily", "monthly", "total" ]
+          }
+        },
+        "required" : [ "limit", "period" ]
       },
       "BudgetState" : {
         "type" : "object",
