@@ -1,5 +1,27 @@
 import { expect, test } from 'vitest';
-import { formatBytes, formatCount, formatMillis, formatRate, relativeTime } from './format';
+import {
+  formatBytes,
+  formatCount,
+  formatDecimal,
+  formatMillis,
+  formatRate,
+  relativeTime,
+} from './format';
+
+test('formatDecimalKeepsTwoPlacesBelowAHundredAndRoundsAbove', () => {
+  const table: [number, string][] = [
+    [0, '0'],
+    [0.004, '0'],
+    [0.4, '0.4'],
+    [1.236, '1.24'],
+    [99.99, '99.99'],
+    [894.4, '894'],
+    [12345.6, '12,346'],
+  ];
+  for (const [input, output] of table) {
+    expect(formatDecimal(input), String(input)).toBe(output);
+  }
+});
 
 test('formatCountGroupsThousandsAndAbbreviatesLargeNumbers', () => {
   const table: [number, string][] = [

@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { configFixture, infoFixture, usageFixture } from '../api/fixtures';
+import { configFixture, infoFixture, liveFixture, usageFixture } from '../api/fixtures';
 import { signedIn, signInWith } from '../api/client';
 
 const send = vi.fn();
@@ -9,6 +9,9 @@ const send = vi.fn();
 function answerFor(path: string): unknown {
   if (path.endsWith('/config')) {
     return configFixture;
+  }
+  if (path.includes('/live')) {
+    return liveFixture;
   }
   if (path.includes('/usage')) {
     return usageFixture;
@@ -67,10 +70,10 @@ test('showsThePageNameAsTheHeading', async () => {
 });
 
 test('hasASkipLinkAndLandmarks', async () => {
-  setRoute('#/metrics');
+  setRoute('#/usage');
   render(<App />);
   expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
-  expect(screen.getByRole('banner')).toBeTruthy();
+  expect(screen.getAllByRole('banner')[0]).toBeTruthy();
   expect(screen.getByRole('navigation', { name: 'Main' })).toBeTruthy();
   fireEvent.click(screen.getByRole('link', { name: 'Skip to main content' }));
   expect(document.activeElement).toBe(screen.getByRole('main'));

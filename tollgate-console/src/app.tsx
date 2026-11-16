@@ -5,6 +5,7 @@ import { Batch } from './pages/Audit/Batch';
 import { AuditRecord } from './pages/Audit/Record';
 import { Config } from './pages/Config/Config';
 import { Flow } from './pages/Flow/Flow';
+import { Metrics } from './pages/Metrics/Metrics';
 import { SignIn } from './pages/SignIn/SignIn';
 import { Usage } from './pages/Usage/Usage';
 import { route, type RouteName } from './router';
@@ -35,6 +36,8 @@ function page() {
       return <Batch />;
     case 'record':
       return <AuditRecord />;
+    case 'metrics':
+      return <Metrics />;
     case 'usage':
       return <Usage />;
     case 'config':

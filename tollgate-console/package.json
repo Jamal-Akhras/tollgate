@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@preact/signals": "2.11.4",
-    "preact": "11.2.0"
+    "preact": "11.2.0",
+    "uplot": "1.6.32"
   },
   "devDependencies": {
     "@testing-library/preact": "3.2.6",

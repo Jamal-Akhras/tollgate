@@ -12,6 +12,13 @@ export function formatCount(n: number): string {
   return `${trimmed(n / 1_000_000)}M`;
 }
 
+export function formatDecimal(n: number): string {
+  if (n >= 100) {
+    return Math.round(n).toLocaleString('en-US');
+  }
+  return String(Math.round(n * 100) / 100);
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) {
     return `${n} B`;
