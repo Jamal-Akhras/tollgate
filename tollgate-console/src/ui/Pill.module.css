@@ -1,0 +1,58 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--size-cell);
+  transition: border-color var(--motion-control), box-shadow var(--motion-control);
+}
+
+.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.ok {
+  background: var(--ok);
+}
+
+.monitor {
+  border: 2px solid var(--info);
+}
+
+.off {
+  background: var(--text-dim);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.refused {
+  color: var(--danger);
+}
+
+.label {
+  font-weight: 500;
+}
+
+.detail {
+  font-family: var(--font-mono);
+  font-size: var(--size-detail);
+  color: var(--text-subtle);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-strong);
+}

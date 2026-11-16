@@ -1,0 +1,17 @@
+.button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--text-muted);
+  transition: color var(--motion-control), background var(--motion-control);
+}
+
+.button:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}

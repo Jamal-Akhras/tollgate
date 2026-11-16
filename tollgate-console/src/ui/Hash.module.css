@@ -1,0 +1,10 @@
+.hash {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.text {
+  font-family: var(--font-mono);
+  font-size: var(--size-cell);
+}

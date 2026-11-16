@@ -1,0 +1,26 @@
+.meter {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.text {
+  font-size: var(--size-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  height: 5px;
+  background: var(--surface-raised);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--ok);
+}
+
+.over {
+  background: var(--danger);
+}
