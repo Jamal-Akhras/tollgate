@@ -20,6 +20,9 @@
     "description" : "The configuration this instance runs",
     "name" : "Configuration"
   }, {
+    "description" : "What the gateway is doing now, read from the audit trail",
+    "name" : "Live"
+  }, {
     "description" : "The configuration this instance is running",
     "name" : "Config"
   }, {
@@ -30,6 +33,60 @@
     "name" : "Usage"
   } ],
   "paths" : {
+    "/admin/v1/activity" : {
+      "get" : {
+        "description" : "The most recent calls the gateway decided, newest first, each with its guard steps and its outcome once there is one. Taken from the audit trail since this instance started, without prompts, answers or user IDs.",
+        "operationId" : "activity",
+        "parameters" : [ {
+          "description" : "How many calls to return, from 1 to 200",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/CallView"
+                  }
+                }
+              }
+            },
+            "description" : "The calls"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "limit is not between 1 and 200"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off, so there is nothing to follow"
+          }
+        },
+        "summary" : "List the latest calls",
+        "tags" : [ "Live" ]
+      }
+    },
     "/admin/v1/budgets" : {
       "get" : {
         "description" : "The current period of every tenant with a budget, live from this instance.",
@@ -132,6 +189,57 @@
         "tags" : [ "Instance" ]
       }
     },
+    "/admin/v1/live" : {
+      "get" : {
+        "description" : "Totals for each 5 seconds, the calls of each tenant, model and provider and the verdicts of each guard over the last 15 minutes, the calls in flight to each provider, the calls refused by a rate limit for each tenant since the start, and the last seal. Counted from the audit trail since this instance started.",
+        "operationId" : "live",
+        "parameters" : [ {
+          "description" : "How many minutes of 5-second totals to return, from 1 to 60",
+          "in" : "query",
+          "name" : "minutes",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 15
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiveSnapshot"
+                }
+              }
+            },
+            "description" : "The live snapshot"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "minutes is not between 1 and 60"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off, so there is nothing to follow"
+          }
+        },
+        "summary" : "Show what is happening now",
+        "tags" : [ "Live" ]
+      }
+    },
     "/admin/v1/usage" : {
       "get" : {
         "description" : "Counts calls, refusals, tokens and cost from the signed audit trail, by the day each request arrived in UTC. Each provider attempt is a call, so a request that fell back to another model counts twice. Dry runs are not counted.",
@@ -228,6 +336,17 @@
         },
         "required" : [ "service", "version" ]
       },
+      "Amount" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "type" : "string"
+          }
+        }
+      },
       "AuditView" : {
         "type" : "object",
         "properties" : {
@@ -236,6 +355,49 @@
           },
           "publicKey" : {
             "type" : "string"
+          }
+        }
+      },
+      "Bucket" : {
+        "type" : "object",
+        "properties" : {
+          "cost" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "inputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "outputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p50Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p95Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "refused" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "sent" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "start" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
@@ -288,6 +450,73 @@
           }
         }
       },
+      "CallView" : {
+        "type" : "object",
+        "properties" : {
+          "allowed" : {
+            "type" : "boolean"
+          },
+          "attributed" : {
+            "type" : "boolean"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "dataClass" : {
+            "type" : "string"
+          },
+          "endpoint" : {
+            "type" : "string"
+          },
+          "fallback" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "model" : {
+            "type" : "string"
+          },
+          "outcome" : {
+            "$ref" : "#/components/schemas/OutcomeView"
+          },
+          "provider" : {
+            "type" : "string"
+          },
+          "redacted" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int32"
+            }
+          },
+          "reservation" : {
+            "$ref" : "#/components/schemas/Amount"
+          },
+          "steps" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/StepView"
+            }
+          },
+          "tenant" : {
+            "type" : "string"
+          },
+          "time" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "upstream" : {
+            "type" : "string"
+          }
+        }
+      },
       "ConfigView" : {
         "type" : "object",
         "properties" : {
@@ -334,6 +563,96 @@
             }
           },
           "version" : {
+            "type" : "string"
+          }
+        }
+      },
+      "Flow" : {
+        "type" : "object",
+        "properties" : {
+          "cost" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "fallbacks" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "inputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "lastFallback" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastRefused" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "lastSent" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "model" : {
+            "type" : "string"
+          },
+          "outputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "provider" : {
+            "type" : "string"
+          },
+          "redacted" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "refused" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "sent" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "tenant" : {
+            "type" : "string"
+          }
+        }
+      },
+      "GuardCount" : {
+        "type" : "object",
+        "properties" : {
+          "allowed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "guard" : {
+            "type" : "string"
+          },
+          "lastRefused" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "monitored" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "refused" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "tenant" : {
             "type" : "string"
           }
         }
@@ -402,6 +721,69 @@
           }
         }
       },
+      "LiveSnapshot" : {
+        "type" : "object",
+        "properties" : {
+          "bucketSeconds" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "buckets" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Bucket"
+            }
+          },
+          "flows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Flow"
+            }
+          },
+          "guards" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GuardCount"
+            }
+          },
+          "inFlight" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "lastSeal" : {
+            "$ref" : "#/components/schemas/SealView"
+          },
+          "limited" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "now" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "p50Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p95Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "since" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "skipped" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "ModelView" : {
         "type" : "object",
         "properties" : {
@@ -426,6 +808,32 @@
           },
           "upstream" : {
             "type" : "string"
+          }
+        }
+      },
+      "OutcomeView" : {
+        "type" : "object",
+        "properties" : {
+          "cost" : {
+            "$ref" : "#/components/schemas/Amount"
+          },
+          "millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "result" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "time" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "tokens" : {
+            "$ref" : "#/components/schemas/Tokens"
           }
         }
       },
@@ -538,6 +946,59 @@
           "unfinished" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "SealView" : {
+        "type" : "object",
+        "properties" : {
+          "batch" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "hmacKey" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "previous" : {
+            "type" : "string"
+          },
+          "records" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "root" : {
+            "type" : "string"
+          },
+          "time" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "StepView" : {
+        "type" : "object",
+        "properties" : {
+          "allowed" : {
+            "type" : "boolean"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "guard" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "micros" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "monitored" : {
+            "type" : "boolean"
           }
         }
       },

@@ -1,5 +1,7 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
+import io.github.jamalakhras.tollgate.gateway.Gateway;
+import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +25,11 @@ class ConsoleConfiguration implements WebMvcConfigurer {
         registry.addRedirectViewController("/", "/console/");
         registry.addRedirectViewController("/console", "/console/");
         registry.addViewController("/console/").setViewName("forward:/console/index.html");
+    }
+
+    @Bean(initMethod = "start", destroyMethod = "close")
+    LiveTail liveTail(Gateway gateway) {
+        return new LiveTail(gateway::auditDirectory, Clock.systemUTC());
     }
 
     @Bean
