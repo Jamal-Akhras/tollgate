@@ -1,10 +1,20 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { configFixture, infoFixture } from '../api/fixtures';
+import { configFixture, infoFixture, usageFixture } from '../api/fixtures';
 import { signedIn, signInWith } from '../api/client';
 
 const send = vi.fn();
+
+function answerFor(path: string): unknown {
+  if (path.endsWith('/config')) {
+    return configFixture;
+  }
+  if (path.includes('/usage')) {
+    return usageFixture;
+  }
+  return path.endsWith('/budgets') ? [] : infoFixture;
+}
 let width = 1400;
 
 function setRoute(hash: string) {
@@ -18,7 +28,7 @@ beforeEach(async () => {
   send.mockReset();
   send.mockImplementation((path: string) =>
     Promise.resolve(
-      new Response(JSON.stringify(path.endsWith('/config') ? configFixture : infoFixture)),
+      new Response(JSON.stringify(answerFor(path))),
     ),
   );
   vi.stubGlobal('fetch', send);
@@ -57,6 +67,7 @@ test('showsThePageNameAsTheHeading', async () => {
 });
 
 test('hasASkipLinkAndLandmarks', async () => {
+  setRoute('#/audit');
   render(<App />);
   expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
   expect(screen.getByRole('banner')).toBeTruthy();

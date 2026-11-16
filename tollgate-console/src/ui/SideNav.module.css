@@ -81,6 +81,7 @@
   flex: 1;
 }
 
-.budget:empty {
+.budget:empty,
+.collapsed .budget {
   display: none;
 }

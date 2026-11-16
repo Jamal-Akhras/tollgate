@@ -3,6 +3,7 @@ import { Activity } from './pages/Activity/Activity';
 import { Config } from './pages/Config/Config';
 import { Flow } from './pages/Flow/Flow';
 import { SignIn } from './pages/SignIn/SignIn';
+import { Usage } from './pages/Usage/Usage';
 import { route, type RouteName } from './router';
 import { Shell } from './ui/Shell';
 
@@ -25,6 +26,8 @@ function page() {
       return <Flow />;
     case 'activity':
       return <Activity />;
+    case 'usage':
+      return <Usage />;
     case 'config':
       return <Config />;
     default:

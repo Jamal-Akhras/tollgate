@@ -1,6 +1,7 @@
 import type { ComponentType } from 'preact';
 import { href } from '../router';
 import { signOut } from '../api/client';
+import { BudgetCard } from './BudgetCard';
 import { Activity, Budget, Chart, Document, Flow, Power, Settings, Shield } from './icons';
 import styles from './SideNav.module.css';
 
@@ -56,7 +57,9 @@ export function SideNav({ current, collapsed, drawer, onNavigate }: SideNavProps
         <span class={styles.label}>Docs</span>
       </a>
       <div class={styles.spacer} />
-      <div class={styles.budget} data-slot="budget" />
+      <div class={styles.budget}>
+        <BudgetCard />
+      </div>
       <button
         type="button"
         class={styles.link}
