@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { changeFixture, configBusyFixture, configFixture, configManagedFixture } from '../../api/fixtures';
+import { budgetsBusyFixture, changeFixture, configBusyFixture, configFixture, configManagedFixture } from '../../api/fixtures';
 import { Toasts } from '../../ui/Toast';
 import { Config } from './Config';
 
@@ -166,6 +166,9 @@ test('switchingAGuardWithEditsOnWritesAndShowsTheNewConfig', async () => {
       written = true;
       return Promise.resolve(answer(200, changeFixture));
     }
+    if (path.endsWith('/budgets')) {
+      return Promise.resolve(answer(200, []));
+    }
     return Promise.resolve(answer(200, written ? changed : configManagedFixture));
   });
   open();
@@ -179,7 +182,50 @@ test('switchingAGuardWithEditsOnWritesAndShowsTheNewConfig', async () => {
   );
   expect(paths()).toEqual([
     'GET /admin/v1/config',
+    'GET /admin/v1/budgets',
     'PUT /admin/v1/policies/default/guards/1/mode',
     'GET /admin/v1/config',
+    'GET /admin/v1/budgets',
   ]);
+});
+
+test('theTenantsBudgetCellHasAChangeOrSetButton', async () => {
+  send.mockResolvedValue(answer(200, configBusyFixture));
+  open();
+  const tenants = within(await screen.findByRole('region', { name: 'Tenants' }));
+  expect(tenants.getByRole('button', { name: 'Change budget of support-bot' }).textContent).toBe('Change');
+  expect(tenants.getByRole('button', { name: 'Set a budget for my-app' }).textContent).toBe('Set a budget');
+});
+
+test('withEditsOffTheBudgetButtonOpensTheYamlPanel', async () => {
+  send.mockResolvedValue(answer(200, configBusyFixture));
+  open();
+  fireEvent.click(await screen.findByRole('button', { name: 'Change budget of support-bot' }));
+  const panel = screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' });
+  expect(panel.textContent).toContain('budget: { limit: 150, period: monthly }');
+  expect(paths()).toEqual(['GET /admin/v1/config']);
+});
+
+test('withEditsOnTheBudgetButtonOpensTheFormWithTheTenantsSpendAndWritesIt', async () => {
+  const managed = { ...configBusyFixture, edits: 'managed' };
+  let written = false;
+  send.mockImplementation((path: string, init: { method: string }) => {
+    if (init.method === 'PUT') {
+      written = true;
+      return Promise.resolve(answer(200, changeFixture));
+    }
+    return Promise.resolve(
+      answer(200, path.endsWith('/budgets') ? budgetsBusyFixture : managed),
+    );
+  });
+  open();
+  fireEvent.click(await screen.findByRole('button', { name: 'Change budget of support-bot' }));
+  expect(screen.getByRole('dialog', { name: 'Budget for support-bot' })).toBeTruthy();
+  await screen.findByText('Spent this month: $41.18. Held for calls in flight: $0.05.');
+  fireEvent.input(screen.getByLabelText('Limit'), { target: { value: '200' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Set budget' }));
+  await waitFor(() => expect(written).toBe(true));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(paths()).toContain('PUT /admin/v1/tenants/support-bot/budget');
+  await waitFor(() => expect(paths().filter((path) => path.endsWith('/budgets'))).toHaveLength(2));
 });

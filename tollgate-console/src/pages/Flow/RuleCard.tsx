@@ -1,5 +1,7 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { ConfigView } from '../../api/types';
+import { BudgetEdit } from '../../edits/BudgetEdit';
+import { editsOn } from '../../edits/edit';
 import { GuardSwitch } from '../../edits/GuardSwitch';
 import type { Rule } from '../../flow/rule';
 import { href } from '../../router';
@@ -29,6 +31,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export function RuleCard({ rule, config, tenant, guard, onChange, onChanged, onClose }: RuleCardProps) {
+  const [changing, setChanging] = useState(false);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
@@ -92,11 +95,22 @@ export function RuleCard({ rule, config, tenant, guard, onChange, onChanged, onC
           <button
             type="button"
             class={styles.button}
-            onClick={() => onChange(setBudget(tenant, budget.tenant.budget))}
+            onClick={() =>
+              editsOn(config) ? setChanging(true) : onChange(setBudget(tenant, budget.tenant.budget))
+            }
           >
-            How to change this budget
+            Change budget
           </button>
         </div>
+      )}
+      {budget && changing && (
+        <BudgetEdit
+          config={config}
+          tenant={tenant}
+          state={budget.state}
+          onChanged={onChanged}
+          onClose={() => setChanging(false)}
+        />
       )}
       <a href={href('activity', query)}>See these calls in Activity</a>
     </section>

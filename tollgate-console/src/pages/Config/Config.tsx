@@ -1,8 +1,10 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { get } from '../../api/client';
-import type { BudgetView, ConfigView, GuardView, LimitsView, PolicyView } from '../../api/types';
+import type { BudgetState, BudgetView, ConfigView, GuardView, LimitsView, PolicyView } from '../../api/types';
+import { BudgetEdit } from '../../edits/BudgetEdit';
 import { GuardSwitch } from '../../edits/GuardSwitch';
+import { editsOn } from '../../edits/edit';
 import { href } from '../../router';
 import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
@@ -13,10 +15,11 @@ import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
 import styles from './Config.module.css';
 import { HowToChange, useReload } from './HowToChange';
-import { forSection, type SectionName, type Snippet } from './snippets';
+import { forSection, setBudget, type SectionName, type Snippet } from './snippets';
 
 type Change = (snippet: Snippet) => void;
 type SectionProps = { config: ConfigView; change: Change };
+type Budgets = { budgets: BudgetState[]; onChanged: () => void };
 
 const offText =
   'Changes are made in tollgate.yaml; each control here shows what to write. Set TOLLGATE_ADMIN_EDITS=file to let the console write them.';
@@ -97,7 +100,8 @@ function limitsText(limits: LimitsView): string {
   return parts.length === 0 ? 'none' : parts.join(', ');
 }
 
-function Tenants({ config, change }: SectionProps) {
+function Tenants({ config, change, budgets, onChanged }: SectionProps & Budgets) {
+  const [changing, setChanging] = useState<string | null>(null);
   const columns: Column<ConfigView['tenants'][number]>[] = [
     {
       key: 'name',
@@ -115,7 +119,27 @@ function Tenants({ config, change }: SectionProps) {
       cell: (tenant) => <Jump kind="policy" name={tenant.policy} />,
     },
     { key: 'models', header: 'Models', cell: (tenant) => <List items={tenant.models} />, priority: 2 },
-    { key: 'budget', header: 'Budget', cell: (tenant) => budgetText(tenant.budget) },
+    {
+      key: 'budget',
+      header: 'Budget',
+      cell: (tenant) => (
+        <span class={styles.budget}>
+          {budgetText(tenant.budget)}
+          <button
+            type="button"
+            class={styles.button}
+            aria-label={`${tenant.budget ? 'Change budget of' : 'Set a budget for'} ${tenant.name}`}
+            onClick={() =>
+              editsOn(config)
+                ? setChanging(tenant.name)
+                : change(setBudget(tenant.name, tenant.budget))
+            }
+          >
+            {tenant.budget ? 'Change' : 'Set a budget'}
+          </button>
+        </span>
+      ),
+    },
     { key: 'limits', header: 'Limits', cell: (tenant) => limitsText(tenant.limits), priority: 3 },
     {
       key: 'user',
@@ -132,6 +156,15 @@ function Tenants({ config, change }: SectionProps) {
         rows={config.tenants}
         rowKey={(tenant) => tenant.name}
       />
+      {changing && (
+        <BudgetEdit
+          config={config}
+          tenant={changing}
+          state={budgets.find((item) => item.tenant === changing) ?? null}
+          onChanged={onChanged}
+          onClose={() => setChanging(null)}
+        />
+      )}
     </Section>
   );
 }
@@ -303,6 +336,7 @@ export function Config() {
   const [config, setConfig] = useState<ConfigView | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [snippet, setSnippet] = useState<Snippet | null>(null);
+  const [budgets, setBudgets] = useState<BudgetState[]>([]);
   const [round, setRound] = useState(0);
   const reloading = useReload(() => setRound((value) => value + 1));
 
@@ -326,6 +360,23 @@ export function Config() {
   }, [round]);
 
   const managed = config?.edits === 'managed';
+
+  useEffect(() => {
+    if (!managed) {
+      return;
+    }
+    let stopped = false;
+    get<BudgetState[]>('/budgets')
+      .then((list) => {
+        if (!stopped) {
+          setBudgets(list);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      stopped = true;
+    };
+  }, [managed, round]);
 
   return (
     <div class={styles.page}>
@@ -362,7 +413,12 @@ export function Config() {
       {!config && !error && <Loading />}
       {config && (
         <>
-          <Tenants config={config} change={setSnippet} />
+          <Tenants
+            config={config}
+            change={setSnippet}
+            budgets={budgets}
+            onChanged={() => setRound((value) => value + 1)}
+          />
           <Keys config={config} change={setSnippet} />
           <Policies
             config={config}

@@ -224,7 +224,10 @@ export function Flow() {
           budgets={budgets.data.value ?? []}
           withTollgate={withTollgate}
           table={table}
-          onChanged={retry}
+          onChanged={() => {
+            retry();
+            budgets.refresh();
+          }}
         />
       )}
     </div>

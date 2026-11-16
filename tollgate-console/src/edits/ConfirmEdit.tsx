@@ -13,6 +13,8 @@ type ConfirmEditProps = {
   lines: YamlLines;
   config: ConfigView;
   warning?: string;
+  note?: string;
+  disabled?: boolean;
   confirmLabel: string;
   onConfirm: () => Promise<unknown>;
   onClose: () => void;
@@ -27,6 +29,8 @@ export function ConfirmEdit({
   lines,
   config,
   warning,
+  note,
+  disabled = false,
   confirmLabel,
   onConfirm,
   onClose,
@@ -38,7 +42,7 @@ export function ConfirmEdit({
 
   useEffect(() => {
     (warning ? cancel.current : confirm.current)?.focus();
-  }, [warning]);
+  }, []);
 
   async function write() {
     setWriting(true);
@@ -77,6 +81,7 @@ export function ConfirmEdit({
       </div>
       {!config.rewritten && <Banner kind="warn">{firstWrite}</Banner>}
       {warning && <Banner kind="warn">{warning}</Banner>}
+      {!warning && note && <Banner kind="info">{note}</Banner>}
       {problem && <Banner kind="error">{problem}</Banner>}
       <div class={styles.buttons}>
         <button
@@ -88,7 +93,7 @@ export function ConfirmEdit({
         >
           Cancel
         </button>
-        <button type="button" class={styles.confirm} ref={confirm} disabled={writing} onClick={write}>
+        <button type="button" class={styles.confirm} ref={confirm} disabled={writing || disabled} onClick={write}>
           {writing ? 'Writing…' : confirmLabel}
         </button>
       </div>
