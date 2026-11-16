@@ -50,7 +50,7 @@ and it has no content in it by design.
 
 | Kept | Size | Bound |
 |---|---|---|
-| Totals for each 5 seconds: calls sent, refused and failed, tokens in and out, cost, a 20-step latency histogram | the last hour, 720 entries | fixed |
+| Totals for each 5 seconds: calls sent, refused and failed, tokens in and out, cost, a 40-step latency histogram | the last hour, 720 entries | fixed |
 | Per tenant, model and provider, for each minute: calls, refusals by code, failures, fallback attempts, tokens, cost, values redacted | the last 15 minutes | 2,000 combinations; more are summed under `other` |
 | Per tenant and guard, for each minute: allowed, refused, would have refused | the last 15 minutes | 2,000 combinations |
 | The most recent calls, each with its steps and outcome | 200 | fixed |

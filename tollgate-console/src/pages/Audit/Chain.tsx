@@ -14,6 +14,7 @@ export function Chain({ lastBatch }: { lastBatch: number | null }) {
   const { data, error, busy, retry } = useLoaded(
     () => get<BatchView[]>('/audit/batches', { limit: 50 }),
     lastBatch ?? 0,
+    true,
   );
   const list = useRef<HTMLOListElement>(null);
   const count = data?.length ?? 0;

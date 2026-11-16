@@ -31,7 +31,7 @@ means in 0.1.0, and "For 0.2.0" means built on the way to 0.2.0.
 | [0022](0022-shadow-mode.md) | Shadow mode for guards | Accepted | Yes |
 | [0023](0023-attribute-calls-to-a-user.md) | Attribute calls to a user | Accepted | Yes |
 | [0024](0024-refuse-tools-by-name.md) | Refuse tools by name | Accepted | Yes |
-| [0025](0025-console-as-a-static-app.md) | The console is a static app on the admin port | Accepted | For 0.2.0: the `tollgate-console` module, served at `/console/` with its security headers. Not yet: browser tests in CI, and Dependabot and CodeQL for npm |
+| [0025](0025-console-as-a-static-app.md) | The console is a static app on the admin port | Accepted | For 0.2.0: the `tollgate-console` module, served at `/console/` with its security headers. Browser tests run in CI, and Dependabot and CodeQL cover npm |
 | [0026](0026-console-sign-in.md) | Sign in to the console with the admin token | Accepted | For 0.2.0: the admin token, kept in the tab. The viewer token and `GET /admin/v1/session` come after 0.2.0 |
 | [0027](0027-live-data-for-the-console.md) | Live data for the console comes from the audit trail | Accepted | For 0.2.0: `GET /admin/v1/live` and `/admin/v1/activity` |
 | [0028](0028-audit-trail-through-the-admin-api.md) | Read and prove the audit trail through the admin API | Accepted | For 0.2.0: the audit routes and inclusion proofs. `audit prove` comes after |
