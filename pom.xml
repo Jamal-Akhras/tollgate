@@ -40,6 +40,7 @@
     <module>tollgate-core</module>
     <module>tollgate-providers</module>
     <module>tollgate-spring-boot-starter</module>
+    <module>tollgate-console</module>
     <module>tollgate-server</module>
   </modules>
 
@@ -88,6 +89,11 @@
       <dependency>
         <groupId>io.github.jamal-akhras</groupId>
         <artifactId>tollgate-spring-boot-starter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.jamal-akhras</groupId>
+        <artifactId>tollgate-console</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -491,6 +497,7 @@
               <waitUntil>validated</waitUntil>
               <excludeArtifacts>
                 <artifact>tollgate-server</artifact>
+                <artifact>tollgate-console</artifact>
               </excludeArtifacts>
             </configuration>
           </plugin>
