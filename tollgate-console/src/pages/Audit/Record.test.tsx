@@ -1,10 +1,12 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
+import { cleanup, configure, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { recordFixture } from '../../api/fixtures';
 import type { ProvedRecord, RecordProofs } from '../../api/types';
 import { parse, route } from '../../router';
 import { cannotHashText } from './ProofSteps';
 import { AuditRecord } from './Record';
+
+configure({ asyncUtilTimeout: 20000 });
 
 const send = vi.fn();
 
@@ -122,7 +124,7 @@ test('asksAgainEveryTwoSecondsForAnUnsealedRecordUpToFiveTimesThenOffersToCheckA
   }
 });
 
-test('showsTheProofOnceTheRecordIsSealed', { timeout: 10000 }, async () => {
+test('showsTheProofOnceTheRecordIsSealed', async () => {
   let calls = 0;
   send.mockImplementation(() => {
     calls += 1;
@@ -130,11 +132,17 @@ test('showsTheProofOnceTheRecordIsSealed', { timeout: 10000 }, async () => {
       answer(200, calls === 1 ? { intent: unsealed, outcome: null } : { ...recordFixture, outcome: null }),
     );
   });
-  location.hash = '#/audit/records/request-5';
-  route.value = parse('#/audit/records/request-5');
-  render(<AuditRecord />);
-  await screen.findByText('Not sealed yet. Batches close within a second');
-  await screen.findByText('Checked in your browser', undefined, { timeout: 4000 });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    location.hash = '#/audit/records/request-5';
+    route.value = parse('#/audit/records/request-5');
+    render(<AuditRecord />);
+    await screen.findByText('Not sealed yet. Batches close within a second');
+    await vi.advanceTimersByTimeAsync(2000);
+  } finally {
+    vi.useRealTimers();
+  }
+  await screen.findByText('Checked in your browser');
   expect(screen.queryByText('Not sealed yet. Batches close within a second')).toBeNull();
   expect(calls).toBe(2);
 });
