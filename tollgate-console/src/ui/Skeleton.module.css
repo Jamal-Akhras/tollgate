@@ -1,0 +1,4 @@
+.skeleton {
+  background: var(--surface-raised);
+  border-radius: var(--radius-button);
+}

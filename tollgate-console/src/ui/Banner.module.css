@@ -1,0 +1,28 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius-card);
+  font-size: var(--size-cell);
+}
+
+.text {
+  min-width: 0;
+}
+
+.info {
+  border-color: var(--info);
+}
+
+.warn {
+  border-color: var(--warn-border);
+}
+
+.error {
+  border-color: var(--danger);
+  color: var(--danger-text);
+}

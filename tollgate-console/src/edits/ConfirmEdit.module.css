@@ -1,0 +1,75 @@
+.text {
+  font-size: var(--size-body);
+}
+
+.heading {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+  font-weight: 600;
+}
+
+.lines {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  font-family: var(--font-mono);
+  font-size: var(--size-cell);
+  overflow-x: auto;
+}
+
+.path {
+  color: var(--text-muted);
+}
+
+.removed {
+  color: var(--danger-text);
+  white-space: pre;
+}
+
+.added {
+  color: var(--ok);
+  white-space: pre;
+}
+
+.word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.cancel,
+.confirm {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-button);
+  font-weight: 600;
+}
+
+.cancel {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.confirm {
+  background: var(--accent);
+  border: 0;
+  color: var(--bg);
+}
+
+.cancel:disabled,
+.confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

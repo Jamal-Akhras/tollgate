@@ -1,0 +1,67 @@
+.node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+}
+
+.off {
+  opacity: 0.55;
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  background: var(--surface-raised);
+  border-radius: var(--radius-item);
+  color: var(--text-muted);
+}
+
+.text {
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--size-title);
+  font-weight: 600;
+}
+
+.caption {
+  font-size: var(--size-caption);
+  color: var(--text-muted);
+}
+
+.stub {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 16px;
+  margin-top: -8px;
+  background: var(--surface);
+  border: 1px solid var(--border-dashed);
+}
+
+.left {
+  left: -8px;
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.right {
+  right: -8px;
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.dashed {
+  border-style: dashed;
+  border-color: var(--warn-border);
+}

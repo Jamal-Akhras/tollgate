@@ -1,0 +1,22 @@
+{
+  "name": "tollgate-console",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/size.mjs",
+    "check": "tsc --noEmit && vitest run"
+  },
+  "dependencies": {
+    "@preact/signals": "2.11.4",
+    "preact": "11.2.0",
+    "uplot": "1.6.32"
+  },
+  "devDependencies": {
+    "@testing-library/preact": "3.2.6",
+    "happy-dom": "21.0.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  }
+}

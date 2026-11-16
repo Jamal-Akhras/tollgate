@@ -1,0 +1,72 @@
+[
+  {
+    "endpoint": "openai",
+    "dataClass": null,
+    "attributed": false,
+    "fallback": false,
+    "reservation": null,
+    "redacted": {},
+    "id": "01KA3W8Q2R7M5T9X4B6C1D0EFG",
+    "time": "2026-11-16T09:59:46Z",
+    "tenant": "my-app",
+    "key": "3f9a1c2e",
+    "model": "qwen3",
+    "provider": "ollama",
+    "upstream": "qwen3:8b",
+    "steps": [],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:59:47Z",
+      "result": "responded",
+      "status": 200,
+      "tokens": {
+        "input": 412,
+        "output": 230,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "millis": 498
+    }
+  },
+  {
+    "endpoint": "openai",
+    "dataClass": null,
+    "attributed": false,
+    "fallback": false,
+    "reservation": null,
+    "redacted": {},
+    "id": "01KA3W7NZ4K1H8V2P5S3A0BCDE",
+    "time": "2026-11-16T09:58:59Z",
+    "tenant": "my-app",
+    "key": "3f9a1c2e",
+    "model": "qwen3",
+    "provider": "ollama",
+    "upstream": "qwen3:8b",
+    "steps": [],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:59:00Z",
+      "result": "responded",
+      "status": 200,
+      "tokens": {
+        "input": 400,
+        "output": 200,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "millis": 526
+    }
+  }
+]

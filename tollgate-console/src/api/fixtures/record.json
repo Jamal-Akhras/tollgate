@@ -1,0 +1,83 @@
+{
+  "intent": {
+    "record": {
+      "v": 1,
+      "type": "intent",
+      "id": "request-5",
+      "time": "2026-11-16T09:57:00Z",
+      "tenant": "support-bot",
+      "key": "k7Qm2xPa4bZr",
+      "endpoint": "anthropic",
+      "model": "claude-sonnet",
+      "provider": "anthropic",
+      "upstream": "claude-sonnet-4-5",
+      "dataClass": "internal",
+      "configVersion": "3f1c0a8e5b7d2946a1c3e5f7092b4d6e8a0c2e4f6183a5c7e9b1d3f5071927a4",
+      "requestHmac": "9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d5e4f30211203f4e5d6c7b8a9",
+      "steps": [
+        { "guard": "request-size", "decision": { "verdict": "allow" }, "nanos": 52000 },
+        { "guard": "data-class", "decision": { "verdict": "allow" }, "nanos": 41000 }
+      ],
+      "decision": { "verdict": "allow" },
+      "reservation": { "amount": "0.0042", "currency": "USD" }
+    },
+    "sealed": true,
+    "proof": {
+      "index": 5,
+      "size": 7,
+      "encoding": "AQEAAAAJcmVxdWVzdC01AAAAAGromB4ehIAAAAAAC3N1cHBvcnQtYm90AAAADGs3UW0yeFBhNGJacgAAAAlhbnRocm9waWMAAAANY2xhdWRlLXNvbm5ldAAAAAlhbnRocm9waWMAAAARY2xhdWRlLXNvbm5ldC00LTUBAAAACGludGVybmFsPxwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmrKpGxEREREREREREREREREREREREREREREREREREREREQAAAAIAAAAMcmVxdWVzdC1zaXplAAAAAAAAAAg0AAAACmRhdGEtY2xhc3MAAAAAAAAADUgAAQAAAANVU0QAAAAACRPp4A==",
+      "leafHash": "e2c803413dd1a9c780824d310c709f28c7c320d9b7d025c6b61c536549d98b8b",
+      "path": [
+        "cf3ddaa573d32b552d74ad0023e1e2ccd1fbc8f8895be3bade414e8c4996ffaa",
+        "83218bbb8c80af13da576e5b5ed7848bc0e6edcd8814076838704c0096b6f572",
+        "95583037b5e3ccf1034b20f31d62d5ee6fd70f16c24a9997d5abd12e2c143392"
+      ],
+      "root": "087488b9fe80236f80e48b029a1b678a3b9c86956a0566a0f474ca6e996f23f7"
+    },
+    "seal": {
+      "batch": 4,
+      "records": 7,
+      "time": "2026-11-16T09:57:01Z",
+      "root": "087488b9fe80236f80e48b029a1b678a3b9c86956a0566a0f474ca6e996f23f7",
+      "previous": "3201f1ae159a3193c3ce8d2f2816e06fed28416c5a31f60e66c44241bb758e31",
+      "key": "e3b0c44298fc1c14",
+      "hmacKey": "98f2a1d7c4e0b365"
+    },
+    "signatureValid": true
+  },
+  "outcome": {
+    "record": {
+      "v": 1,
+      "type": "outcome",
+      "id": "request-5",
+      "time": "2026-11-16T09:57:03Z",
+      "result": "upstream_error",
+      "status": 502,
+      "usage": null,
+      "cost": { "amount": "0", "currency": "USD" },
+      "nanos": 3000000000,
+      "responseHmac": "5d4c3b2a1908f7e6d5c4b3a291807f6e5d4c3b2a1908f7e6d5c4b3a291807f6e"
+    },
+    "sealed": true,
+    "proof": {
+      "index": 1,
+      "size": 2,
+      "encoding": "kgTSKYqnj+vRyD5J/C3Z7uQF7K6f/xP8",
+      "leafHash": "e939e865251538fea90134a80dafb920fa7ec091fb9f2460b35f74959fd67fe9",
+      "path": [
+        "d99f44a9ad125b2faaf0524e49b46bb5b9adc21e00f1044b9035b44b7997a103"
+      ],
+      "root": "69b84eb5f09486bbe2e353d918a5387aa80c7da44561730f086cd8ab17a201f5"
+    },
+    "seal": {
+      "batch": 5,
+      "records": 2,
+      "time": "2026-11-16T09:57:04Z",
+      "root": "69b84eb5f09486bbe2e353d918a5387aa80c7da44561730f086cd8ab17a201f5",
+      "previous": "087488b9fe80236f80e48b029a1b678a3b9c86956a0566a0f474ca6e996f23f7",
+      "key": "e3b0c44298fc1c14",
+      "hmacKey": "98f2a1d7c4e0b365"
+    },
+    "signatureValid": true
+  }
+}

@@ -1,0 +1,24 @@
+.list {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.tab {
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-item);
+  color: var(--text-muted);
+  font-size: var(--size-cell);
+  font-weight: 500;
+  transition: background var(--motion-control), color var(--motion-control);
+}
+
+.selected {
+  background: var(--surface-raised);
+  color: var(--text);
+}

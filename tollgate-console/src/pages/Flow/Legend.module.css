@@ -1,0 +1,38 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  list-style: none;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-item);
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend line {
+  stroke-width: 2;
+}
+
+.sent {
+  stroke: var(--ok);
+  stroke-dasharray: 5 3;
+}
+
+.fallback {
+  stroke: var(--accent);
+  stroke-dasharray: 2 3;
+}
+
+.refused {
+  stroke: var(--danger);
+  stroke-dasharray: 5 3;
+}

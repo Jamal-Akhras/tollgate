@@ -1,0 +1,6 @@
+.card {
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-item);
+}

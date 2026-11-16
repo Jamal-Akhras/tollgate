@@ -1,0 +1,17 @@
+{
+  "intact": true,
+  "records": 2,
+  "batches": 1,
+  "failures": [],
+  "warnings": [],
+  "lastSeal": {
+    "batch": 1,
+    "records": 2,
+    "time": "2026-11-16T09:59:00Z",
+    "root": "3de0c6d1959ece558ec030f37292e383a9c95f497e8235b89701b914be9bd1fb",
+    "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+    "key": "e3b0c44298fc1c14",
+    "hmacKey": "98f2a1d7c4e0b365"
+  },
+  "millis": 3
+}

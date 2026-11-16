@@ -1,0 +1,41 @@
+.badge {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-button);
+  font-size: var(--size-detail);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.enforce {
+  color: var(--ok);
+}
+
+.monitor {
+  color: var(--info);
+}
+
+.refused {
+  color: var(--danger-text);
+}
+
+.fallback {
+  color: var(--accent);
+}
+
+.dry {
+  color: var(--text-muted);
+}
+
+.sent {
+  color: var(--ok);
+}
+
+.waiting {
+  color: var(--text-muted);
+}
+
+.failed {
+  color: var(--danger-text);
+}
