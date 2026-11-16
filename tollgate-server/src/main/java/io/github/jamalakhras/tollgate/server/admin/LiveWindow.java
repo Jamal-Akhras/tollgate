@@ -307,7 +307,7 @@ final class LiveWindow {
         return new TreeMap<>(Comparator.comparing(Currency::getCurrencyCode));
     }
 
-    private static SealView sealView(Seal seal) {
+    static SealView sealView(Seal seal) {
         return new SealView(
                 seal.batch(), seal.records(), seal.time(), seal.root(), seal.previous(), seal.key(), seal.hmacKey());
     }

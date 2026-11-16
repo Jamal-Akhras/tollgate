@@ -26,6 +26,9 @@
     "description" : "The configuration this instance is running",
     "name" : "Config"
   }, {
+    "description" : "The signed audit trail and its sealed batches",
+    "name" : "Audit"
+  }, {
     "description" : "About this running instance",
     "name" : "Instance"
   }, {
@@ -85,6 +88,150 @@
         },
         "summary" : "List the latest calls",
         "tags" : [ "Live" ]
+      }
+    },
+    "/admin/v1/audit" : {
+      "get" : {
+        "description" : "The audit mode, the public key the server verifies with and its ID, the number of trail files and the last sealed batch.",
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AuditStatus"
+                }
+              }
+            },
+            "description" : "The state of the trail"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off"
+          }
+        },
+        "summary" : "Show the state of the audit trail",
+        "tags" : [ "Audit" ]
+      }
+    },
+    "/admin/v1/audit/batches" : {
+      "get" : {
+        "description" : "The most recent sealed batches, newest first, read from the end of the trail.",
+        "operationId" : "batches",
+        "parameters" : [ {
+          "description" : "How many batches to return, from 1 to 200",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BatchView"
+                  }
+                }
+              }
+            },
+            "description" : "The batches"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "limit is not between 1 and 200"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off"
+          }
+        },
+        "summary" : "List the latest sealed batches",
+        "tags" : [ "Audit" ]
+      }
+    },
+    "/admin/v1/audit/batches/{batch}" : {
+      "get" : {
+        "description" : "The batch's seal and signature, whether the signature and the root check out, and its records' leaf hashes in order. An old batch is found by reading the trail, one such read at a time.",
+        "operationId" : "batch",
+        "parameters" : [ {
+          "description" : "The batch number",
+          "in" : "path",
+          "name" : "batch",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BatchDetail"
+                }
+              }
+            },
+            "description" : "The batch"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No such batch in the trail"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Another long read of the trail is running; retry after the Retry-After seconds"
+          }
+        },
+        "summary" : "Show one sealed batch",
+        "tags" : [ "Audit" ]
       }
     },
     "/admin/v1/budgets" : {
@@ -347,6 +494,27 @@
           }
         }
       },
+      "AuditStatus" : {
+        "type" : "object",
+        "properties" : {
+          "files" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "keyId" : {
+            "type" : "string"
+          },
+          "lastSeal" : {
+            "$ref" : "#/components/schemas/SealView"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "publicKey" : {
+            "type" : "string"
+          }
+        }
+      },
       "AuditView" : {
         "type" : "object",
         "properties" : {
@@ -355,6 +523,43 @@
           },
           "publicKey" : {
             "type" : "string"
+          }
+        }
+      },
+      "BatchDetail" : {
+        "type" : "object",
+        "properties" : {
+          "file" : {
+            "type" : "string"
+          },
+          "leaves" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LeafView"
+            }
+          },
+          "rootMatches" : {
+            "type" : "boolean"
+          },
+          "seal" : {
+            "$ref" : "#/components/schemas/SealView"
+          },
+          "signature" : {
+            "type" : "string"
+          },
+          "signatureValid" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "BatchView" : {
+        "type" : "object",
+        "properties" : {
+          "file" : {
+            "type" : "string"
+          },
+          "seal" : {
+            "$ref" : "#/components/schemas/SealView"
           }
         }
       },
@@ -700,6 +905,28 @@
             "type" : "string"
           },
           "tenant" : {
+            "type" : "string"
+          }
+        }
+      },
+      "LeafView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "index" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "leafHash" : {
+            "type" : "string"
+          },
+          "time" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "type" : {
             "type" : "string"
           }
         }
