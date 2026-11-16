@@ -55,6 +55,8 @@ final class LiveWindow {
     private Instant latest;
     private @Nullable Instant skippedAt;
     private @Nullable Seal lastSeal;
+    private static final BucketData EMPTY_BUCKET = new BucketData();
+
     private final TreeMap<Long, BucketData> buckets = new TreeMap<>();
     private final TreeMap<Long, Map<FlowKey, FlowData>> flows = new TreeMap<>();
     private final TreeMap<Long, Map<GuardKey, GuardData>> guards = new TreeMap<>();
@@ -85,7 +87,7 @@ final class LiveWindow {
         List<Bucket> bucketViews = new ArrayList<>();
         long[] recent = new long[STEPS];
         for (long start = firstStart; start <= lastStart; start += BUCKET_SECONDS) {
-            BucketData data = buckets.getOrDefault(start, new BucketData());
+            BucketData data = buckets.getOrDefault(start, EMPTY_BUCKET);
             bucketViews.add(data.view(start));
             if (start + BUCKET_SECONDS > nowSeconds - 300) {
                 for (int i = 0; i < STEPS; i++) {

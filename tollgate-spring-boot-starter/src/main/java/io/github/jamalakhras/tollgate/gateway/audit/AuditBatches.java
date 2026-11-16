@@ -18,6 +18,7 @@ public final class AuditBatches {
 
     static final int WINDOW = 8 << 20;
     private static final int STEP = 4 << 20;
+    private static final int FIRST_SPAN = 256 << 10;
 
     private AuditBatches() {}
 
@@ -32,6 +33,10 @@ public final class AuditBatches {
     }
 
     static List<Batch> recent(Path directory, int limit, int window) throws IOException {
+        return recent(directory, limit, window, FIRST_SPAN);
+    }
+
+    static List<Batch> recent(Path directory, int limit, int window, int firstSpan) throws IOException {
         List<Batch> found = new ArrayList<>();
         long left = window;
         for (Path file : AuditDirectory.files(directory).reversed()) {
@@ -39,11 +44,20 @@ public final class AuditBatches {
                 break;
             }
             long size = Files.size(file);
-            long from = Math.max(0, size - left);
-            left -= size - from;
-            Pass pass = new Pass(file, batch -> true);
-            pass.read(from, () -> false);
-            found.addAll(pass.batches.reversed());
+            long allowed = Math.min(size, left);
+            left -= allowed;
+            long span = Math.min(allowed, Math.max(1, firstSpan));
+            List<Batch> read;
+            while (true) {
+                Pass pass = new Pass(file, batch -> true);
+                pass.read(size - span, () -> false);
+                read = pass.batches.reversed();
+                if (found.size() + read.size() >= limit || span == allowed) {
+                    break;
+                }
+                span = Math.min(allowed, span * 2);
+            }
+            found.addAll(read);
         }
         return List.copyOf(found.subList(0, Math.min(limit, found.size())));
     }

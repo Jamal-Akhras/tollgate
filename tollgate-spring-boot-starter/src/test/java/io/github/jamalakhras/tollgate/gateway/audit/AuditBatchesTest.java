@@ -101,6 +101,34 @@ class AuditBatchesTest {
     }
 
     @Test
+    void growsWhatItReadsUntilTheLimitIsMet() throws IOException {
+        for (int limit = 1; limit <= 5; limit++) {
+            List<Long> whole = numbers(AuditBatches.recent(trail, limit));
+
+            assertThat(numbers(AuditBatches.recent(trail, limit, AuditBatches.WINDOW, 1)))
+                    .isEqualTo(whole);
+            assertThat(numbers(AuditBatches.recent(trail, limit, AuditBatches.WINDOW, 300)))
+                    .isEqualTo(whole);
+        }
+    }
+
+    @Test
+    void findsTheNewestBatchAtTheEndOfALargeFile() throws Exception {
+        try (AuditLog log = open(other)) {
+            log.append(Samples.intent("old"));
+        }
+        Path file = AuditDirectory.files(other).getFirst();
+        List<String> batch = Files.readAllLines(file);
+        Files.writeString(file, ("x".repeat(1023) + "\n").repeat(6_000));
+        append(file, String.join("\n", batch) + "\n");
+
+        List<AuditBatches.Batch> found = AuditBatches.recent(other, 1);
+
+        assertThat(numbers(found)).containsExactly(1L);
+        assertSealed(found.getFirst());
+    }
+
+    @Test
     void listsNothingForAnEmptyDirectory() throws IOException {
         assertThat(AuditBatches.recent(other, 10)).isEmpty();
     }
