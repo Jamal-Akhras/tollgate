@@ -1,6 +1,6 @@
 # Tollgate design
 
-Status: describes 0.1.0. What is decided but not built yet sits under
+Status: describes 0.1.0 and the console built for 0.2.0. What is decided but not built yet sits under
 "Planned" in each section. Decisions with lasting consequences are recorded in
 [`docs/adr`](adr/).
 
@@ -47,7 +47,8 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 | `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
 | `tollgate-providers` | Provider wire formats on the JDK HTTP client: OpenAI (also used by any OpenAI-compatible server, such as Ollama, vLLM, LM Studio or Gemini's compatible endpoint) and Anthropic. |
 | `tollgate-spring-boot-starter` | The gateway as Spring Boot 4.1 auto-configuration on Spring MVC, Java 21: the endpoints, the request pipeline, budgets, the audit sink and the metrics ([ADR 0021](adr/0021-spring-boot-starter.md)). |
-| `tollgate-server` | Standalone server on the starter: the admin API on its own port, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
+| `tollgate-console` | The console: a TypeScript and Preact app built by Vite into static files in a jar, with its own unit tests ([ADR 0025](adr/0025-console-as-a-static-app.md)). Only the server depends on it. |
+| `tollgate-server` | Standalone server on the starter: the admin API on its own port, the console, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
 
 Commands ship inside the server jar, so the one download does both:
 `init`, `keys create --tenant <name>`, `audit keys create`, `audit verify`,
@@ -61,11 +62,11 @@ audience:
 | Port (default) | Serves | Audience |
 |---|---|---|
 | 8080 | Gateway API | Applications |
-| 8081 | Admin API and its OpenAPI document | Operators, on a private network. Bound to `127.0.0.1` unless `tollgate.admin.address` says otherwise |
+| 8081 | Admin API, its OpenAPI document and the console at `/console/` | Operators, on a private network. Bound to `127.0.0.1` unless `tollgate.admin.address` says otherwise |
 | 9090 | Health probes and metrics | Orchestrators and scrapers |
 
-Admin routes answer only on the admin port and gateway routes only off it;
-anything else is a 404. The check runs on the decoded, normalized path the
+Admin routes and the console answer only on the admin port and gateway routes
+only off it; anything else is a 404. The check runs on the decoded, normalized path the
 handlers are matched against, so encoded or dot-segment variants cannot reach
 an admin handler from the gateway port.
 
@@ -73,7 +74,6 @@ an admin handler from the gateway port.
 
 | Module | Purpose |
 |---|---|
-| `tollgate-studio` | Admin UI on the admin port, server-rendered with JTE and htmx ([ADR 0004](adr/0004-studio-and-admin-api.md)) |
 | `tollgate-testkit` | Conformance suites for custom guards and provider adapters |
 
 Modules are added when they gain code.
@@ -220,7 +220,22 @@ audit:                             # required; 'mode: off' must be written out
   `tollgate keys create` prints a new key once, with the line to add.
 - **Reloads** validate the new config and swap it in atomically, through
   `POST /admin/v1/config/reload`. An invalid config never replaces a running
-  one, and each decision records the config version that made it.
+  one, and each decision records the config version that made it. A reload
+  that changes a tenant's budget period, or gives it its first budget, sums
+  the audit trail again for that tenant, so its spend is not lost.
+- **Edits through the admin API** are off unless `TOLLGATE_ADMIN_EDITS=file`
+  ([ADR 0029](adr/0029-config-in-the-console.md)). Four routes change the file:
+  a guard's mode, a tenant's budget, create a key and revoke a key. A write
+  reads the file, changes the document, validates it as a reload does, writes
+  it beside the original, moves it into place atomically and swaps the
+  running config, under the reload's lock. It needs `If-Match` with the
+  running config version: `428` without it, `412` if the version or the file
+  is not the running one. The file is rewritten in a fixed layout and its
+  comments are not kept; the first write saves the hand-written file as
+  `tollgate.yaml.original`. Every version that ran, at startup, on reload and
+  on write, is kept in `config-history/<version>.yaml` next to the file, so
+  the version named in an audit record can be looked up. With edits on and a
+  file or folder that can't be written, the server doesn't start.
 
 ### Planned
 
@@ -327,6 +342,13 @@ settle exactly too.
   is called, group-committed), or asynchronous (batched). If the intent record
   cannot be written, the request is refused.
 
+- **Proofs:** the admin API lists sealed batches, shows one batch's leaves,
+  returns a request's records with an inclusion proof (the RFC 6962 audit
+  path) and verifies the whole trail. The console checks a proof in the
+  browser with SHA-256 alone. The server verifies with the public key in its
+  own config, so the console shows that key to compare with a copy kept
+  elsewhere ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)).
+
 The record format, the hashing and the failure rules are in
 [ADR 0007](adr/0007-audit-trail.md).
 
@@ -336,6 +358,7 @@ The record format, the hashing and the failure rules are in
   tenant, so deleting the key makes that tenant's content unreadable without
   breaking the chain.
 - **Performance for each durability mode,** in the first performance report.
+- **`tollgate audit prove <id>`,** a command for what the proofs route does.
 
 ## 10. Streaming
 
@@ -351,36 +374,80 @@ The record format, the hashing and the failure rules are in
 - **Output guards on streams,** with a hold-back window, and strict policies
   that buffer the whole response.
 
-## 11. Policy Studio (planned)
+## 11. Console
 
-A small admin UI on the admin port, decided in
-[ADR 0004](adr/0004-studio-and-admin-api.md) and not built yet.
+A web console on the admin port, at `/console/`. It replaces the Studio of
+[ADR 0004](adr/0004-studio-and-admin-api.md): it is a static app, not server
+rendered ([ADR 0025](adr/0025-console-as-a-static-app.md)). It is one client of
+the admin API, and every number on screen comes from a route in
+[`docs/api/admin-openapi.json`](api/admin-openapi.json), which is checked
+against the code in CI, so other tools can build on the same contract.
+`TOLLGATE_CONSOLE_ENABLED=false` removes it; the admin API stays.
 
-- Tenants and keys: create, rotate, revoke; a new key is shown once.
-- Guards: reorder, switch between enforce and shadow, pick redaction entities.
-- Budgets and limits, previewed in plain terms ("about N calls per day").
-- **Simulator:** paste a request and step through its decision trace.
-- Live view: blocks, spend per tenant, and what shadow rules would have done.
+What is built:
 
-Two modes: **GitOps**, where configuration lives in Git and Studio is read-only
-plus the simulator, exporting changes as YAML diffs; and **managed**, where
-configuration is versioned in Postgres with maker-checker approval, diffs and
-rollback. Sign-in uses OIDC with viewer, editor and approver roles.
+- **Pages:** Flow, Activity, Metrics, Usage, Audit and Config. Flow draws
+  tenants, their rules and providers, with lines that move while calls flow. A
+  top-bar switch redraws it as it would be without Tollgate; it is a labelled
+  preview and changes nothing. Dark and light themes, system fonts.
+- **Sign-in:** the admin token, typed on the first screen and kept in the
+  tab's `sessionStorage`. There is no cookie and no session, so a page from
+  another site can't act for you
+  ([ADR 0026](adr/0026-console-sign-in.md)).
+- **Live numbers:** one background thread follows the newest audit file,
+  at most 4 MB a pass, and keeps an hour of 5-second totals, 15 minutes of
+  per-tenant, model, provider and guard counts, and the 200 latest calls. It
+  is not on the request path, and the console polls it through
+  `GET /admin/v1/live` and `/admin/v1/activity`. History comes from the usage
+  report ([ADR 0027](adr/0027-live-data-for-the-console.md)).
+- **Audit:** the chain of sealed batches, a batch drawn as its Merkle tree,
+  a request's proof checked in the browser step by step, and a button that
+  verifies the whole trail. Without WebCrypto, which browsers allow only on
+  `localhost` or HTTPS, the console shows the server's result and says it
+  couldn't check.
+- **Edits:** four, each its own route and each asked about first with the lines
+  of YAML that change: a guard between enforce and monitor, a tenant's budget,
+  create a key (shown once) and revoke a key. They are on only when
+  `TOLLGATE_ADMIN_EDITS=file`, which `tollgate init` writes into
+  `tollgate.env`. With edits off the console shows the YAML to write, and
+  Reload ([ADR 0029](adr/0029-config-in-the-console.md)).
+- **Headers:** a strict Content-Security-Policy with no inline script or
+  style, `nosniff`, no referrer and `same-origin` for the opener. The console
+  loads nothing from another host.
 
-Studio will be one client of the admin API. The API's OpenAPI contract is
-already published in [`docs/api/admin-openapi.json`](api/admin-openapi.json)
-and checked against the code in CI, so other tools can build on it today.
+### Planned
+
+- **The viewer token,** after 0.2.0: it sees everything, may verify the trail
+  and look up proofs, and changes nothing. `GET /admin/v1/session` says which
+  role a caller has.
+- **Pause a tenant,** after 0.2.0: `paused: true` under a tenant refuses its
+  new calls with `403` `tenant_paused`; calls running finish
+  ([ADR 0030](adr/0030-pause-a-tenant.md)).
+- **More edits,** each its own route: guard settings, rate limits, a tenant's
+  models and policy, tenants, policies, providers and models, rotating a key.
+- **Managed mode on Postgres,** with maker-checker approval, diffs and
+  rollback. The history folder holds what a rollback would need. Sign-in uses
+  OIDC with viewer, editor and approver roles. A record of config changes in
+  the audit trail comes with it.
+- **TLS on the admin port,** so the console can hash proofs in the browser
+  from another machine.
+- **A simulator:** paste a request and step through its decision trace.
+- **`tollgate audit prove <id>`.**
+- **Browser tests in CI,** and Dependabot and CodeQL for the npm packages.
+
+Teams that keep `tollgate.yaml` in Git leave edits off. That is the GitOps
+mode, and it loses nothing.
 
 ## 12. Quality bar
 
 | Area | Practice |
 |---|---|
 | Correctness | Immutable records, sealed result types, no `null` in public interfaces (NullAway at compile time), injected clock |
-| Static analysis | Error Prone and NullAway in every compile; `-Xlint:all -Werror`; CodeQL |
+| Static analysis | Error Prone and NullAway in every compile; `-Xlint:all -Werror`; CodeQL; strict TypeScript in the console |
 | Formatting | Spotless with palantir-java-format, checked in CI |
-| Tests | JUnit, jqwik property tests against reference implementations, a fake provider for HTTP-level tests, recorded agent-client sessions, ArchUnit module rules |
+| Tests | JUnit, jqwik property tests against reference implementations, a fake provider for HTTP-level tests, recorded agent-client sessions, ArchUnit module rules; Vitest unit and render tests for the console, run by `mvnw verify`, with a test that greps for inline styles, injected HTML, stray `fetch` calls and colours outside the tokens |
 | Coverage | JaCoCo floors per module; PIT mutation testing on core |
-| Supply chain | Actions pinned to commits, Dependabot, CycloneDX SBOM, build provenance attested for each image, OpenSSF Scorecard |
+| Supply chain | Actions pinned to commits, Dependabot, CycloneDX SBOM, build provenance attested for each image, OpenSSF Scorecard; the console builds with a pinned Node whose checksum is checked, a committed lockfile and `npm ci --ignore-scripts`, and its first load must stay under 80 kB gzipped |
 | Observability | OpenTelemetry traces (GenAI conventions, still at development status), Micrometer metrics for Prometheus, a Grafana dashboard |
 | Deployment | Distroless image |
 
@@ -389,10 +456,10 @@ and checked against the code in CI, so other tools can build on it today.
 | Area | Practice |
 |---|---|
 | Correctness | Idempotency keys on admin writes |
-| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection |
+| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection; browser tests of the console (Playwright) that fail on any Content-Security-Policy violation |
 | Performance | JMH microbenchmarks for hot paths and Gatling load tests, published in 0.1.1; regression thresholds and JFR allocation profiling |
 | Compatibility | japicmp on the extension interfaces from the first release |
-| Supply chain | Signed images |
+| Supply chain | Signed images; Dependabot and CodeQL for the console's npm packages |
 | Observability | JSON logs with redaction |
 | Deployment | Helm chart, Terraform example |
 
@@ -406,8 +473,9 @@ with hardware details for every audit mode.
 |---|---|
 | **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code and Open WebUI through the review; a Docker image; `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on Maven Central |
 | **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
+| **0.2.0** | The console at `/console/` on the admin port ([ADR 0025](adr/0025-console-as-a-static-app.md), [ADR 0026](adr/0026-console-sign-in.md)): flow, activity, metrics, usage, audit and config pages; live numbers read from the audit trail ([ADR 0027](adr/0027-live-data-for-the-console.md)); the audit trail's batches, trees and a request's proof checked in the browser ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)); four edits when `TOLLGATE_ADMIN_EDITS=file`: a guard's mode, a tenant's budget, create a key and revoke a key, with the config's versions kept ([ADR 0029](adr/0029-config-in-the-console.md)); a budget's spend counted again when its period changes |
 | **Next** | The Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
-| **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; Policy Studio ([ADR 0004](adr/0004-studio-and-admin-api.md)); cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |
+| **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; the console's viewer token ([ADR 0026](adr/0026-console-sign-in.md)), pausing a tenant ([ADR 0030](adr/0030-pause-a-tenant.md)), more edits and managed mode with approvals and rollback, and TLS on the admin port; cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |
 
 ## 14. Risks
 

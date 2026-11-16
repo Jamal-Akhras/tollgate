@@ -1,6 +1,8 @@
 # ADR 0004: An API-first admin surface with a server-rendered Studio
 
-Date: 2026-10-29 · Status: Accepted
+Date: 2026-10-29 · Status: Accepted, amended by
+[ADR 0025](0025-console-as-a-static-app.md) and
+[ADR 0029](0029-config-in-the-console.md)
 
 ## Context
 

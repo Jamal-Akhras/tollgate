@@ -199,6 +199,80 @@ traffic.
 - `scripts/record-shapes.py`, which relays a client's calls and records their
   shape without their content, for reviewing new clients.
 
+#### The console
+
+- A console at `/console/` on the admin port
+  ([ADR 0025](docs/adr/0025-console-as-a-static-app.md)): a static app in
+  TypeScript and Preact, built into the server jar by the Maven build with a
+  pinned Node, so nobody installs Node by hand. `GET /` on the admin port
+  redirects to it. It has six pages: Flow, Activity, Metrics, Usage, Audit and
+  Config. `TOLLGATE_CONSOLE_ENABLED=false` removes it.
+  - **Served strictly:** every console response carries a
+    Content-Security-Policy that allows only its own files, `nosniff`,
+    `Referrer-Policy: no-referrer` and `Cross-Origin-Opener-Policy:
+    same-origin`. Nothing is loaded from another host, and the build fails if
+    the first load goes over 80 kB gzipped.
+  - **Sign-in:** the console asks for the admin token and keeps it in the
+    tab's `sessionStorage`. There is no cookie
+    ([ADR 0026](docs/adr/0026-console-sign-in.md)).
+  - **Dark and light themes,** with system fonts.
+  - **A preview switch** in the top bar redraws the flow page as it would be
+    without Tollgate. It changes nothing.
+- Live numbers without Prometheus
+  ([ADR 0027](docs/adr/0027-live-data-for-the-console.md)). One background
+  reader follows the audit trail's newest file, off the request path, and
+  `GET /admin/v1/live` and `GET /admin/v1/activity` answer from what it keeps:
+  an hour of 5-second totals, 15 minutes of counts for each tenant, model,
+  provider and guard, and the latest 200 calls. Both answer `409` `audit_off`
+  with the trail off.
+- The audit trail through the admin API
+  ([ADR 0028](docs/adr/0028-audit-trail-through-the-admin-api.md)):
+  `GET /admin/v1/audit`, `/audit/batches`, `/audit/batches/{batch}`,
+  `/audit/records/{id}` and `/audit/verification`. `tollgate-core` gains
+  RFC 6962 inclusion proofs. The console draws batches and a batch's tree, and
+  checks a request's proof in the browser; over plain HTTP from another
+  machine the browser can't hash, so it shows the server's result and says so.
+  Long reads run one at a time and answer `429` `audit_busy` otherwise.
+- `GET /admin/v1/config` shows the running config, without key hashes and
+  detector terms, and whether edits are on.
+- Four edits through the admin API and the console
+  ([ADR 0029](docs/adr/0029-config-in-the-console.md)), off unless
+  `TOLLGATE_ADMIN_EDITS=file`: a guard between `enforce` and `monitor`
+  (`PUT /admin/v1/policies/{policy}/guards/{index}/mode`), a tenant's budget
+  (`PUT /admin/v1/tenants/{tenant}/budget`), a new key shown once
+  (`POST /admin/v1/tenants/{tenant}/keys`) and revoking a key
+  (`DELETE /admin/v1/keys/{id}`).
+  - **Writes:** each needs `If-Match` with the config version (`428` without
+    it, `412` if the version or the file has moved), validates the new file as
+    a reload does and swaps it in atomically. The file is rewritten in a fixed
+    layout and its comments are not kept; the first write saves the original
+    as `tollgate.yaml.original`.
+  - **History:** every version that ran is kept in `config-history/`.
+  - **Startup:** with edits on and a file or folder that can't be written, the
+    server stops and says which path.
+  - **Asking first:** the console shows the lines of YAML that change and
+    asks, and warns when a change widens what can happen.
+  - **Off:** with edits off the routes answer `409` `edits_off`, and the
+    console shows the YAML to write, with Reload.
+
+### Changed
+
+- `tollgate init` writes `TOLLGATE_ADMIN_EDITS=file` into `tollgate.env`, so
+  the console's edits work in the quickstart. Remove the line to keep the file
+  read-only.
+- The Docker quickstart mounts the working folder, as you, instead of one
+  read-only file, so the console can replace `tollgate.yaml` and keep
+  `config-history/`. The systemd example says to drop the line, or to keep the
+  config where the service can write.
+- The admin API's browser note: a web page can't send the token on its own.
+  The console sends it from its own code, from the tab's `sessionStorage`.
+
+### Fixed
+
+- A budget's spend is counted again from the audit trail when a reload changes
+  its period or gives a tenant its first budget. Before, changing the period
+  set the spend to zero until the next restart.
+
 ### Security
 
 - Requests are checked against an allowlist before they are forwarded, and the

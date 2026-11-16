@@ -32,6 +32,33 @@ You need JDK 25. Everything else comes through the Maven Wrapper.
 Core changes should also pass mutation testing:
 `./mvnw -pl tollgate-core -Pmutation verify`.
 
+## The console
+
+The console is in `tollgate-console` (TypeScript and Preact, built by Vite).
+`./mvnw verify` builds it with a pinned Node, so you don't need Node for that.
+To work on it you need Node 24, and its checks take seconds:
+
+```bash
+npm --prefix tollgate-console ci --ignore-scripts
+npm --prefix tollgate-console run check   # type-check and unit tests
+npm --prefix tollgate-console run build   # the files, and the first-load size limit
+```
+
+- **TypeScript is strict.** No `any`, no `@ts-ignore`.
+- **The console ships three packages:** `preact`, `@preact/signals` and `uplot`.
+  A new runtime package needs an amendment to
+  [ADR 0025](docs/adr/0025-console-as-a-static-app.md). Build-time packages
+  need a reason in the commit.
+- **The strict policy is a test** (`src/rules.test.ts`). Never use
+  `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `new Function` or a `style="…"`
+  string. Colours and sizes come from `styles/tokens.css`. Every request goes
+  through `api/client.ts`, and only `state/session.ts` touches the token.
+- **Text from the API is rendered as text.**
+- **The first load stays under 80 kB gzipped,** or the build fails.
+- **Pages are tested against typed fixtures** in `src/api/fixtures`, which have
+  the shape of the admin API's answers. A route change updates the contract
+  and the fixtures together.
+
 ## Code guidelines
 
 - `tollgate-core` depends only on the JDK and JSpecify; an architecture test

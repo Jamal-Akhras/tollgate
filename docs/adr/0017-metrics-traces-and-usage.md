@@ -1,7 +1,8 @@
 # ADR 0017: Metrics, traces and a usage report
 
 Date: 2026-11-10 · Status: Accepted, amended by
-[ADR 0023](0023-attribute-calls-to-a-user.md)
+[ADR 0023](0023-attribute-calls-to-a-user.md) and
+[ADR 0027](0027-live-data-for-the-console.md)
 
 ## Context
 
