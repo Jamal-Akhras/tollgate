@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { infoFixture } from '../api/fixtures';
+import { configFixture, infoFixture } from '../api/fixtures';
 import { signedIn, signInWith } from '../api/client';
 
 const send = vi.fn();
@@ -16,7 +16,11 @@ beforeEach(async () => {
   width = 1400;
   localStorage.clear();
   send.mockReset();
-  send.mockImplementation(() => Promise.resolve(new Response(JSON.stringify(infoFixture))));
+  send.mockImplementation((path: string) =>
+    Promise.resolve(
+      new Response(JSON.stringify(path.endsWith('/config') ? configFixture : infoFixture)),
+    ),
+  );
   vi.stubGlobal('fetch', send);
   vi.stubGlobal('matchMedia', (query: string) => ({
     get matches() {

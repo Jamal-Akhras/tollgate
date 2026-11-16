@@ -1,0 +1,26 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  font-size: var(--size-cell);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+}
+
+.button {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-4);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

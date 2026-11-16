@@ -1,4 +1,5 @@
 import { signedIn } from './api/client';
+import { Config } from './pages/Config/Config';
 import { SignIn } from './pages/SignIn/SignIn';
 import { route, type RouteName } from './router';
 import { Shell } from './ui/Shell';
@@ -20,8 +21,6 @@ export function App() {
     return <SignIn />;
   }
   return (
-    <Shell>
-      <h1>{titles[route.value.name]}</h1>
-    </Shell>
+    <Shell>{route.value.name === 'config' ? <Config /> : <h1>{titles[route.value.name]}</h1>}</Shell>
   );
 }
