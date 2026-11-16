@@ -496,6 +496,129 @@
         "tags" : [ "Live" ]
       }
     },
+    "/admin/v1/policies/{policy}/guards/{index}/mode" : {
+      "put" : {
+        "description" : "Rewrites tollgate.yaml and swaps the new configuration in. The guard is named by its policy and its position under guards, from 0, as GET /admin/v1/config lists them. Needs If-Match with the config version, and TOLLGATE_ADMIN_EDITS=file. Asking for the mode the guard already has writes nothing.",
+        "operationId" : "guardMode",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "policy",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "index",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "in" : "header",
+          "name" : "If-Match",
+          "required" : false,
+          "schema" : {
+            "type" : [ "string", "null" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GuardMode"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfigChange"
+                }
+              }
+            },
+            "description" : "The version now running, and whether the file changed"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The body or the mode is not valid"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No such policy or guard"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Edits are off, or the change needs a restart"
+          },
+          "412" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is not the running version, or the file is no longer the running one"
+          },
+          "422" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The changed file is not a valid configuration"
+          },
+          "428" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "If-Match is missing"
+          },
+          "500" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The file could not be written; nothing changed"
+          }
+        },
+        "summary" : "Switch a guard between enforce and monitor",
+        "tags" : [ "Configuration" ]
+      }
+    },
     "/admin/v1/usage" : {
       "get" : {
         "description" : "Counts calls, refusals, tokens and cost from the signed audit trail, by the day each request arrived in UTC. Each provider attempt is a call, so a request that fell back to another model counts twice. Dry runs are not counted.",
@@ -831,6 +954,24 @@
           }
         }
       },
+      "ConfigChange" : {
+        "type" : "object",
+        "properties" : {
+          "changed" : {
+            "type" : "boolean",
+            "description" : "False when the config already said this; nothing was written"
+          },
+          "previous" : {
+            "type" : "string",
+            "description" : "The version the edit was made against"
+          },
+          "version" : {
+            "type" : "string",
+            "description" : "SHA-256 of the configuration now running"
+          }
+        },
+        "required" : [ "changed", "previous", "version" ]
+      },
       "ConfigView" : {
         "type" : "object",
         "properties" : {
@@ -973,6 +1114,16 @@
             "type" : "string"
           }
         }
+      },
+      "GuardMode" : {
+        "type" : "object",
+        "properties" : {
+          "mode" : {
+            "type" : "string",
+            "enum" : [ "enforce", "monitor" ]
+          }
+        },
+        "required" : [ "mode" ]
       },
       "GuardView" : {
         "type" : "object",

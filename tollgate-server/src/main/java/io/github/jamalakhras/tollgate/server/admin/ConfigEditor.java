@@ -76,10 +76,7 @@ class ConfigEditor {
         if (ifMatch == null || ifMatch.isBlank()) {
             throw new NoVersion();
         }
-        String version = ifMatch.strip();
-        if (version.length() >= 2 && version.startsWith("\"") && version.endsWith("\"")) {
-            version = version.substring(1, version.length() - 1);
-        }
+        String version = unquoted(ifMatch);
         Gateway.Reload reload = gateway.edit(version, operations);
         if (reload.changed()) {
             ManagedWrite write = new ManagedWrite(
@@ -93,6 +90,14 @@ class ConfigEditor {
             log.info(write.line());
         }
         return reload;
+    }
+
+    static String unquoted(String ifMatch) {
+        String version = ifMatch.strip();
+        if (version.length() >= 2 && version.startsWith("\"") && version.endsWith("\"")) {
+            return version.substring(1, version.length() - 1);
+        }
+        return version;
     }
 
     record Operation(String name, String path) {}

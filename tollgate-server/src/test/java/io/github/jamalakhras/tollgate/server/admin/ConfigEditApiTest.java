@@ -13,22 +13,30 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = "management.server.port=0")
 class ConfigEditApiTest {
 
+    @LocalServerPort
+    private int port;
+
     private static final int ADMIN_PORT = TestPorts.free();
     private static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0004";
     private static final Path FOLDER = temporaryFolder();
     private static final Path CONFIG = FOLDER.resolve("tollgate.yaml");
     private static final String TEXT = handWritten();
+    private static final Pattern VERSION = Pattern.compile("\"version\":\"([0-9a-f]{64})\"");
+    private static final String GUARD_1 = "/admin/v1/policies/default/guards/1";
 
     @DynamicPropertySource
     static void server(DynamicPropertyRegistry registry) {
@@ -97,14 +105,44 @@ class ConfigEditApiTest {
     }
 
     private static HttpResponse<String> send(String method, String path) throws IOException, InterruptedException {
+        return call(ADMIN_PORT, method, path, "", "Authorization", "Bearer " + ADMIN_TOKEN);
+    }
+
+    private static HttpResponse<String> call(int port, String method, String path, String body, String... headers)
+            throws IOException, InterruptedException {
         try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + path))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .method(method, HttpRequest.BodyPublishers.noBody())
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
+            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+                    .method(method, HttpRequest.BodyPublishers.ofString(body));
+            if (headers.length > 0) {
+                request.headers(headers);
+            }
+            return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
         }
+    }
+
+    private static String version() throws IOException, InterruptedException {
+        Matcher matcher = VERSION.matcher(send("GET", "/admin/v1/config").body());
+        assertThat(matcher.find()).isTrue();
+        return matcher.group(1);
+    }
+
+    private static HttpResponse<String> put(String path, String body, String ifMatch)
+            throws IOException, InterruptedException {
+        return call(
+                ADMIN_PORT,
+                "PUT",
+                path,
+                body,
+                "Authorization",
+                "Bearer " + ADMIN_TOKEN,
+                "Content-Type",
+                "application/json",
+                "If-Match",
+                ifMatch);
+    }
+
+    private static HttpResponse<String> putMode(String mode) throws IOException, InterruptedException {
+        return put(GUARD_1 + "/mode", "{\"mode\":\"" + mode + "\"}", "\"" + version() + "\"");
     }
 
     private static long versionsKept() throws IOException {
@@ -119,6 +157,124 @@ class ConfigEditApiTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"edits\":\"managed\",\"rewritten\":false");
+    }
+
+    @Test
+    void switchesAGuardToMonitorAndBack() throws Exception {
+        String started = version();
+
+        HttpResponse<String> monitored = putMode("monitor");
+
+        assertThat(monitored.statusCode()).isEqualTo(200);
+        assertThat(monitored.body())
+                .contains("\"previous\":\"" + started + "\"")
+                .contains("\"changed\":true")
+                .doesNotContain("\"version\":\"" + started + "\"");
+        HttpResponse<String> view = send("GET", "/admin/v1/config");
+        assertThat(view.body()).contains("\"mode\":\"monitor\"").contains("\"rewritten\":true");
+        assertThat(view.body()).contains("\"version\":\"" + version() + "\"");
+        assertThat(Files.readString(CONFIG)).contains("mode: \"monitor\"");
+        assertThat(Files.readString(Path.of(CONFIG + ".original"))).contains("# Written by hand");
+
+        HttpResponse<String> enforced = putMode("enforce");
+
+        assertThat(enforced.body()).contains("\"changed\":true");
+        assertThat(Files.readString(CONFIG)).doesNotContain("monitor");
+        assertThat(putMode("enforce").body()).contains("\"changed\":false");
+    }
+
+    @Test
+    void answersWithTheSameVersionWhenTheModeIsAlreadySet() throws Exception {
+        String started = version();
+
+        HttpResponse<String> response = putMode("enforce");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"version\":\"" + started + "\"").contains("\"changed\":false");
+        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+    }
+
+    @Test
+    void asksForTheConfigVersion() throws Exception {
+        HttpResponse<String> response = call(
+                ADMIN_PORT,
+                "PUT",
+                GUARD_1 + "/mode",
+                "{\"mode\":\"monitor\"}",
+                "Authorization",
+                "Bearer " + ADMIN_TOKEN,
+                "Content-Type",
+                "application/json");
+
+        assertThat(response.statusCode()).isEqualTo(428);
+        assertThat(response.body()).contains("\"code\":\"precondition_required\"");
+    }
+
+    @Test
+    void refusesAStaleVersion() throws Exception {
+        HttpResponse<String> response = put(GUARD_1 + "/mode", "{\"mode\":\"monitor\"}", "\"" + "0".repeat(64) + "\"");
+
+        assertThat(response.statusCode()).isEqualTo(412);
+        assertThat(response.body()).contains("\"code\":\"config_changed\"");
+        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+    }
+
+    @Test
+    void refusesAFileChangedByHandAndNotReloaded() throws Exception {
+        String started = version();
+        Files.writeString(CONFIG, TEXT + "# changed by hand\n");
+
+        HttpResponse<String> response = put(GUARD_1 + "/mode", "{\"mode\":\"monitor\"}", started);
+
+        assertThat(response.statusCode()).isEqualTo(412);
+        assertThat(Files.readString(CONFIG)).isEqualTo(TEXT + "# changed by hand\n");
+    }
+
+    @Test
+    void acceptsAVersionWithoutQuotes() throws Exception {
+        HttpResponse<String> response = put(GUARD_1 + "/mode", "{\"mode\":\"enforce\"}", version());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void rejectsWhatItCannotChange() throws Exception {
+        assertThat(put("/admin/v1/policies/nope/guards/0/mode", "{\"mode\":\"monitor\"}", version())
+                        .body())
+                .contains("\"code\":\"not_found\"")
+                .contains("No policy named 'nope'");
+        HttpResponse<String> missing =
+                put("/admin/v1/policies/default/guards/9/mode", "{\"mode\":\"monitor\"}", version());
+        assertThat(missing.statusCode()).isEqualTo(404);
+        assertThat(missing.body()).contains("Policy 'default' has no guard 9");
+        HttpResponse<String> index =
+                put("/admin/v1/policies/default/guards/x/mode", "{\"mode\":\"monitor\"}", version());
+        assertThat(index.statusCode()).isEqualTo(400);
+        assertThat(index.body()).contains("index must be a number");
+        HttpResponse<String> off = putMode("off");
+        assertThat(off.statusCode()).isEqualTo(400);
+        assertThat(off.body()).contains("mode must be enforce or monitor, was off");
+        HttpResponse<String> text = put(GUARD_1 + "/mode", "monitor", version());
+        assertThat(text.statusCode()).isEqualTo(400);
+        assertThat(text.body()).contains("The request body is not valid");
+    }
+
+    @Test
+    void needsTheAdminTokenAndTheAdminPort() throws Exception {
+        assertThat(call(ADMIN_PORT, "PUT", GUARD_1 + "/mode", "{\"mode\":\"monitor\"}", "If-Match", version())
+                        .statusCode())
+                .isEqualTo(401);
+        assertThat(call(
+                                port,
+                                "PUT",
+                                GUARD_1 + "/mode",
+                                "{\"mode\":\"monitor\"}",
+                                "Authorization",
+                                "Bearer " + ADMIN_TOKEN,
+                                "If-Match",
+                                version())
+                        .statusCode())
+                .isEqualTo(404);
     }
 
     @Test
