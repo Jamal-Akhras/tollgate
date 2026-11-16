@@ -72,11 +72,18 @@ final class LiveTail implements AutoCloseable {
 
     void tick() {
         try {
-            follow();
-        } catch (IOException | RuntimeException e) {
+            try {
+                follow();
+            } catch (IOException | RuntimeException e) {
+                warn(e);
+            }
+            current = window.snapshot(clock.instant());
+        } catch (VirtualMachineError e) {
+            warn(e);
+            throw e;
+        } catch (Exception | Error e) {
             warn(e);
         }
-        current = window.snapshot(clock.instant());
     }
 
     private void follow() throws IOException {
@@ -96,6 +103,11 @@ final class LiveTail implements AutoCloseable {
         }
         first = false;
         long size = Files.size(newest);
+        if (size < offset) {
+            offset = size;
+            window.skipped(clock.instant());
+            return;
+        }
         boolean behind = size - offset > passBytes;
         offset = AuditDirectory.follow(newest, offset, passBytes, window::add);
         if (behind) {
@@ -104,7 +116,7 @@ final class LiveTail implements AutoCloseable {
         }
     }
 
-    private void warn(Exception e) {
+    private void warn(Throwable e) {
         Instant now = clock.instant();
         Instant last = lastWarning;
         if (last == null || now.isAfter(last.plus(WARNING_GAP))) {

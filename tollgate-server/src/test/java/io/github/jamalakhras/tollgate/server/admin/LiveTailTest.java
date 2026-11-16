@@ -24,6 +24,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -33,6 +34,7 @@ class LiveTailTest {
     private static final String HASH = "a".repeat(64);
     private static final Clock CLOCK = Clock.fixed(T, ZoneOffset.UTC);
     private final AtomicReference<Instant> now = new AtomicReference<>(T);
+    private final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
     private final Clock moving = new Clock() {
         @Override
         public ZoneId getZone() {
@@ -46,6 +48,13 @@ class LiveTailTest {
 
         @Override
         public Instant instant() {
+            Throwable next = failure.getAndSet(null);
+            if (next instanceof RuntimeException e) {
+                throw e;
+            }
+            if (next instanceof Error e) {
+                throw e;
+            }
             return now.get();
         }
     };
@@ -181,6 +190,37 @@ class LiveTailTest {
         append(file, intent("c1"), outcome("c1"));
         tail.tick();
 
+        assertThat(sent()).isEqualTo(1);
+    }
+
+    @Test
+    void startsOverWhenTheFileIsReplacedBySmallerOne() throws Exception {
+        Path file = file("20261116");
+        append(file, intent("old"), outcome("old"), intent("old2"), outcome("old2"));
+        tail.tick();
+        Files.writeString(file, "");
+
+        tail.tick();
+
+        assertThat(tail.current().skipped()).isTrue();
+        append(file, intent("c1"), outcome("c1"));
+        tail.tick();
+        assertThat(sent()).isEqualTo(1);
+    }
+
+    @Test
+    void keepsTickingWhenASnapshotFails() throws Exception {
+        Path file = file("20261116");
+        append(file, intent("old"));
+        tail.tick();
+        append(file, intent("c1"), outcome("c1"));
+
+        failure.set(new IllegalStateException("boom"));
+        tail.tick();
+        failure.set(new AssertionError("boom"));
+        tail.tick();
+
+        tail.tick();
         assertThat(sent()).isEqualTo(1);
     }
 
