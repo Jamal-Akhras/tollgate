@@ -130,6 +130,10 @@ what was sent, who sent it, what it cost, and why it was allowed.
 - **Reloads without restarts.** Change `tollgate.yaml` and call the admin API.
   An invalid file never replaces the running config, and every audit record
   names the config version that decided it.
+- **A console.** Open `http://127.0.0.1:8081/console/` to see calls flow from
+  tenants through their rules to providers, with live numbers, the audit trail
+  drawn as Merkle trees, and the running config. It can also make four edits
+  ([the console](#the-console)).
 - **A minimal, non-root image** on a distroless Java 25 base, with no shell
   and no package manager.
 
@@ -384,12 +388,92 @@ same guards, budgets, redaction, audit, metrics and traces.
   gateway's metrics.
 - **Not supported:** WebFlux applications.
 
+## The console
+
+The console is a web app on the admin port. Start Tollgate, open
+`http://127.0.0.1:8081/console/` and paste the admin token from
+`tollgate.env`. It is part of the server jar and needs nothing else
+([ADR 0025](docs/adr/0025-console-as-a-static-app.md)).
+
+- **Flow** draws each tenant, the rules of its policy and its providers.
+  Lines move while calls pass: green for calls sent, amber for fallbacks, red
+  for refusals. The switch in the top bar shows the picture as it would be
+  without Tollgate. It is a preview and changes nothing.
+- **Activity** lists the latest calls with each guard's verdict, and
+  **Metrics** charts the last hour. Both are counted from the audit trail by
+  one background reader, not from the request path, so they start empty after
+  a restart and need `audit.mode` on
+  ([ADR 0027](docs/adr/0027-live-data-for-the-console.md)).
+- **Usage** is the usage report, by tenant, model, key, user or day.
+- **Audit** shows sealed batches chained by their roots, a batch as its Merkle
+  tree, and a request's proof. The page hashes the record and walks the proof
+  itself, step by step, and a button verifies the whole trail
+  ([ADR 0028](docs/adr/0028-audit-trail-through-the-admin-api.md)).
+- **Config** shows the running config, with Reload. Detector terms and key
+  hashes are never shown.
+
+**Signing in.** The token is kept in the tab's `sessionStorage` and sent by the
+console's own code. There is no cookie, so another site's page can't make the
+browser call the admin API for you. Closing the tab forgets the token
+([ADR 0026](docs/adr/0026-console-sign-in.md)).
+
+**Proofs need HTTPS or localhost.** A browser lets a page hash only on
+`localhost` or over HTTPS. Over plain HTTP from another machine, the Audit
+page can't check a proof itself. It shows the server's result and says so.
+Tollgate doesn't serve TLS yet; put a TLS-terminating proxy in front of the
+admin port, or use an SSH tunnel to `localhost`. TLS on the admin port is on
+the [roadmap](#roadmap).
+
+**Edits.** With `TOLLGATE_ADMIN_EDITS=file`, which `tollgate init` writes into
+`tollgate.env`, the console can make four changes
+([ADR 0029](docs/adr/0029-config-in-the-console.md)):
+
+- switch a guard between `enforce` and `monitor`
+- set a tenant's budget, as a limit and a period
+- create a key for a tenant, shown once
+- revoke a key
+
+Each one shows the lines of YAML that change and asks first. A change that
+widens what can happen says so in words, such as monitoring a data-class guard
+or revoking a tenant's last key. Calls already running finish when a key is
+revoked.
+
+- **The first edit rewrites `tollgate.yaml`** in a fixed layout, and its
+  comments are lost. The file as you wrote it is kept beside it as
+  `tollgate.yaml.original`.
+- **Every version that ran is kept** in `config-history/` next to the file,
+  named by the config version, which is the version each audit record names.
+  Nothing deletes them.
+- **The file must be writable.** With edits on and a file or folder Tollgate
+  can't write, it stops at startup and says which path. Remove
+  `TOLLGATE_ADMIN_EDITS` for a file that must stay read-only, such as one kept
+  in Git. The console then shows the YAML to write, and Reload.
+- **A budget's period:** changing it, or setting a first budget, makes the
+  reload count the spend again from the audit trail. With the audit trail off,
+  the count starts from zero.
+- **The same edits are routes** in the [OpenAPI contract](docs/api/admin-openapi.json).
+  They need `If-Match` with the running config version, and answer `428`
+  without it and `412` if the version or the file has moved:
+
+  ```bash
+  VERSION=$(curl -s -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" \
+    http://127.0.0.1:8081/admin/v1/config | jq -r .version)
+  curl -X PUT -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" \
+    -H "If-Match: $VERSION" -H "Content-Type: application/json" \
+    -d '{"mode":"monitor"}' \
+    http://127.0.0.1:8081/admin/v1/policies/default/guards/1/mode
+  ```
+
+**Turning it off.** `TOLLGATE_CONSOLE_ENABLED=false` removes the console and its
+reader. The admin API stays. The console's files need no token, since they
+hold no data, and it loads nothing from other hosts.
+
 ## Operating it
 
 | Port | Serves |
 |---|---|
 | 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` |
-| 8081 | The admin API and its [OpenAPI contract](docs/api/admin-openapi.json), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every call needs the admin token |
+| 8081 | The admin API, its [OpenAPI contract](docs/api/admin-openapi.json) and the [console](#the-console), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every API call needs the admin token |
 | 9090 | Health probes and Prometheus metrics at `/actuator/prometheus`. Readiness reports down if the audit trail cannot be written |
 
 - **Who can connect:**
@@ -432,8 +516,10 @@ same guards, budgets, redaction, audit, metrics and traces.
 - **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
   least 32 characters, for example the output of `openssl rand -hex 32`.
   - **Without it**, the admin API answers `503`.
-  - **Requests without the right token** get `401`. A web page cannot send it,
-    so a browser cannot be used to call the admin API behind your back.
+  - **Requests without the right token** get `401`. A web page cannot send it
+    on its own, so a browser cannot be used to call the admin API behind your
+    back. The console sends it from code you opened it with, and keeps it in
+    the tab only.
 - **Reload the config:**
   `curl -X POST -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" http://127.0.0.1:8081/admin/v1/config/reload`.
   A broken file returns `422` and leaves the running config in place. A
@@ -461,14 +547,18 @@ same guards, budgets, redaction, audit, metrics and traces.
 |---|---|
 | **0.1.0** | Everything under "What works today", with the core, provider and starter libraries on Maven Central |
 | **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
+| **0.2.0** | The [console](#the-console) with four edits |
 | **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
-| **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; Policy Studio; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
+| **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; the console's viewer token, pausing a tenant, more edits and approvals, and TLS on the admin port; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
 
 The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
 
 ## Building
 
-Requires JDK 25. The Maven Wrapper downloads and verifies Maven itself.
+Requires JDK 25. The Maven Wrapper downloads and verifies Maven itself, and
+the build downloads a pinned Node into `tollgate-console/target`, checks its
+checksum and installs the console's packages from the committed lockfile with
+`npm ci --ignore-scripts`. You don't install Node.
 
 ```bash
 ./mvnw -DskipTests install                    # the server jar in tollgate-server/target
@@ -476,6 +566,14 @@ Requires JDK 25. The Maven Wrapper downloads and verifies Maven itself.
 ./mvnw verify                                 # formatting, Error Prone, NullAway, tests, coverage, API contract
 ./mvnw -pl tollgate-core -Pmutation verify    # mutation testing on core
 ./mvnw -Psbom package                         # CycloneDX SBOM in target/bom.json
+```
+
+To work on the console alone, you need Node 24; its checks take seconds:
+
+```bash
+npm --prefix tollgate-console ci --ignore-scripts
+npm --prefix tollgate-console run check      # type-check and unit tests
+npm --prefix tollgate-console run build      # the files, and the 80 kB first-load limit
 ```
 
 The core module depends only on the JDK, compiles for Java 21, and is
@@ -488,6 +586,7 @@ mutation tested. The checks the build enforces are listed under the
 - [Architecture decision records](docs/adr/)
 - [Claude Code through Tollgate](docs/clients/claude-code.md)
 - [Open WebUI through Tollgate](docs/clients/open-webui.md)
+- [The console](#the-console)
 - [Admin API contract](docs/api/admin-openapi.json)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
 

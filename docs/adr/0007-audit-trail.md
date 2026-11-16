@@ -1,7 +1,8 @@
 # ADR 0007: A signed, batch-chained audit trail
 
-Date: 2026-10-29 · Status: Accepted, amended by [ADR 0009](0009-price-catalog.md), [ADR 0022](0022-shadow-mode.md)
-and [ADR 0023](0023-attribute-calls-to-a-user.md)
+Date: 2026-10-29 · Status: Accepted, amended by [ADR 0009](0009-price-catalog.md), [ADR 0022](0022-shadow-mode.md),
+[ADR 0023](0023-attribute-calls-to-a-user.md) and
+[ADR 0028](0028-audit-trail-through-the-admin-api.md)
 
 ## Context
 

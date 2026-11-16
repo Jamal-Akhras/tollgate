@@ -23,4 +23,7 @@ Reports we especially want:
 - bypasses of a guard, data-class rule or port separation;
 - secrets or prompt content leaking into logs, traces, errors or audit records;
 - tampering with the audit trail that `audit verify` does not detect;
-- budget or rate-limit evasion.
+- budget or rate-limit evasion;
+- anything that lets a web page, or script in the console, use the admin token
+  without the person who holds it, or run in the console despite its
+  Content-Security-Policy.
