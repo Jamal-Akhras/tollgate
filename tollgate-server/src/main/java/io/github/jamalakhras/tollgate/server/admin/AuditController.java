@@ -6,10 +6,12 @@ import io.github.jamalakhras.tollgate.core.audit.InclusionProof;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
+import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.gateway.Gateway;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditBatches;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
+import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.SealView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,11 +35,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @Tag(name = "Audit", description = "The signed audit trail and its sealed batches")
 @RequestMapping(path = "/admin/v1/audit", produces = MediaType.APPLICATION_JSON_VALUE)
 class AuditController {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final int MAX_ID = 64;
 
     private final Gateway gateway;
     private final OneAtATime longReads;
@@ -136,6 +143,98 @@ class AuditController {
                 List.copyOf(leaves));
     }
 
+    @GetMapping("/records/{id}")
+    @Operation(
+            summary = "Prove a request's records",
+            description = "The request's intent and outcome as the trail holds them, each with its inclusion proof and"
+                    + " its batch's seal, or unsealed while its batch is still open. An old record is found by reading"
+                    + " the trail, one such read at a time.")
+    @ApiResponse(responseCode = "200", description = "The records")
+    @ApiResponse(
+            responseCode = "400",
+            description = "The ID is longer than 64 characters",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @ApiResponse(
+            responseCode = "404",
+            description = "No audit record for the request",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "The audit trail is off",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @ApiResponse(
+            responseCode = "429",
+            description = "Another long read of the trail is running; retry after the Retry-After seconds",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    RecordProofs record(
+            @Parameter(description = "The request ID, with its attempt suffix for a fallback") @PathVariable String id)
+            throws Exception {
+        PublicKey publicKey = AuditKeys.publicKey(settings().publicKey());
+        Path directory = directory();
+        if (id.length() > MAX_ID) {
+            throw new BadQuery("id must be at most " + MAX_ID + " characters");
+        }
+        AuditBatches.Found found = longReads.run(() -> AuditBatches.find(directory, id));
+        if (found.intent() == null && found.outcome() == null) {
+            throw new NotFound("No audit record for request " + id);
+        }
+        return new RecordProofs(proved(found.intent(), publicKey), proved(found.outcome(), publicKey));
+    }
+
+    @GetMapping("/verification")
+    @Operation(
+            summary = "Verify the whole audit trail",
+            description = "Reads every file and checks every seal with the configured public key. One such read at a"
+                    + " time.")
+    @ApiResponse(responseCode = "200", description = "The result, intact or not")
+    @ApiResponse(
+            responseCode = "409",
+            description = "The audit trail is off",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @ApiResponse(
+            responseCode = "429",
+            description = "Another long read of the trail is running; retry after the Retry-After seconds",
+            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    Verification verification() throws Exception {
+        PublicKey publicKey = AuditKeys.publicKey(settings().publicKey());
+        Path directory = directory();
+        long start = System.nanoTime();
+        TrailVerifier.Report report = longReads.run(() -> AuditDirectory.verify(directory, publicKey));
+        return new Verification(
+                report.intact(),
+                report.records(),
+                report.batches(),
+                problems(report.failures()),
+                problems(report.warnings()),
+                report.lastSeal() == null ? null : LiveWindow.sealView(report.lastSeal()),
+                (System.nanoTime() - start) / 1_000_000);
+    }
+
+    private static List<ProblemView> problems(List<TrailVerifier.Problem> problems) {
+        return problems.stream()
+                .map(problem -> new ProblemView(problem.file(), problem.line(), problem.message()))
+                .toList();
+    }
+
+    private static @Nullable ProvedRecord proved(AuditBatches.@Nullable Located located, PublicKey publicKey) {
+        if (located == null) {
+            return null;
+        }
+        JsonNode record = JSON.readTree(AuditJson.write(located.record()));
+        AuditBatches.Batch batch = located.batch();
+        if (batch == null) {
+            return new ProvedRecord(record, false, null, null, null);
+        }
+        InclusionProof proof = InclusionProof.of(batch.records(), located.index());
+        return new ProvedRecord(
+                record,
+                true,
+                new ProofView(
+                        proof.index(), proof.size(), proof.encoding(), proof.leafHash(), proof.path(), proof.root()),
+                LiveWindow.sealView(batch.seal()),
+                batch.seal().signedBy(publicKey));
+    }
+
     private AuditSettings.Enabled settings() {
         if (gateway.config().audit() instanceof AuditSettings.Enabled enabled) {
             return enabled;
@@ -198,6 +297,29 @@ class AuditController {
             List<LeafView> leaves) {}
 
     record LeafView(int index, String type, String id, Instant time, String leafHash) {}
+
+    record RecordProofs(
+            @Nullable ProvedRecord intent, @Nullable ProvedRecord outcome) {}
+
+    record ProvedRecord(
+            JsonNode record,
+            boolean sealed,
+            @Nullable ProofView proof,
+            @Nullable SealView seal,
+            @Nullable Boolean signatureValid) {}
+
+    record ProofView(int index, int size, String encoding, String leafHash, List<String> path, String root) {}
+
+    record Verification(
+            boolean intact,
+            long records,
+            long batches,
+            List<ProblemView> failures,
+            List<ProblemView> warnings,
+            @Nullable SealView lastSeal,
+            long millis) {}
+
+    record ProblemView(String file, long line, String message) {}
 
     static final class BadQuery extends RuntimeException {
 

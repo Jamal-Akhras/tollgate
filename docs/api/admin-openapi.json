@@ -234,6 +234,115 @@
         "tags" : [ "Audit" ]
       }
     },
+    "/admin/v1/audit/records/{id}" : {
+      "get" : {
+        "description" : "The request's intent and outcome as the trail holds them, each with its inclusion proof and its batch's seal, or unsealed while its batch is still open. An old record is found by reading the trail, one such read at a time.",
+        "operationId" : "record",
+        "parameters" : [ {
+          "description" : "The request ID, with its attempt suffix for a fallback",
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecordProofs"
+                }
+              }
+            },
+            "description" : "The records"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The ID is longer than 64 characters"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "No audit record for the request"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Another long read of the trail is running; retry after the Retry-After seconds"
+          }
+        },
+        "summary" : "Prove a request's records",
+        "tags" : [ "Audit" ]
+      }
+    },
+    "/admin/v1/audit/verification" : {
+      "get" : {
+        "description" : "Reads every file and checks every seal with the configured public key. One such read at a time.",
+        "operationId" : "verification",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Verification"
+                }
+              }
+            },
+            "description" : "The result, intact or not"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "The audit trail is off"
+          },
+          "429" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminError"
+                }
+              }
+            },
+            "description" : "Another long read of the trail is running; retry after the Retry-After seconds"
+          }
+        },
+        "summary" : "Verify the whole audit trail",
+        "tags" : [ "Audit" ]
+      }
+    },
     "/admin/v1/budgets" : {
       "get" : {
         "description" : "The current period of every tenant with a budget, live from this instance.",
@@ -898,6 +1007,85 @@
           }
         }
       },
+      "JsonNode" : {
+        "type" : "object",
+        "properties" : {
+          "array" : {
+            "type" : "boolean"
+          },
+          "bigDecimal" : {
+            "type" : "boolean"
+          },
+          "bigInteger" : {
+            "type" : "boolean"
+          },
+          "binary" : {
+            "type" : "boolean"
+          },
+          "boolean" : {
+            "type" : "boolean"
+          },
+          "container" : {
+            "type" : "boolean"
+          },
+          "double" : {
+            "type" : "boolean"
+          },
+          "embeddedValue" : {
+            "type" : "boolean"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "float" : {
+            "type" : "boolean"
+          },
+          "floatingPointNumber" : {
+            "type" : "boolean"
+          },
+          "int" : {
+            "type" : "boolean"
+          },
+          "integralNumber" : {
+            "type" : "boolean"
+          },
+          "long" : {
+            "type" : "boolean"
+          },
+          "missingNode" : {
+            "type" : "boolean"
+          },
+          "nodeType" : {
+            "type" : "string",
+            "enum" : [ "ARRAY", "BINARY", "BOOLEAN", "MISSING", "NULL", "NUMBER", "OBJECT", "POJO", "STRING" ]
+          },
+          "null" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "type" : "boolean"
+          },
+          "object" : {
+            "type" : "boolean"
+          },
+          "pojo" : {
+            "type" : "boolean"
+          },
+          "short" : {
+            "type" : "boolean"
+          },
+          "string" : {
+            "type" : "boolean"
+          },
+          "textual" : {
+            "type" : "boolean",
+            "deprecated" : true
+          },
+          "valueNode" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "KeyView" : {
         "type" : "object",
         "properties" : {
@@ -1105,6 +1293,69 @@
           }
         }
       },
+      "ProblemView" : {
+        "type" : "object",
+        "properties" : {
+          "file" : {
+            "type" : "string"
+          },
+          "line" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ProofView" : {
+        "type" : "object",
+        "properties" : {
+          "encoding" : {
+            "type" : "string"
+          },
+          "index" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "leafHash" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "root" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "ProvedRecord" : {
+        "type" : "object",
+        "properties" : {
+          "proof" : {
+            "$ref" : "#/components/schemas/ProofView"
+          },
+          "record" : {
+            "$ref" : "#/components/schemas/JsonNode"
+          },
+          "seal" : {
+            "$ref" : "#/components/schemas/SealView"
+          },
+          "sealed" : {
+            "type" : "boolean"
+          },
+          "signatureValid" : {
+            "type" : "boolean"
+          }
+        }
+      },
       "ProviderView" : {
         "type" : "object",
         "properties" : {
@@ -1126,6 +1377,17 @@
           },
           "region" : {
             "type" : "string"
+          }
+        }
+      },
+      "RecordProofs" : {
+        "type" : "object",
+        "properties" : {
+          "intent" : {
+            "$ref" : "#/components/schemas/ProvedRecord"
+          },
+          "outcome" : {
+            "$ref" : "#/components/schemas/ProvedRecord"
           }
         }
       },
@@ -1301,6 +1563,41 @@
           "to" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        }
+      },
+      "Verification" : {
+        "type" : "object",
+        "properties" : {
+          "batches" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "failures" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProblemView"
+            }
+          },
+          "intact" : {
+            "type" : "boolean"
+          },
+          "lastSeal" : {
+            "$ref" : "#/components/schemas/SealView"
+          },
+          "millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "records" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "warnings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProblemView"
+            }
           }
         }
       }
