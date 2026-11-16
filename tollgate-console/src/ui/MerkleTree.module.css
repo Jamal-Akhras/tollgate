@@ -1,0 +1,100 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scroll {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+}
+
+.svg {
+  display: block;
+}
+
+.edge {
+  stroke: var(--border-dashed);
+  stroke-width: 1.5;
+}
+
+.edgeOnPath {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.leaf {
+  cursor: pointer;
+  outline: none;
+}
+
+.leaf rect {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.intent rect {
+  fill: var(--info);
+}
+
+.outcome rect {
+  fill: var(--ok);
+}
+
+.other rect {
+  fill: var(--text-dim);
+}
+
+.other {
+  cursor: default;
+}
+
+.node {
+  outline: none;
+}
+
+.node circle {
+  fill: var(--surface-raised);
+  stroke: var(--border-dashed);
+  stroke-width: 1.5;
+}
+
+.root circle {
+  fill: var(--accent);
+  stroke: var(--accent-hover);
+}
+
+.onPath rect,
+.onPath circle {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.leaf:hover rect,
+.leaf:focus-visible rect,
+.node:hover circle,
+.node:focus-visible circle {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.marker rect {
+  fill: none;
+  stroke: var(--border-dashed);
+  stroke-dasharray: 3 3;
+}
+
+.marker text {
+  fill: var(--text-muted);
+  font-size: var(--size-detail);
+}
+
+.caption {
+  min-height: 1.4em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--size-caption);
+  overflow-wrap: anywhere;
+}

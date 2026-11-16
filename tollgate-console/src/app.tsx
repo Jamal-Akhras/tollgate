@@ -1,5 +1,7 @@
 import { signedIn } from './api/client';
 import { Activity } from './pages/Activity/Activity';
+import { Audit } from './pages/Audit/Audit';
+import { Batch } from './pages/Audit/Batch';
 import { Config } from './pages/Config/Config';
 import { Flow } from './pages/Flow/Flow';
 import { SignIn } from './pages/SignIn/SignIn';
@@ -26,6 +28,10 @@ function page() {
       return <Flow />;
     case 'activity':
       return <Activity />;
+    case 'audit':
+      return <Audit />;
+    case 'batch':
+      return <Batch />;
     case 'usage':
       return <Usage />;
     case 'config':
