@@ -81,6 +81,43 @@ public final class AuditDirectory {
         }
     }
 
+    public static long follow(Path file, long from, int maxBytes, Consumer<AuditEntry> each) throws IOException {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+            long size = channel.size();
+            if (from > size) {
+                throw new IllegalArgumentException("Offset " + from + " is past the end of " + file);
+            }
+            int length = (int) Math.min(maxBytes, size - from);
+            ByteBuffer buffer = ByteBuffer.allocate(length);
+            int read = 0;
+            while (read >= 0 && buffer.hasRemaining()) {
+                read = channel.read(buffer, from + buffer.position());
+            }
+            byte[] bytes = buffer.array();
+            int end = length;
+            while (end > 0 && bytes[end - 1] != '\n') {
+                end--;
+            }
+            if (end == 0) {
+                return length == maxBytes ? from + length : from;
+            }
+            for (String line :
+                    new String(bytes, 0, end, StandardCharsets.UTF_8).lines().toList()) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                AuditEntry entry;
+                try {
+                    entry = AuditJson.read(line);
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                each.accept(entry);
+            }
+            return from + end;
+        }
+    }
+
     static Optional<Seal> lastSeal(Path directory) throws IOException {
         for (Path file : files(directory).reversed()) {
             AtomicReference<@Nullable Seal> last = new AtomicReference<>();
