@@ -18,10 +18,88 @@
     <skipTests>false</skipTests>
     <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
     <node.version>v24.22.3</node.version>
+    <node.number>24.22.3</node.number>
   </properties>
+
+  <profiles>
+    <profile>
+      <id>node-windows-x64</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <node.archive>win-x64.zip</node.archive>
+        <node.sha256>e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f</node.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>node-linux-x64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>linux</name>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <node.archive>linux-x64.tar.gz</node.archive>
+        <node.sha256>061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2</node.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>node-macos-arm64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <node.archive>darwin-arm64.tar.gz</node.archive>
+        <node.sha256>ff6e17d4874b76d272212b908cc020d6e815fba5a6c7eaaa06add725840307fd</node.sha256>
+      </properties>
+    </profile>
+    <profile>
+      <id>node-macos-x64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <node.archive>darwin-x64.tar.gz</node.archive>
+        <node.sha256>977614af0504c81045e7fd85596dbca0e5f951b96681516dadafedcca8c447f7</node.sha256>
+      </properties>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>com.googlecode.maven-download-plugin</groupId>
+        <artifactId>download-maven-plugin</artifactId>
+        <version>1.13.0</version>
+        <executions>
+          <execution>
+            <id>download-node</id>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <url>https://nodejs.org/dist/${node.version}/node-${node.version}-${node.archive}</url>
+              <outputDirectory>${settings.localRepository}/com/github/eirslett/node/${node.number}</outputDirectory>
+              <outputFileName>node-${node.number}-${node.archive}</outputFileName>
+              <sha256>${node.sha256}</sha256>
+              <overwrite>true</overwrite>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
