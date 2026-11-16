@@ -2,6 +2,7 @@ import { signedIn } from './api/client';
 import { Activity } from './pages/Activity/Activity';
 import { Audit } from './pages/Audit/Audit';
 import { Batch } from './pages/Audit/Batch';
+import { AuditRecord } from './pages/Audit/Record';
 import { Config } from './pages/Config/Config';
 import { Flow } from './pages/Flow/Flow';
 import { SignIn } from './pages/SignIn/SignIn';
@@ -32,6 +33,8 @@ function page() {
       return <Audit />;
     case 'batch':
       return <Batch />;
+    case 'record':
+      return <AuditRecord />;
     case 'usage':
       return <Usage />;
     case 'config':

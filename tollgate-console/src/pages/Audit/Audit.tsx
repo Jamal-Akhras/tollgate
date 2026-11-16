@@ -10,6 +10,8 @@ import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
 import styles from './Audit.module.css';
 import { Chain } from './Chain';
+import { FindRecord } from './FindRecord';
+import { Verify } from './Verify';
 
 export const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 
@@ -84,6 +86,8 @@ export function Audit() {
           </dl>
         </Card>
       )}
+      {status && <Verify />}
+      {status && <FindRecord />}
       {status && <Chain lastBatch={seal?.batch ?? null} />}
     </div>
   );

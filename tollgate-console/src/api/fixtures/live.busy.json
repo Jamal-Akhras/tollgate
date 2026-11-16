@@ -2427,7 +2427,7 @@
     "time": "2026-11-16T09:58:00Z",
     "root": "061580443ca34741a17131bf9c5f518d7e003254a42315051cb6d7a6c562c199",
     "previous": "21527f47fdfc55afe34ec49decd73c0d89a993e0efabb5df509349f0265030b4",
-    "key": "e3b0c442",
-    "hmacKey": "98f2a1d7"
+    "key": "e3b0c44298fc1c14",
+    "hmacKey": "98f2a1d7c4e0b365"
   }
 }

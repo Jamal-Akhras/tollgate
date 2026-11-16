@@ -38,7 +38,7 @@ test('showsTheModeKeysLastBatchAndTheSmallPrint', async () => {
   await screen.findByText('async');
   expect(screen.getByText(/Checked against the public key in this server's config/)).toBeTruthy();
   expect(screen.getByTitle(auditBusyFixture.publicKey)).toBeTruthy();
-  expect(screen.getByTitle('e3b0c442')).toBeTruthy();
+  expect(screen.getByTitle(auditBusyFixture.keyId)).toBeTruthy();
   expect(screen.getAllByRole('link', { name: 'Batch 4' }).length).toBeGreaterThan(0);
 });
 

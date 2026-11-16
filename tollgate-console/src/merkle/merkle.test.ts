@@ -6,7 +6,8 @@ import { levels, pathNodes, shape } from './tree';
 const pinned: ProofView = {
   index: 5,
   size: 7,
-  encoding: '',
+  encoding:
+    'AQEAAAAJcmVxdWVzdC01AAAAAGromB4ehIAAAAAAC3N1cHBvcnQtYm90AAAADGs3UW0yeFBhNGJacgAAAAlhbnRocm9waWMAAAANY2xhdWRlLXNvbm5ldAAAAAlhbnRocm9waWMAAAARY2xhdWRlLXNvbm5ldC00LTUBAAAACGludGVybmFsPxwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAmrKpGxEREREREREREREREREREREREREREREREREREREREQAAAAIAAAAMcmVxdWVzdC1zaXplAAAAAAAAAAg0AAAACmRhdGEtY2xhc3MAAAAAAAAADUgAAQAAAANVU0QAAAAACRPp4A==',
   leafHash: 'e2c803413dd1a9c780824d310c709f28c7c320d9b7d025c6b61c536549d98b8b',
   path: [
     'cf3ddaa573d32b552d74ad0023e1e2ccd1fbc8f8895be3bade414e8c4996ffaa',
@@ -102,6 +103,11 @@ test('verifiesTheProofThatTheServersCoreTestPins', async () => {
   expect(result.steps.map((step) => step.side)).toEqual(['left', 'right', 'left']);
   expect(result.steps.map((step) => step.sibling)).toEqual(pinned.path);
   expect(result.steps[2]?.result).toBe(pinned.root);
+});
+
+test('hashesTheServersEncodingToTheLeafHashItPinnedAndTheProofVerifies', async () => {
+  expect(await leafHash(pinned.encoding)).toBe(pinned.leafHash);
+  expect((await verifyProof({ ...pinned, leafHash: await leafHash(pinned.encoding) })).matches).toBe(true);
 });
 
 test('failsWhenASiblingIsChanged', async () => {

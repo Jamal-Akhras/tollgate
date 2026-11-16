@@ -67,7 +67,7 @@ test('showsThePageNameAsTheHeading', async () => {
 });
 
 test('hasASkipLinkAndLandmarks', async () => {
-  setRoute('#/audit/records/x');
+  setRoute('#/metrics');
   render(<App />);
   expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
   expect(screen.getByRole('banner')).toBeTruthy();
