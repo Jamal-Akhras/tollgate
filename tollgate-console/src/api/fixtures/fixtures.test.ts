@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import * as fixtures from './index';
 
 test('everyFixtureIsLoaded', () => {
-  expect(Object.keys(fixtures)).toHaveLength(19);
+  expect(Object.keys(fixtures)).toHaveLength(23);
 });
 
 test('theBusySetHasThreeTenantsAMonitoredGuardABudgetAFallbackAndRefusals', () => {

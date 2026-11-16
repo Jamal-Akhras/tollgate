@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { ApiError, get, post, signedIn, signInWith, signOut } from './client';
+import { ApiError, del, get, post, put, segment, signedIn, signInWith, signOut } from './client';
 import { infoFixture } from './fixtures';
 
 const send = vi.fn();
@@ -104,4 +104,45 @@ test('reportsAnAnswerThatIsNotJson', async () => {
   send.mockResolvedValue(answer(200, 'plain text'));
   const error = await failureOf(get('/info'));
   expect(error.code).toBe('invalid_response');
+});
+
+test('putsABodyWithTheQuotedVersionAndTheContentType', async () => {
+  send.mockResolvedValue(answer(200, { changed: true }));
+  await put('/tenants/my-app/budget', { limit: '30', period: 'monthly' }, 'abc123');
+  const [url, init] = send.mock.calls[0] ?? [];
+  expect(url).toBe('/admin/v1/tenants/my-app/budget');
+  expect(init.method).toBe('PUT');
+  expect(init.headers['If-Match']).toBe('"abc123"');
+  expect(init.headers['Content-Type']).toBe('application/json');
+  expect(init.headers.Authorization).toBe('Bearer secret-token');
+  expect(init.body).toBe('{"limit":"30","period":"monthly"}');
+});
+
+test('deletesWithTheVersionAndNoBody', async () => {
+  send.mockResolvedValue(answer(200, { changed: true }));
+  await del('/keys/3f9a1c2e', 'abc123');
+  const [, init] = send.mock.calls[0] ?? [];
+  expect(init.method).toBe('DELETE');
+  expect(init.headers['If-Match']).toBe('"abc123"');
+  expect(init.headers['Content-Type']).toBeUndefined();
+  expect(init.body).toBeUndefined();
+});
+
+test('postsWithAVersionAndNoBody', async () => {
+  send.mockResolvedValue(answer(201, { key: 'tg_x' }));
+  await post('/tenants/my-app/keys', undefined, 'abc123');
+  const [, init] = send.mock.calls[0] ?? [];
+  expect(init.method).toBe('POST');
+  expect(init.headers['If-Match']).toBe('"abc123"');
+  expect(init.body).toBeUndefined();
+});
+
+test('encodesAPathSegmentFromTheConfig', () => {
+  expect(segment('a/b c')).toBe('a%2Fb%20c');
+});
+
+test('buildsAnApiErrorFromAPreconditionFailure', async () => {
+  send.mockResolvedValue(answer(412, { code: 'config_changed', message: 'The file changed' }));
+  const error = await failureOf(put('/tenants/a/budget', {}, 'v'));
+  expect([error.status, error.code]).toEqual([412, 'config_changed']);
 });

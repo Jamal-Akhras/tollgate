@@ -1,6 +1,7 @@
 {
   "version": "f62481535d6eb6fa29620ec907d76de3f45074afb8a0a4e86cc46efe214b5110",
   "edits": "read-only",
+  "rewritten": false,
   "dataClasses": [
     "public",
     "internal",

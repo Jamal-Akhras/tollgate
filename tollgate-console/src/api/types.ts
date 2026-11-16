@@ -85,7 +85,8 @@ export type AuditView = { mode: string; publicKey: string | null };
 
 export type ConfigView = {
   version: string;
-  edits: string;
+  edits: 'read-only' | 'managed';
+  rewritten: boolean;
   dataClasses: string[];
   providers: ProviderView[];
   models: ModelView[];
@@ -255,4 +256,18 @@ export type Verification = {
   warnings: ProblemView[];
   lastSeal: SealView | null;
   millis: number;
+};
+
+export type GuardMode = { mode: 'enforce' | 'monitor' };
+
+export type BudgetChange = { limit: string; period: 'daily' | 'monthly' | 'total' };
+
+export type ConfigChange = { version: string; previous: string; changed: boolean };
+
+export type CreatedKey = {
+  key: string;
+  id: string;
+  tenant: string;
+  version: string;
+  previous: string;
 };

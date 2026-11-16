@@ -1,6 +1,7 @@
 {
   "version": "15d3888e40a37ea4717f7d22fd6d3ef3f75c2d83ca52ce0a2a3b3e8b1ebd4343",
   "edits": "read-only",
+  "rewritten": false,
   "dataClasses": [],
   "providers": [
     {

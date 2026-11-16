@@ -22,6 +22,8 @@ export { signOut };
 type Options = {
   params?: Params;
   headers?: Record<string, string>;
+  body?: unknown;
+  version?: string;
   token?: string | null;
 };
 
@@ -45,11 +47,22 @@ async function failure(response: Response): Promise<ApiError> {
 
 async function request<T>(method: string, path: string, options: Options = {}): Promise<T> {
   const bearer = options.token ?? token.value;
+  const headers: Record<string, string> = { ...options.headers };
+  if (options.version !== undefined) {
+    headers['If-Match'] = `"${options.version}"`;
+  }
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (bearer) {
+    headers.Authorization = `Bearer ${bearer}`;
+  }
   let response: Response;
   try {
     response = await fetch(`/admin/v1${path}${query(options.params)}`, {
       method,
-      headers: { ...options.headers, ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });
   } catch {
     throw new ApiError(0, 'unreachable', `Can't reach the admin API at ${location.host}`);
@@ -71,8 +84,20 @@ export function get<T>(path: string, params?: Params): Promise<T> {
   return request<T>('GET', path, { params });
 }
 
-export function post<T>(path: string): Promise<T> {
-  return request<T>('POST', path);
+export function post<T>(path: string, body?: unknown, version?: string): Promise<T> {
+  return request<T>('POST', path, { body, version });
+}
+
+export function put<T>(path: string, body: unknown, version: string): Promise<T> {
+  return request<T>('PUT', path, { body, version });
+}
+
+export function del<T>(path: string, version: string): Promise<T> {
+  return request<T>('DELETE', path, { version });
+}
+
+export function segment(value: string | number): string {
+  return encodeURIComponent(value);
 }
 
 export async function signInWith(value: string): Promise<void> {
