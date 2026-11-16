@@ -289,7 +289,12 @@ In `tollgate.yaml`, point the provider at `host.docker.internal` instead of
 lands in `./audit`:
 
 ```bash
-docker run -d --name tollgate --user "$(id -u):$(id -g)"   -v "$PWD:/work" -w /work -e TOLLGATE_CONFIG=/work/tollgate.yaml   --env-file tollgate.env   --add-host=host.docker.internal:host-gateway   -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090   ghcr.io/jamal-akhras/tollgate:0.2.0
+docker run -d --name tollgate --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" -w /work -e TOLLGATE_CONFIG=/work/tollgate.yaml \
+  --env-file tollgate.env \
+  --add-host=host.docker.internal:host-gateway \
+  -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
+  ghcr.io/jamal-akhras/tollgate:0.2.0
 ```
 
 On Windows, leave out `--user`, as for `init`. The folder is mounted, not the

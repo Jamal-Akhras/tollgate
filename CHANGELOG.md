@@ -207,7 +207,7 @@ traffic.
   pinned Node, so nobody installs Node by hand. `GET /` on the admin port
   redirects to it. It has six pages: Flow, Activity, Metrics, Usage, Audit and
   Config. `TOLLGATE_CONSOLE_ENABLED=false` removes it.
-  - **Served strictly:** every console response carries a
+  - **Served strictly:** every response under `/console/` carries a
     Content-Security-Policy that allows only its own files, `nosniff`,
     `Referrer-Policy: no-referrer` and `Cross-Origin-Opener-Policy:
     same-origin`. Nothing is loaded from another host, and the build fails if

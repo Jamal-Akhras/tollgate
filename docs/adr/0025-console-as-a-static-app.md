@@ -56,7 +56,7 @@ objection stands. A small compiled app does not have to bring them.
   the committed lockfile, type-checks, runs the unit tests and builds.
   Nobody installs Node by hand.
 - **Browser tests run in CI,** not in `mvnw verify`: Playwright drives the
-  built console against a stub of the admin API, and fails on any
+  built console served by the real server jar, and fails on any
   Content-Security-Policy violation.
 - **A size budget is a test.** The first load (HTML, CSS and JavaScript,
   without uPlot) must stay under 80 kB gzipped. The build fails above it.
@@ -73,7 +73,8 @@ objection stands. A small compiled app does not have to bring them.
   makes needs the admin token (ADR 0026).
 - **Not under `/admin`,** because that path is the API's and its filter asks
   for the token before anything else.
-- **Headers on every console response:**
+- **Headers on every response under `/console/`** (the redirects from `/`
+  and `/console` carry no content and none of them):
   - `Content-Security-Policy: default-src 'none'; script-src 'self';
     style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self';
     base-uri 'none'; form-action 'none'; frame-ancestors 'none'`

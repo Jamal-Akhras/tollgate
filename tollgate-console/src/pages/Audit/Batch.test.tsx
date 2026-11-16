@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { batchFixture } from '../../api/fixtures';
 import type { BatchDetail } from '../../api/types';
@@ -128,4 +128,17 @@ test('showsTheServersMessageWithRetry', async () => {
   show('#/audit/batches/4', answer(500, { code: 'boom', message: 'Could not read the file' }));
   await screen.findByText('Could not read the file');
   expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+});
+
+test('showsLoadingInsteadOfThePreviousBatchWhileTheNextOneLoads', async () => {
+  show('#/audit/batches/4', answer(200, batchFixture));
+  await screen.findByText('Signature valid');
+  let release: (response: Response) => void = () => {};
+  send.mockImplementation(() => new Promise<Response>((resolve) => (release = resolve)));
+  route.value = parse('#/audit/batches/5');
+  await screen.findByRole('heading', { name: 'Batch 5' });
+  expect(screen.queryByText('Signature valid')).toBeNull();
+  await waitFor(() => expect(send.mock.calls.at(-1)?.[0]).toBe('/admin/v1/audit/batches/5'));
+  release(answer(200, { ...batchFixture, seal: { ...batchFixture.seal, batch: 5 } }));
+  await screen.findByText('Signature valid');
 });

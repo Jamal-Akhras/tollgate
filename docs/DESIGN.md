@@ -433,7 +433,6 @@ What is built:
   from another machine.
 - **A simulator:** paste a request and step through its decision trace.
 - **`tollgate audit prove <id>`.**
-- **Browser tests in CI,** and Dependabot and CodeQL for the npm packages.
 
 Teams that keep `tollgate.yaml` in Git leave edits off. That is the GitOps
 mode, and it loses nothing.
@@ -456,10 +455,10 @@ mode, and it loses nothing.
 | Area | Practice |
 |---|---|
 | Correctness | Idempotency keys on admin writes |
-| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection; browser tests of the console (Playwright) that fail on any Content-Security-Policy violation |
+| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection; browser tests of the console (Playwright, in CI) that fail on any Content-Security-Policy violation |
 | Performance | JMH microbenchmarks for hot paths and Gatling load tests, published in 0.1.1; regression thresholds and JFR allocation profiling |
 | Compatibility | japicmp on the extension interfaces from the first release |
-| Supply chain | Signed images; Dependabot and CodeQL for the console's npm packages |
+| Supply chain | Signed images |
 | Observability | JSON logs with redaction |
 | Deployment | Helm chart, Terraform example |
 
