@@ -12,13 +12,14 @@ type Schema = {
 };
 
 type Operation = {
+  requestBody?: { content: Record<string, { schema: Schema }> };
   responses: Record<string, { content?: Record<string, { schema: Schema }> }>;
 };
 
 const paths = spec.paths as unknown as Record<string, Record<string, Operation>>;
 const schemas = spec.components.schemas as unknown as Record<string, Schema>;
 
-const routes: Record<string, [string, string]> = {
+const routes: Record<string, [string, string, string?]> = {
   'activity.busy.json': ['get', '/admin/v1/activity'],
   'activity.json': ['get', '/admin/v1/activity'],
   'audit.busy.json': ['get', '/admin/v1/audit'],
@@ -28,12 +29,12 @@ const routes: Record<string, [string, string]> = {
   'batches.json': ['get', '/admin/v1/audit/batches'],
   'budgets.busy.json': ['get', '/admin/v1/budgets'],
   'budgets.json': ['get', '/admin/v1/budgets'],
-  'change.json': ['put', '/admin/v1/tenants/{tenant}/budget'],
+  'change.json': ['put', '/admin/v1/policies/{policy}/guards/{index}/mode', '200'],
   'config.busy.json': ['get', '/admin/v1/config'],
   'config.json': ['get', '/admin/v1/config'],
   'config.managed.json': ['get', '/admin/v1/config'],
   'config.rewritten.json': ['get', '/admin/v1/config'],
-  'created-key.json': ['post', '/admin/v1/tenants/{tenant}/keys'],
+  'created-key.json': ['post', '/admin/v1/tenants/{tenant}/keys', '201'],
   'info.json': ['get', '/admin/v1/info'],
   'live.busy.json': ['get', '/admin/v1/live'],
   'live.json': ['get', '/admin/v1/live'],
@@ -106,10 +107,14 @@ function check(value: unknown, schema: Schema, path: string): string[] {
   return problems;
 }
 
-function answer(method: string, route: string): Schema {
+function answer(method: string, route: string, status?: string): Schema {
   const responses = paths[route]?.[method]?.responses ?? {};
-  const ok = responses['200'] ?? responses['201'];
-  return ok?.content?.['application/json']?.schema ?? {};
+  const chosen = status === undefined ? (responses['200'] ?? responses['201']) : responses[status];
+  return chosen?.content?.['application/json']?.schema ?? {};
+}
+
+function request(method: string, route: string): Schema {
+  return paths[route]?.[method]?.requestBody?.content['application/json']?.schema ?? {};
 }
 
 test('everyFixtureHasARoute', () => {
@@ -117,12 +122,36 @@ test('everyFixtureHasARoute', () => {
   expect(found.sort()).toEqual(Object.keys(routes).sort());
 });
 
-for (const [file, [method, route]] of Object.entries(routes)) {
+for (const [file, [method, route, status]] of Object.entries(routes)) {
   test(`${file.replace('.json', '')}MatchesTheAnswerOf${method.toUpperCase()}${route}`, () => {
     const fixture = files[`./fixtures/${file}`];
-    expect(check(fixture, answer(method, route), file)).toEqual([]);
+    expect(check(fixture, answer(method, route, status), file)).toEqual([]);
   });
 }
+
+const modeRoute = '/admin/v1/policies/{policy}/guards/{index}/mode';
+const budgetRoute = '/admin/v1/tenants/{tenant}/budget';
+
+test('theGuardSwitchSendsWhatPUTModeAccepts', () => {
+  for (const body of [{ mode: 'enforce' }, { mode: 'monitor' }]) {
+    expect(check(body, request('put', modeRoute), 'body')).toEqual([]);
+  }
+});
+
+test('theBudgetFormSendsWhatPUTBudgetAccepts', () => {
+  for (const period of ['daily', 'monthly', 'total']) {
+    expect(check({ limit: '200', period }, request('put', budgetRoute), 'body')).toEqual([]);
+  }
+});
+
+test('aRequestBodyWithAnUnknownModeOrFieldFails', () => {
+  expect(check({ mode: 'pause' }, request('put', modeRoute), 'body')).toEqual([
+    'body.mode: pause is not one of enforce, monitor',
+  ]);
+  expect(check({ limit: '5', period: 'daily', extra: 1 }, request('put', budgetRoute), 'body')).toEqual([
+    'body.extra: not in the API',
+  ]);
+});
 
 test('aFixtureWithAFieldTheApiDoesNotHaveFails', () => {
   const wrong = { version: 'a', previous: 'b', changed: true, extra: 1 };
