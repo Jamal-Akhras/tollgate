@@ -11,7 +11,7 @@
       "name": "anthropic",
       "format": "anthropic",
       "host": "api.anthropic.com",
-      "region": null,
+      "region": "us",
       "concurrent": 8,
       "apiKey": "${env:ANTHROPIC_API_KEY}"
     },
@@ -65,7 +65,7 @@
   "tenants": [
     {
       "name": "my-app",
-      "dataClass": null,
+      "dataClass": "internal",
       "policy": "default",
       "models": [
         "qwen3"
@@ -175,7 +175,7 @@
       },
       "redact": {
         "email": [
-          "support-bot"
+          "internal"
         ]
       },
       "refuse": {}
@@ -207,12 +207,12 @@
       "features": {},
       "redact": {
         "credit-card": [
-          "research"
+          "restricted"
         ]
       },
       "refuse": {
         "private-key": [
-          "research"
+          "restricted"
         ]
       }
     }

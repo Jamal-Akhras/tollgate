@@ -1,0 +1,127 @@
+.root {
+  position: relative;
+  width: 100%;
+}
+
+.picture {
+  position: relative;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.sent {
+  stroke: var(--ok);
+  stroke-dasharray: 5 4;
+}
+
+.fallback {
+  stroke: var(--accent);
+  stroke-dasharray: 2 4;
+}
+
+.refused {
+  stroke: var(--danger);
+  stroke-dasharray: 5 4;
+}
+
+.idle {
+  stroke: var(--text-dim);
+  stroke-dasharray: 5 4;
+}
+
+.moving {
+  animation: tg-flow 1s linear infinite;
+}
+
+.liveDot {
+  display: none;
+  fill: var(--ok);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDot {
+    display: inline;
+  }
+}
+
+.cross {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.word {
+  fill: var(--danger-text);
+  font-size: var(--size-detail);
+  text-anchor: middle;
+}
+
+.tenant {
+  position: absolute;
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-card);
+  text-align: left;
+  transition: opacity var(--motion-fade);
+}
+
+.tenant > div,
+.provider > div {
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+}
+
+.provider {
+  position: absolute;
+}
+
+.box {
+  position: absolute;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+}
+
+.boxTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-4) 0;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: var(--size-cell);
+  font-weight: 600;
+}
+
+.pill {
+  position: absolute;
+}
+
+.pill > button {
+  width: 100%;
+  overflow: hidden;
+}
+
+.pill > button > span:last-child {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

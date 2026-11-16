@@ -31,7 +31,7 @@ beforeEach(async () => {
   }));
   await signInWith('secret-token');
   send.mockClear();
-  setRoute('');
+  setRoute('#/usage');
 });
 
 afterEach(() => {

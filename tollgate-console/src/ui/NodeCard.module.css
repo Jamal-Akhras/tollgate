@@ -60,3 +60,8 @@
   border-left: 0;
   border-radius: 0 4px 4px 0;
 }
+
+.dashed {
+  border-style: dashed;
+  border-color: var(--warn-border);
+}

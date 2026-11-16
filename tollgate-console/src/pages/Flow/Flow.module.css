@@ -1,0 +1,80 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) 28px;
+}
+
+.page > :first-child {
+  margin-bottom: 0;
+}
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--size-cell);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: var(--ok);
+  border-radius: 50%;
+}
+
+.button {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-button);
+  color: var(--text);
+  font-size: var(--size-cell);
+}
+
+.button:hover {
+  border-color: var(--accent);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+}
+
+.pick select {
+  min-height: 30px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-button);
+  font-size: var(--size-body);
+}
+
+.heading {
+  color: var(--text-muted);
+  font-size: var(--size-cell);
+  font-weight: 600;
+}
+
+.items {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--size-cell);
+}

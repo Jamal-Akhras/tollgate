@@ -2415,8 +2415,8 @@
     }
   ],
   "inFlight": {
-    "support-bot": 3,
-    "research": 1
+    "openai": 3,
+    "ollama": 1
   },
   "limited": {
     "support-bot": 2
