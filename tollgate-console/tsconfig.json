@@ -6,6 +6,7 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "types": ["vite/client"],

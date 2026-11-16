@@ -1,0 +1,50 @@
+[
+  {
+    "seal": {
+      "batch": 4,
+      "records": 6,
+      "time": "2026-11-16T09:57:00Z",
+      "root": "9eb0ad4af7990611287f516425be7e89eefff499aef40d1c696c2f8ec3e4ea3f",
+      "previous": "3201f1ae159a3193c3ce8d2f2816e06fed28416c5a31f60e66c44241bb758e31",
+      "key": "e3b0c442",
+      "hmacKey": "98f2a1d7"
+    },
+    "file": "audit-2026-11-16.jsonl"
+  },
+  {
+    "seal": {
+      "batch": 3,
+      "records": 128,
+      "time": "2026-11-16T09:20:00Z",
+      "root": "591843df2c4cfefdb70e85ae547ecfc13e8288581d2d7037b82eb3af8abca2f0",
+      "previous": "1d91e08c8ead059b399f4f92d9017400949cbf2f8049ceed6f58719a118e03e6",
+      "key": "e3b0c442",
+      "hmacKey": "98f2a1d7"
+    },
+    "file": "audit-2026-11-16.jsonl"
+  },
+  {
+    "seal": {
+      "batch": 2,
+      "records": 128,
+      "time": "2026-11-16T09:00:00Z",
+      "root": "bf59d6a4564f9f49964ef377f398e35c7da2413e9d792c97dfdbbc9687ce8abc",
+      "previous": "d22e055c812fe54f52e0ded286dff87f913dc3f51bed2e127ed5cffc4ad700a7",
+      "key": "e3b0c442",
+      "hmacKey": "98f2a1d7"
+    },
+    "file": "audit-2026-11-15.jsonl"
+  },
+  {
+    "seal": {
+      "batch": 1,
+      "records": 128,
+      "time": "2026-11-16T08:40:00Z",
+      "root": "3de0c6d1959ece558ec030f37292e383a9c95f497e8235b89701b914be9bd1fb",
+      "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+      "key": "e3b0c442",
+      "hmacKey": "98f2a1d7"
+    },
+    "file": "audit-2026-11-15.jsonl"
+  }
+]

@@ -1,0 +1,62 @@
+{
+  "version": "15d3888e40a37ea4717f7d22fd6d3ef3f75c2d83ca52ce0a2a3b3e8b1ebd4343",
+  "edits": "read-only",
+  "dataClasses": [],
+  "providers": [
+    {
+      "name": "ollama",
+      "format": "openai",
+      "host": "127.0.0.1:11434",
+      "region": null,
+      "concurrent": null,
+      "apiKey": null
+    }
+  ],
+  "models": [
+    {
+      "name": "qwen3",
+      "provider": "ollama",
+      "upstream": "qwen3:8b",
+      "free": true,
+      "outputCap": null,
+      "fallback": []
+    }
+  ],
+  "tenants": [
+    {
+      "name": "my-app",
+      "dataClass": null,
+      "policy": "default",
+      "models": [
+        "qwen3"
+      ],
+      "budget": null,
+      "limits": {
+        "requestsPerMinute": null,
+        "tokensPerMinute": null,
+        "concurrent": null
+      },
+      "attributesUsers": false,
+      "showsCosts": false
+    }
+  ],
+  "keys": [
+    {
+      "id": "3f9a1c2e",
+      "tenant": "my-app"
+    }
+  ],
+  "policies": [
+    {
+      "name": "default",
+      "guards": [],
+      "features": {},
+      "redact": {},
+      "refuse": {}
+    }
+  ],
+  "audit": {
+    "mode": "sync",
+    "publicKey": "MCowBQYDK2VwAyEA7Hq1mJ2m0yq3zR9sT4uVwXyZ0aBcDeFgHiJkLmNoPqR="
+  }
+}

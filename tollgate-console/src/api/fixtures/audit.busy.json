@@ -1,0 +1,15 @@
+{
+  "mode": "async",
+  "publicKey": "MCowBQYDK2VwAyEA7Hq1mJ2m0yq3zR9sT4uVwXyZ0aBcDeFgHiJkLmNoPqR=",
+  "keyId": "e3b0c442",
+  "files": 3,
+  "lastSeal": {
+    "batch": 4,
+    "records": 6,
+    "time": "2026-11-16T09:57:00Z",
+    "root": "9eb0ad4af7990611287f516425be7e89eefff499aef40d1c696c2f8ec3e4ea3f",
+    "previous": "3201f1ae159a3193c3ce8d2f2816e06fed28416c5a31f60e66c44241bb758e31",
+    "key": "e3b0c442",
+    "hmacKey": "98f2a1d7"
+  }
+}

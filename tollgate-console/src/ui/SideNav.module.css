@@ -1,0 +1,86 @@
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 248px;
+  flex: none;
+  padding: var(--space-3);
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.collapsed {
+  width: 64px;
+}
+
+.drawer {
+  position: fixed;
+  top: 64px;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  width: 248px;
+  box-shadow: var(--shadow-panel);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-item);
+  color: var(--text-muted);
+  font-size: var(--size-cell);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+}
+
+.link:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.current {
+  background: var(--surface-current);
+  color: var(--text);
+}
+
+.collapsed .label {
+  display: none;
+}
+
+.collapsed .link {
+  justify-content: center;
+  padding: var(--space-2);
+}
+
+.rule {
+  width: 100%;
+  margin: var(--space-2) 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.budget:empty {
+  display: none;
+}

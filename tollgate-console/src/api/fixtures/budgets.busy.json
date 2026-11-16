@@ -1,0 +1,11 @@
+[
+  {
+    "tenant": "support-bot",
+    "limit": "150",
+    "period": "monthly",
+    "currency": "USD",
+    "spent": "41.18",
+    "reserved": "0.05",
+    "available": "108.77"
+  }
+]

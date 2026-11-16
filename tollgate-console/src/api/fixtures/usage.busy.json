@@ -1,0 +1,57 @@
+{
+  "by": "tenant",
+  "from": "2026-11-01T00:00:00Z",
+  "to": "2026-11-17T00:00:00Z",
+  "rows": [
+    {
+      "key": "my-app",
+      "calls": 31,
+      "unfinished": 0,
+      "tokens": {
+        "input": 14200,
+        "output": 9100,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "USD": "0"
+      },
+      "refused": {}
+    },
+    {
+      "key": "research",
+      "calls": 1204,
+      "unfinished": 1,
+      "tokens": {
+        "input": 1802000,
+        "output": 640000,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "USD": "0"
+      },
+      "refused": {
+        "body_too_large": 17
+      }
+    },
+    {
+      "key": "support-bot",
+      "calls": 9120,
+      "unfinished": 3,
+      "tokens": {
+        "input": 5120000,
+        "output": 2310000,
+        "cacheRead": 410000,
+        "cacheWrite": 90000
+      },
+      "cost": {
+        "USD": "41.18"
+      },
+      "refused": {
+        "data_class": 120,
+        "tool_not_allowed": 14
+      }
+    }
+  ]
+}

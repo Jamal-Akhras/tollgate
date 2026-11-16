@@ -1,0 +1,282 @@
+[
+  {
+    "endpoint": "/v1/chat/completions",
+    "dataClass": "internal",
+    "attributed": true,
+    "fallback": false,
+    "reservation": {
+      "amount": "0.002",
+      "currency": "USD"
+    },
+    "redacted": {
+      "email": 2
+    },
+    "id": "01KA3X1B9C4D7E2F6G8H0JKMNP",
+    "time": "2026-11-16T09:59:58Z",
+    "tenant": "support-bot",
+    "key": "a81d07b4",
+    "model": "gpt-fast",
+    "provider": "openai",
+    "upstream": "gpt-4o-mini",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 204
+      },
+      {
+        "guard": "tool-names",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 183
+      }
+    ],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:59:59Z",
+      "result": "responded",
+      "status": 200,
+      "tokens": {
+        "input": 640,
+        "output": 210,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "amount": "0.00022",
+        "currency": "USD"
+      },
+      "millis": 612
+    }
+  },
+  {
+    "endpoint": "/v1/chat/completions",
+    "dataClass": "restricted",
+    "attributed": true,
+    "fallback": false,
+    "reservation": null,
+    "redacted": {},
+    "id": "01KA3X0Y5T1V8W3Z7A2B4CDEFG",
+    "time": "2026-11-16T09:59:29Z",
+    "tenant": "support-bot",
+    "key": "a81d07b4",
+    "model": "gpt-fast",
+    "provider": "openai",
+    "upstream": "gpt-4o-mini",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": false,
+        "code": "data_class",
+        "message": "Data class restricted may not go to region us",
+        "micros": 165
+      }
+    ],
+    "allowed": false,
+    "code": "data_class",
+    "message": "Data class restricted may not go to region us",
+    "outcome": null
+  },
+  {
+    "endpoint": "/v1/chat/completions",
+    "dataClass": "internal",
+    "attributed": true,
+    "fallback": true,
+    "reservation": null,
+    "redacted": {},
+    "id": "01KA3WZK3M6N9P2Q5R8S1TUVWX.1",
+    "time": "2026-11-16T09:58:25Z",
+    "tenant": "support-bot",
+    "key": "c25e9f60",
+    "model": "qwen3",
+    "provider": "ollama",
+    "upstream": "qwen3:8b",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 75
+      },
+      {
+        "guard": "tool-names",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 63
+      }
+    ],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:58:26Z",
+      "result": "responded",
+      "status": 200,
+      "tokens": {
+        "input": 520,
+        "output": 180,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "millis": 1320
+    }
+  },
+  {
+    "endpoint": "/v1/messages",
+    "dataClass": "internal",
+    "attributed": true,
+    "fallback": false,
+    "reservation": {
+      "amount": "0.012",
+      "currency": "USD"
+    },
+    "redacted": {},
+    "id": "01KA3WYH7J4K1L8M5N2P9QRSTU",
+    "time": "2026-11-16T09:57:50Z",
+    "tenant": "support-bot",
+    "key": "a81d07b4",
+    "model": "claude-sonnet",
+    "provider": "anthropic",
+    "upstream": "claude-sonnet-4-5",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 164
+      },
+      {
+        "guard": "tool-names",
+        "monitored": true,
+        "allowed": false,
+        "code": "tool_not_allowed",
+        "message": "Tool shell is not in the allowed list",
+        "micros": 129
+      }
+    ],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:57:52Z",
+      "result": "responded",
+      "status": 200,
+      "tokens": {
+        "input": 1900,
+        "output": 640,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": {
+        "amount": "0.0153",
+        "currency": "USD"
+      },
+      "millis": 2100
+    }
+  },
+  {
+    "endpoint": "/v1/chat/completions",
+    "dataClass": "internal",
+    "attributed": true,
+    "fallback": false,
+    "reservation": {
+      "amount": "0.002",
+      "currency": "USD"
+    },
+    "redacted": {},
+    "id": "01KA3WXD2F5G8H1J4K7L0MNPQR",
+    "time": "2026-11-16T09:57:00Z",
+    "tenant": "support-bot",
+    "key": "a81d07b4",
+    "model": "gpt-fast",
+    "provider": "openai",
+    "upstream": "gpt-4o-mini",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 129
+      },
+      {
+        "guard": "tool-names",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 101
+      }
+    ],
+    "allowed": true,
+    "code": null,
+    "message": null,
+    "outcome": {
+      "time": "2026-11-16T09:57:03Z",
+      "result": "upstream_error",
+      "status": 502,
+      "tokens": null,
+      "cost": {
+        "amount": "0",
+        "currency": "USD"
+      },
+      "millis": 3000
+    }
+  },
+  {
+    "endpoint": "/v1/chat/completions",
+    "dataClass": "restricted",
+    "attributed": true,
+    "fallback": false,
+    "reservation": null,
+    "redacted": {},
+    "id": "01KA3WWB8C1D4E7F0G3H6JKLMN",
+    "time": "2026-11-16T09:56:00Z",
+    "tenant": "research",
+    "key": "d9047e1b",
+    "model": "qwen3",
+    "provider": "ollama",
+    "upstream": "qwen3:8b",
+    "steps": [
+      {
+        "guard": "data-class",
+        "monitored": false,
+        "allowed": true,
+        "code": null,
+        "message": null,
+        "micros": 175
+      },
+      {
+        "guard": "body-size",
+        "monitored": false,
+        "allowed": false,
+        "code": "body_too_large",
+        "message": "The request body is larger than 65536 bytes",
+        "micros": 49
+      }
+    ],
+    "allowed": false,
+    "code": "body_too_large",
+    "message": "The request body is larger than 65536 bytes",
+    "outcome": null
+  }
+]

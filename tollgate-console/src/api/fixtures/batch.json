@@ -1,0 +1,59 @@
+{
+  "seal": {
+    "batch": 4,
+    "records": 6,
+    "time": "2026-11-16T09:57:00Z",
+    "root": "9eb0ad4af7990611287f516425be7e89eefff499aef40d1c696c2f8ec3e4ea3f",
+    "previous": "3201f1ae159a3193c3ce8d2f2816e06fed28416c5a31f60e66c44241bb758e31",
+    "key": "e3b0c442",
+    "hmacKey": "98f2a1d7"
+  },
+  "signature": "pUOZfYTxJ5g1DAm97yzbFxv0HtPkpfgIry/rDFYmMAk=",
+  "file": "audit-2026-11-16.jsonl",
+  "signatureValid": true,
+  "rootMatches": true,
+  "leaves": [
+    {
+      "index": 0,
+      "type": "intent",
+      "id": "01KA3WWB8C1D4E7F0G3H6JKLMN",
+      "time": "2026-11-16T09:56:00Z",
+      "leafHash": "cbd4413e61db15d7d3c26be71729762d95d84d7ca99a4234219a508721537f78"
+    },
+    {
+      "index": 1,
+      "type": "intent",
+      "id": "01KA3WXD2F5G8H1J4K7L0MNPQR",
+      "time": "2026-11-16T09:57:00Z",
+      "leafHash": "7505bc315a32240c7eab13f9798bd8310e650ae08d38b6f26b831b81fb0a15a6"
+    },
+    {
+      "index": 2,
+      "type": "outcome",
+      "id": "01KA3WXD2F5G8H1J4K7L0MNPQR",
+      "time": "2026-11-16T09:57:03Z",
+      "leafHash": "e939e865251538fea90134a80dafb920fa7ec091fb9f2460b35f74959fd67fe9"
+    },
+    {
+      "index": 3,
+      "type": "intent",
+      "id": "01KA3WYH7J4K1L8M5N2P9QRSTU",
+      "time": "2026-11-16T09:57:50Z",
+      "leafHash": "f81cf6099a69f47d8a2a5ccb2c541783fb90241e4cd9c4d9fb91ca5d901ab4c6"
+    },
+    {
+      "index": 4,
+      "type": "outcome",
+      "id": "01KA3WYH7J4K1L8M5N2P9QRSTU",
+      "time": "2026-11-16T09:57:52Z",
+      "leafHash": "9f2cd285c872c1d545ca235a70a7db36f0e513508014e0819baf9908c5a223c8"
+    },
+    {
+      "index": 5,
+      "type": "intent",
+      "id": "01KA3WZK3M6N9P2Q5R8S1TUVWX.1",
+      "time": "2026-11-16T09:58:25Z",
+      "leafHash": "13aa62013e917ca62aecf5dee724f09783b3aecb099098924975dd60b6d34fda"
+    }
+  ]
+}
