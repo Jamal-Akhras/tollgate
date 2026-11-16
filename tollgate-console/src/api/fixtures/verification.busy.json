@@ -5,7 +5,7 @@
   "failures": [],
   "warnings": [
     {
-      "file": "tollgate-audit-2.jsonl",
+      "file": "tollgate-audit-00000002.jsonl",
       "line": 5121,
       "message": "Records after the last seal are not sealed yet"
     }

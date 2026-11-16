@@ -34,15 +34,15 @@ test('listsAFailureAndAWarningWithTheirFilesAndLinesAndExplainsTheWarning', asyn
   const result = {
     ...verificationBusyFixture,
     intact: false,
-    failures: [{ file: 'tollgate-audit-2.jsonl', line: 40, message: 'The seal of batch 3 is not signed by the key' }],
+    failures: [{ file: 'tollgate-audit-00000002.jsonl', line: 40, message: 'The seal of batch 3 is not signed by the key' }],
   };
   send.mockImplementation(() => Promise.resolve(answer(200, result)));
   render(<Verify />);
   fireEvent.click(screen.getByRole('button', { name: 'Verify the whole trail' }));
   await screen.findByText('The audit trail is not intact');
-  expect(screen.getByText('tollgate-audit-2.jsonl:40')).toBeTruthy();
+  expect(screen.getByText('tollgate-audit-00000002.jsonl:40')).toBeTruthy();
   expect(screen.getByText(/The seal of batch 3 is not signed/)).toBeTruthy();
-  expect(screen.getByText('tollgate-audit-2.jsonl:5121')).toBeTruthy();
+  expect(screen.getByText('tollgate-audit-00000002.jsonl:5121')).toBeTruthy();
   expect(screen.getByText(warningsText)).toBeTruthy();
 });
 

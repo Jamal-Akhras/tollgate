@@ -41,8 +41,8 @@ test('setBudgetKeepsTheCurrentValues', () => {
 });
 
 test('removeKeyShowsTheLineToDelete', () => {
-  expect(removeKey('a81d07b4', 'support-bot').code).toBe(
-    'keys:\n  - { id: a81d07b4, tenant: support-bot, sha256: … }',
+  expect(removeKey('a81d07b4Xp2R', 'support-bot').code).toBe(
+    'keys:\n  - { id: a81d07b4Xp2R, tenant: support-bot, sha256: … }',
   );
 });
 

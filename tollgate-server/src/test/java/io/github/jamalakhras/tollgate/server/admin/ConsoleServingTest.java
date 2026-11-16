@@ -8,6 +8,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -86,6 +88,21 @@ class ConsoleServingTest {
         assertThat(fetch(ADMIN_PORT, "/console/missing.js").statusCode()).isEqualTo(404);
         assertThat(fetch(ADMIN_PORT, "/console/..%2f..%2fapplication.yaml").statusCode())
                 .isEqualTo(400);
+    }
+
+    @Test
+    void servesTheBuiltConsole() throws Exception {
+        var pages = ConsoleServingTest.class.getClassLoader().getResources("META-INF/tollgate-console/index.html");
+        var urls = Collections.list(pages);
+        assertThat(urls).hasSize(2);
+
+        boolean namesAScript = false;
+        for (var url : urls) {
+            try (var stream = url.openStream()) {
+                namesAScript |= new String(stream.readAllBytes(), StandardCharsets.UTF_8).contains("assets/");
+            }
+        }
+        assertThat(namesAScript).isTrue();
     }
 
     private static HttpResponse<String> fetch(int port, String path) throws IOException, InterruptedException {

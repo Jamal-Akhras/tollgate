@@ -43,9 +43,9 @@ test('aNewKeyAddsItsEntry', () => {
 });
 
 test('aRevokedKeyRemovesItsEntry', () => {
-  expect(revokedKeyLines({ id: '3f9a1c2e', tenant: 'my-app' })).toEqual({
+  expect(revokedKeyLines({ id: '3f9a1c2eK7mQ', tenant: 'my-app' })).toEqual({
     path: 'keys',
-    removed: ['- id: "3f9a1c2e"', 'tenant: "my-app"', 'sha256: (its hash)'],
+    removed: ['- id: "3f9a1c2eK7mQ"', 'tenant: "my-app"', 'sha256: (its hash)'],
     added: [],
   });
 });

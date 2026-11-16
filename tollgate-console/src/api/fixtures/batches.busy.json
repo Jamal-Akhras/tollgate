@@ -9,7 +9,7 @@
       "key": "e3b0c44298fc1c14",
       "hmacKey": "98f2a1d7c4e0b365"
     },
-    "file": "tollgate-audit-2.jsonl"
+    "file": "tollgate-audit-00000002.jsonl"
   },
   {
     "seal": {
@@ -21,7 +21,7 @@
       "key": "e3b0c44298fc1c14",
       "hmacKey": "98f2a1d7c4e0b365"
     },
-    "file": "tollgate-audit-2.jsonl"
+    "file": "tollgate-audit-00000002.jsonl"
   },
   {
     "seal": {
@@ -33,7 +33,7 @@
       "key": "e3b0c44298fc1c14",
       "hmacKey": "98f2a1d7c4e0b365"
     },
-    "file": "tollgate-audit-1.jsonl"
+    "file": "tollgate-audit-00000001.jsonl"
   },
   {
     "seal": {
@@ -45,6 +45,6 @@
       "key": "e3b0c44298fc1c14",
       "hmacKey": "98f2a1d7c4e0b365"
     },
-    "file": "tollgate-audit-1.jsonl"
+    "file": "tollgate-audit-00000001.jsonl"
   }
 ]

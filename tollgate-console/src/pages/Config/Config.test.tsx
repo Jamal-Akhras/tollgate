@@ -283,8 +283,8 @@ test('withEditsOnRevokingAKeyDeletesIt', async () => {
     return Promise.resolve(answer(200, path.endsWith('/budgets') ? [] : configManagedFixture));
   });
   open();
-  fireEvent.click(await screen.findByRole('button', { name: 'Revoke key a81d07b4' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Revoke key a81d07b4Xp2R' }));
   fireEvent.click(screen.getByRole('button', { name: 'Revoke key' }));
-  await waitFor(() => expect(paths()).toContain('DELETE /admin/v1/keys/a81d07b4'));
+  await waitFor(() => expect(paths()).toContain('DELETE /admin/v1/keys/a81d07b4Xp2R'));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });

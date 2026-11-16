@@ -9,7 +9,7 @@
     "hmacKey": "98f2a1d7c4e0b365"
   },
   "signature": "pUOZfYTxJ5g1DAm97yzbFxv0HtPkpfgIry/rDFYmMAk=",
-  "file": "tollgate-audit-2.jsonl",
+  "file": "tollgate-audit-00000002.jsonl",
   "signatureValid": true,
   "rootMatches": true,
   "leaves": [

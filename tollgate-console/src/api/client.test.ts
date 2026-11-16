@@ -120,7 +120,7 @@ test('putsABodyWithTheQuotedVersionAndTheContentType', async () => {
 
 test('deletesWithTheVersionAndNoBody', async () => {
   send.mockResolvedValue(answer(200, { changed: true }));
-  await del('/keys/3f9a1c2e', 'abc123');
+  await del('/keys/3f9a1c2eK7mQ', 'abc123');
   const [, init] = send.mock.calls[0] ?? [];
   expect(init.method).toBe('DELETE');
   expect(init.headers['If-Match']).toBe('"abc123"');
