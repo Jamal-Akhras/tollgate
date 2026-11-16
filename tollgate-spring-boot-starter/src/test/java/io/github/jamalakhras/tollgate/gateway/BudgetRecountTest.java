@@ -7,6 +7,7 @@ import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.core.budget.Budget;
+import io.github.jamalakhras.tollgate.core.budget.Reservation;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.Usage;
@@ -225,6 +226,44 @@ class BudgetRecountTest {
 
             assertThat(spent(gateway)).isEqualTo(usd("0"));
             assertThat(output.getAll()).contains("The budget of tenant metered changed period or is new");
+        }
+    }
+
+    @Test
+    void aCallReservedBeforeTheRecountKeepsItWhenItSettlesAfter() throws Exception {
+        write(", budget: { limit: 5, period: monthly }", true);
+        try (Gateway gateway = start()) {
+            Budget monthly = Objects.requireNonNull(
+                    Objects.requireNonNull(gateway.config().tenants().get("metered"))
+                            .budget());
+            Reservation inFlight =
+                    gateway.budgetStore().reserve("metered", monthly, usd("1")).orElseThrow();
+            spendThisMonth();
+
+            write(", budget: { limit: 5, period: daily }", true);
+            gateway.reload();
+            gateway.budgetStore().settle(inFlight, usd("0.20"));
+
+            assertThat(spent(gateway)).isEqualTo(usd("0.50"));
+        }
+    }
+
+    @Test
+    void aCallStartedOnTheOldConfigAfterTheRecountKeepsItToo() throws Exception {
+        write(", budget: { limit: 5, period: monthly }", true);
+        try (Gateway gateway = start()) {
+            Budget monthly = Objects.requireNonNull(
+                    Objects.requireNonNull(gateway.config().tenants().get("metered"))
+                            .budget());
+            spendThisMonth();
+
+            write(", budget: { limit: 5, period: daily }", true);
+            gateway.reload();
+            Reservation late =
+                    gateway.budgetStore().reserve("metered", monthly, usd("1")).orElseThrow();
+            gateway.budgetStore().settle(late, usd("0.20"));
+
+            assertThat(spent(gateway)).isEqualTo(usd("0.50"));
         }
     }
 }

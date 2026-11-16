@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.jspecify.annotations.Nullable;
 
 public final class InMemoryBudgetStore implements BudgetStore {
 
@@ -47,11 +48,8 @@ public final class InMemoryBudgetStore implements BudgetStore {
     }
 
     @Override
-    public void forget(String tenant) {
-        Ledger ledger = ledgers.get(tenant);
-        if (ledger != null) {
-            ledger.forget();
-        }
+    public void recount(String tenant, Budget budget, Runnable replay) {
+        ledgers.computeIfAbsent(tenant, name -> new Ledger()).recount(budget, clock.instant(), replay);
     }
 
     @Override
@@ -70,6 +68,7 @@ public final class InMemoryBudgetStore implements BudgetStore {
 
     private static final class Ledger {
 
+        private @Nullable Period period;
         private Instant periodStart = Instant.MIN;
         private long spent;
         private long reserved;
@@ -85,7 +84,7 @@ public final class InMemoryBudgetStore implements BudgetStore {
         }
 
         synchronized void settle(Reservation reservation, long cost, Instant now) {
-            enterPeriod(reservation.budget(), now);
+            rollOver(now);
             reserved = Math.subtractExact(reserved, reservation.amount().nanos());
             spent = Math.addExact(spent, cost);
         }
@@ -102,9 +101,11 @@ public final class InMemoryBudgetStore implements BudgetStore {
             return Math.max(0, budget.limit().nanos() - spent - reserved);
         }
 
-        synchronized void forget() {
-            periodStart = Instant.MIN;
+        synchronized void recount(Budget budget, Instant now, Runnable replay) {
+            period = budget.period();
+            periodStart = period.start(now);
             spent = 0;
+            replay.run();
         }
 
         synchronized long reserved() {
@@ -117,7 +118,17 @@ public final class InMemoryBudgetStore implements BudgetStore {
         }
 
         private void enterPeriod(Budget budget, Instant now) {
-            Instant start = budget.period().start(now);
+            if (period == null) {
+                period = budget.period();
+            }
+            rollOver(now);
+        }
+
+        private void rollOver(Instant now) {
+            if (period == null) {
+                return;
+            }
+            Instant start = period.start(now);
             if (!start.equals(periodStart)) {
                 periodStart = start;
                 spent = 0;

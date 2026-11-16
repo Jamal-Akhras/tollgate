@@ -172,6 +172,12 @@ only source of truth; there is no second file and no database.
     the calls that carried a reservation, so it starts from now in effect.
     With the audit trail off the count starts from zero and a warning is
     logged. The console says so before it writes.
+  - The sum runs while the tenant's ledger is locked, so no call sees a
+    count of zero. Calls in flight during it can only add to the count:
+    a call reserved under the old period settles into the new period, and
+    a call that is open in the trail is counted at its full reservation
+    and again at its real cost when it settles. The count can be high by
+    the calls in flight at that moment and is never low.
 - **Create a key.** The server makes the key as `keys create` does and
   writes only `{ id, tenant, sha256 }`. The answer carries the key once,
   with `Cache-Control: no-store`. It is not logged, not kept and can't be

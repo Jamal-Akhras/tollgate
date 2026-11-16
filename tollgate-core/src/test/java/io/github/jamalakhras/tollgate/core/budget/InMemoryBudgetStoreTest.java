@@ -170,4 +170,60 @@ class InMemoryBudgetStoreTest {
 
         assertThatThrownBy(() -> store.settle(stranger, Prices.usd("1"))).isInstanceOf(IllegalStateException.class);
     }
+
+    private static final Budget TEN_DOLLARS_A_DAY = new Budget(Prices.usd("10"), Period.DAILY);
+
+    private void recountTo(Budget budget, String spent) {
+        store.recount("support-bot", budget, () -> store.restore("support-bot", budget, Prices.usd(spent), now.get()));
+    }
+
+    @Test
+    void aCallReservedUnderTheOldPeriodKeepsTheRecountWhenItSettles() {
+        Reservation old = reserve("1");
+        recountTo(TEN_DOLLARS_A_DAY, "3");
+
+        store.settle(old, Prices.usd("0.50"));
+
+        assertThat(store.spent("support-bot", TEN_DOLLARS_A_DAY)).isEqualTo(Prices.usd("3.50"));
+    }
+
+    @Test
+    void aCallReservedUnderTheOldPeriodAfterTheRecountDoesNotZeroIt() {
+        recountTo(TEN_DOLLARS_A_DAY, "3");
+
+        Reservation old = reserve("1");
+        store.settle(old, Prices.usd("0.50"));
+
+        assertThat(store.spent("support-bot", TEN_DOLLARS_A_DAY)).isEqualTo(Prices.usd("3.50"));
+        assertThat(store.available("support-bot", TEN_DOLLARS_A_DAY)).isEqualTo(Prices.usd("6.50"));
+    }
+
+    @Test
+    void aRecountThatFindsNothingStillMovesTheLedgerToTheNewPeriod() {
+        reserve("1");
+        recountTo(TEN_DOLLARS_A_DAY, "0");
+        store.settle(new Reservation("support-bot", TEN_DOLLARS_A_MONTH, Prices.usd("1")), Prices.usd("2"));
+
+        now.set(Instant.parse("2026-10-30T01:00:00Z"));
+
+        assertThat(store.spent("support-bot", TEN_DOLLARS_A_DAY)).isEqualTo(Prices.usd("0"));
+    }
+
+    @Test
+    void holdsOffReadsWhileARecountRuns() throws Exception {
+        store.restore("support-bot", TEN_DOLLARS_A_MONTH, Prices.usd("4"), now.get());
+        AtomicReference<Money> seen = new AtomicReference<>();
+        Thread reader = new Thread(() -> seen.set(store.spent("support-bot", TEN_DOLLARS_A_DAY)));
+
+        store.recount("support-bot", TEN_DOLLARS_A_DAY, () -> {
+            reader.start();
+            while (reader.getState() != Thread.State.BLOCKED) {
+                Thread.onSpinWait();
+            }
+            store.restore("support-bot", TEN_DOLLARS_A_DAY, Prices.usd("3"), now.get());
+        });
+        reader.join();
+
+        assertThat(seen.get()).isEqualTo(Prices.usd("3"));
+    }
 }

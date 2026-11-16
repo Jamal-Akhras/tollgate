@@ -62,7 +62,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -530,30 +530,40 @@ public final class Gateway implements AutoCloseable {
     }
 
     private void recountBudgets(Snapshot before, Snapshot after) {
-        Set<String> recount = new TreeSet<>();
+        Map<String, Budget> recount = new TreeMap<>();
         after.config().tenants().forEach((name, tenant) -> {
             Budget budget = tenant.budget();
             Tenant old = before.config().tenants().get(name);
             Budget oldBudget = old == null ? null : old.budget();
             if (budget != null && (oldBudget == null || oldBudget.period() != budget.period())) {
-                recount.add(name);
+                recount.put(name, budget);
             }
         });
         if (recount.isEmpty()) {
             return;
         }
         if (!(after.config().audit() instanceof AuditSettings.Enabled audit)) {
-            recount.forEach(name -> log.warn(
-                    "The budget of tenant {} changed period or is new, and its spend starts from zero because the audit trail is off",
-                    name));
+            recount.keySet()
+                    .forEach(name -> log.warn(
+                            "The budget of tenant {} changed period or is new, and its spend starts from zero because the audit trail is off",
+                            name));
             return;
         }
         Path directory = after.loaded().resolve(audit.directory());
         try {
-            recount.forEach(budgets::forget);
-            BudgetReplay.replay(directory, after.config(), budgets, recount);
-        } catch (IOException e) {
-            log.warn("Could not recount the spend of tenants {} from {}: {}", recount, directory, e.getMessage());
+            recount.forEach((name, budget) -> budgets.recount(name, budget, () -> {
+                try {
+                    BudgetReplay.replay(directory, after.config(), budgets, Set.of(name));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }));
+        } catch (UncheckedIOException e) {
+            log.warn(
+                    "Could not recount the spend of tenants {} from {}: {}",
+                    recount.keySet(),
+                    directory,
+                    e.getMessage());
         }
     }
 
