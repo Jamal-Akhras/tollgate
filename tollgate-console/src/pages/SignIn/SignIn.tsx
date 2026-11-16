@@ -1,8 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
-import { ApiError, get } from '../../api/client';
-import type { AdminInfo } from '../../api/types';
+import { ApiError, signInWith } from '../../api/client';
 import { navigate, route } from '../../router';
-import { signIn } from '../../state/session';
 import { Card } from '../../ui/Card';
 import { TollgateMark } from '../../ui/icons';
 import styles from './SignIn.module.css';
@@ -30,8 +28,7 @@ export function SignIn() {
     setError(null);
     setDisabled(false);
     try {
-      await get<AdminInfo>('/info', undefined, value);
-      signIn(value);
+      await signInWith(value);
       if (route.value.name === 'sign-in') {
         navigate('flow');
       }

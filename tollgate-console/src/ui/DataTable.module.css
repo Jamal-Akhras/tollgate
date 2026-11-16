@@ -1,0 +1,119 @@
+.wrap {
+  container-type: inline-size;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--size-cell);
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--size-caption);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-raised);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.table .right {
+  text-align: right;
+}
+
+.empty {
+  background: var(--surface);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius-card);
+}
+
+@container (max-width: 900px) {
+  .priority3 {
+    display: none;
+  }
+}
+
+@container (max-width: 640px) {
+  .priority2 {
+    display: none;
+  }
+}
+
+@media (max-width: 799px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .table tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table td,
+  .table tbody tr:last-child td {
+    display: block;
+    padding: 0;
+    border: 0;
+    color: var(--text-muted);
+  }
+
+  .table td:first-child {
+    flex-basis: 100%;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .table td:not(:first-child)::before {
+    content: attr(data-label) ' ';
+    color: var(--text-subtle);
+    font-size: var(--size-caption);
+  }
+
+  .table .priority2,
+  .table .priority3 {
+    display: block;
+  }
+}

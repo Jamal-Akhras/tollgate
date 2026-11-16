@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { infoFixture } from '../api/fixtures';
-import { signIn, token } from '../state/session';
+import { signedIn, signInWith } from '../api/client';
 
 const send = vi.fn();
 let width = 1400;
@@ -12,7 +12,7 @@ function setRoute(hash: string) {
   window.dispatchEvent(new Event('hashchange'));
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   width = 1400;
   localStorage.clear();
   send.mockReset();
@@ -25,7 +25,8 @@ beforeEach(() => {
     addEventListener: () => undefined,
     removeEventListener: () => undefined,
   }));
-  signIn('secret-token');
+  await signInWith('secret-token');
+  send.mockClear();
   setRoute('');
 });
 
@@ -123,7 +124,7 @@ test('signingOutFromTheMenuClearsTheTokenAndShowsSignIn', () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: new RegExp(location.host) }));
   fireEvent.click(screen.getAllByRole('button', { name: 'Sign out' })[0] as HTMLElement);
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
   expect(screen.getByLabelText('Admin token')).toBeTruthy();
 });
 
@@ -131,7 +132,7 @@ test('signingOutFromTheSidebarShowsSignInAndKeepsTheRoute', () => {
   setRoute('#/usage');
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
   expect(screen.getByLabelText('Admin token')).toBeTruthy();
   expect(location.hash).toBe('#/usage');
 });

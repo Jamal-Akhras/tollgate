@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { infoFixture } from '../../api/fixtures';
-import { signOut, token } from '../../state/session';
+import { signedIn, signOut } from '../../api/client';
 import { SignIn } from './SignIn';
 
 const send = vi.fn();
@@ -46,7 +46,7 @@ test('storesTheTokenOnlyAfterA200AndLeavesTheSignInRoute', async () => {
   setRoute('#/sign-in');
   send.mockResolvedValue(answer(200, infoFixture));
   await submit('good-token');
-  await waitFor(() => expect(token.value).toBe('good-token'));
+  await waitFor(() => expect(signedIn.value).toBe(true));
   expect(send.mock.calls[0]?.[0]).toBe('/admin/v1/info');
   expect(send.mock.calls[0]?.[1].headers.Authorization).toBe('Bearer good-token');
   expect(location.hash).toBe('#/flow');
@@ -56,7 +56,7 @@ test('staysOnTheRouteThatWasAsked', async () => {
   setRoute('#/usage');
   send.mockResolvedValue(answer(200, infoFixture));
   await submit('good-token');
-  await waitFor(() => expect(token.value).toBe('good-token'));
+  await waitFor(() => expect(signedIn.value).toBe(true));
   expect(location.hash).toBe('#/usage');
 });
 
@@ -64,7 +64,7 @@ test('saysWhenTheTokenIsNotValid', async () => {
   send.mockResolvedValue(answer(401, { code: 'admin_unauthorized', message: 'No' }));
   await submit('bad-token');
   expect((await screen.findByRole('alert')).textContent).toBe("That token isn't valid");
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
   expect(document.activeElement).toBe(screen.getByLabelText('Admin token'));
 });
 
@@ -73,7 +73,7 @@ test('explainsWhenTheAdminApiIsOff', async () => {
   await submit('any-token');
   const alert = await screen.findByRole('alert');
   expect(alert.textContent).toContain('TOLLGATE_ADMIN_TOKEN');
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
 });
 
 test('saysWhenTheApiCannotBeReached', async () => {
@@ -82,5 +82,5 @@ test('saysWhenTheApiCannotBeReached', async () => {
   expect((await screen.findByRole('alert')).textContent).toBe(
     `Can't reach the admin API at ${location.host}`,
   );
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
 });

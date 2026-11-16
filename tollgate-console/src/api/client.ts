@@ -1,5 +1,6 @@
-import { signOut, token } from '../state/session';
-import type { AdminError } from './types';
+import { computed } from '@preact/signals';
+import { signIn, signOut, token } from '../state/session';
+import type { AdminError, AdminInfo } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -13,6 +14,10 @@ export class ApiError extends Error {
 }
 
 type Params = Record<string, string | number>;
+
+export const signedIn = computed(() => token.value !== null);
+
+export { signOut };
 
 type Options = {
   params?: Params;
@@ -62,10 +67,15 @@ async function request<T>(method: string, path: string, options: Options = {}): 
   }
 }
 
-export function get<T>(path: string, params?: Params, bearer?: string): Promise<T> {
-  return request<T>('GET', path, { params, token: bearer });
+export function get<T>(path: string, params?: Params): Promise<T> {
+  return request<T>('GET', path, { params });
 }
 
 export function post<T>(path: string): Promise<T> {
   return request<T>('POST', path);
+}
+
+export async function signInWith(value: string): Promise<void> {
+  await request<AdminInfo>('GET', '/info', { token: value });
+  signIn(value);
 }

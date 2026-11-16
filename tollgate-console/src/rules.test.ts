@@ -17,6 +17,7 @@ const rules: Rule[] = [
     pattern: /sessionStorage/,
     allowedIn: 'state/session.ts',
   },
+  { name: 'import of state/session outside api/client.ts', pattern: /state\/session/, allowedIn: 'api/client.ts' },
   {
     name: 'colour outside styles/tokens.css',
     pattern: /#[0-9a-fA-F]{3,8}\b|\brgb\(|\bhsl\(/,
@@ -64,6 +65,7 @@ test('theMatcherCatchesEachRule', () => {
     '<p style="color: red">',
     'fetch(url)',
     'sessionStorage.getItem(k)',
+    "import { token } from '../state/session';",
     'color: #fff;',
     'color: rgb(0, 0, 0);',
     'color: hsl(0, 0%, 0%);',
@@ -73,5 +75,6 @@ test('theMatcherCatchesEachRule', () => {
   }
   expect(violations('api/client.ts', 'fetch(url)')).toEqual([]);
   expect(violations('state/session.ts', 'sessionStorage.getItem(k)')).toEqual([]);
+  expect(violations('api/client.ts', "import { token } from '../state/session';")).toEqual([]);
   expect(violations('styles/tokens.css', 'color: #fff;')).toEqual([]);
 });

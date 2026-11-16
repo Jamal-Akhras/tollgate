@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { signIn, token } from '../state/session';
-import { ApiError, get, post } from './client';
+import { ApiError, get, post, signedIn, signInWith, signOut } from './client';
 import { infoFixture } from './fixtures';
 
 const send = vi.fn();
@@ -9,10 +8,12 @@ function answer(status: number, body: unknown) {
   return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   send.mockReset();
   vi.stubGlobal('fetch', send);
-  signIn('secret-token');
+  send.mockResolvedValue(answer(200, infoFixture));
+  await signInWith('secret-token');
+  send.mockReset();
 });
 
 afterEach(() => {
@@ -72,14 +73,24 @@ test('signsOutOnA401', async () => {
   send.mockResolvedValue(answer(401, { code: 'admin_unauthorized', message: 'No' }));
   const error = await failureOf(get('/config'));
   expect(error.status).toBe(401);
-  expect(token.value).toBeNull();
+  expect(signedIn.value).toBe(false);
 });
 
 test('keepsTheSessionWhenATypedTokenIsRefused', async () => {
   send.mockResolvedValue(answer(401, { code: 'admin_unauthorized', message: 'No' }));
-  await failureOf(get('/info', undefined, 'typed-token'));
+  await failureOf(signInWith('typed-token'));
   expect(send.mock.calls[0]?.[1].headers.Authorization).toBe('Bearer typed-token');
-  expect(token.value).toBe('secret-token');
+  expect(signedIn.value).toBe(true);
+});
+
+test('signInWithStoresTheTokenOnlyAfterA200', async () => {
+  signOut();
+  send.mockResolvedValue(answer(503, { code: 'admin_disabled', message: 'Off' }));
+  await failureOf(signInWith('new-token'));
+  expect(signedIn.value).toBe(false);
+  send.mockResolvedValue(answer(200, infoFixture));
+  await signInWith('new-token');
+  expect(signedIn.value).toBe(true);
 });
 
 test('reportsAnUnreachableApi', async () => {

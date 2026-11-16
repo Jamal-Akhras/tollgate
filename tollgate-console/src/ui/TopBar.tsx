@@ -1,6 +1,6 @@
 import type { Ref } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { signOut } from '../state/session';
+import { signOut } from '../api/client';
 import { setTheme, theme, type Theme } from '../state/theme';
 import { ChevronsUpDown, Menu, SidebarToggle, TollgateMark } from './icons';
 import { Segmented } from './Segmented';

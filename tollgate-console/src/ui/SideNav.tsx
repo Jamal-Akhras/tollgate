@@ -1,6 +1,6 @@
 import type { ComponentType } from 'preact';
 import { href } from '../router';
-import { signOut } from '../state/session';
+import { signOut } from '../api/client';
 import { Activity, Budget, Chart, Document, Flow, Power, Settings, Shield } from './icons';
 import styles from './SideNav.module.css';
 

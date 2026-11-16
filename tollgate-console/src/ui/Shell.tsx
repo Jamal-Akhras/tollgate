@@ -5,6 +5,7 @@ import type { AdminInfo } from '../api/types';
 import { route } from '../router';
 import { SideNav } from './SideNav';
 import styles from './Shell.module.css';
+import { Toasts } from './Toast';
 import { TopBar } from './TopBar';
 import { useMedia } from './useMedia';
 
@@ -129,6 +130,7 @@ export function Shell({ children }: { children: ComponentChildren }) {
           {dotted ? children : <div class={styles.content}>{children}</div>}
         </main>
       </div>
+      <Toasts />
     </div>
   );
 }

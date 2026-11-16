@@ -1,6 +1,6 @@
+import { signedIn } from './api/client';
 import { SignIn } from './pages/SignIn/SignIn';
 import { route, type RouteName } from './router';
-import { token } from './state/session';
 import { Shell } from './ui/Shell';
 
 const titles: Record<RouteName, string> = {
@@ -16,7 +16,7 @@ const titles: Record<RouteName, string> = {
 };
 
 export function App() {
-  if (token.value === null) {
+  if (!signedIn.value) {
     return <SignIn />;
   }
   return (
