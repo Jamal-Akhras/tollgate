@@ -14,10 +14,6 @@ public record AdminProperties(
 
     static final int SHORTEST_TOKEN = 32;
 
-    public AdminProperties(int port, String address, @Nullable String token) {
-        this(port, address, token, "off");
-    }
-
     @ConstructorBinding
     public AdminProperties {
         if (port < 1 || port > 65_535) {

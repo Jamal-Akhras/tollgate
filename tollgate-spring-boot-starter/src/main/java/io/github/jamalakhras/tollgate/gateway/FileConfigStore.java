@@ -3,23 +3,15 @@ package io.github.jamalakhras.tollgate.gateway;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.FileTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.regex.Pattern;
 
 final class FileConfigStore implements ConfigStore {
 
     private static final String HISTORY = "config-history";
     private static final String EXTENSION = ".yaml";
-    private static final Pattern VERSION = Pattern.compile("[0-9a-f]{64}");
 
     private final Path path;
 
@@ -78,37 +70,6 @@ final class FileConfigStore implements ConfigStore {
         Path folder = history(path);
         Files.createDirectories(folder);
         writeIfAbsent(folder.resolve(head.version() + EXTENSION), head.bytes());
-    }
-
-    @Override
-    public Optional<byte[]> version(String version) throws IOException {
-        if (!VERSION.matcher(version).matches()) {
-            return Optional.empty();
-        }
-        Path file = history(path).resolve(version + EXTENSION);
-        return Files.isRegularFile(file) ? Optional.of(Files.readAllBytes(file)) : Optional.empty();
-    }
-
-    @Override
-    public List<String> versions() throws IOException {
-        Path folder = history(path);
-        if (!Files.isDirectory(folder)) {
-            return List.of();
-        }
-        Map<String, FileTime> kept = new HashMap<>();
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(folder, "*" + EXTENSION)) {
-            for (Path file : files) {
-                String name = file.getFileName().toString();
-                String version = name.substring(0, name.length() - EXTENSION.length());
-                if (VERSION.matcher(version).matches() && Files.isRegularFile(file)) {
-                    kept.put(version, Files.getLastModifiedTime(file));
-                }
-            }
-        }
-        return kept.entrySet().stream()
-                .sorted(Map.Entry.<String, FileTime>comparingByValue().reversed())
-                .map(Map.Entry::getKey)
-                .toList();
     }
 
     private static boolean writeIfAbsent(Path file, byte[] bytes) throws IOException {

@@ -11,11 +11,9 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -129,6 +127,14 @@ class ConfigEditTest {
         }
     }
 
+    private List<String> kept() throws IOException {
+        try (var files = Files.list(directory.resolve("config-history"))) {
+            return files.map(file -> file.getFileName().toString().replace(".yaml", ""))
+                    .sorted()
+                    .toList();
+        }
+    }
+
     private void assertUntouched(Gateway gateway, String version) throws IOException {
         assertThat(Files.readAllBytes(config)).isEqualTo(handWritten);
         assertThat(gateway.configVersion()).isEqualTo(version);
@@ -196,10 +202,12 @@ class ConfigEditTest {
         try (Gateway gateway = start()) {
             String version = gateway.configVersion();
 
-            assertThatThrownBy(() -> gateway.edit("a".repeat(64), List.of(showCosts(true))))
+            assertThatThrownBy(() -> gateway.edit("*", List.of(showCosts(true))))
                     .isInstanceOfSatisfying(EditRejected.class, e -> {
                         assertThat(e.code()).isEqualTo(EditRejected.CONFIG_CHANGED);
-                        assertThat(e.getMessage()).contains("aaaaaaaaaaaa…").contains("Read it again");
+                        assertThat(e.getMessage())
+                                .contains(version.substring(0, 12) + "…")
+                                .contains("Read it again");
                     });
 
             assertUntouched(gateway, version);
@@ -369,16 +377,14 @@ class ConfigEditTest {
     @Test
     void keepVersionWritesTheRunningVersionOnceAndNothingAfterAHandEdit() throws Exception {
         try (Gateway gateway = start()) {
-            FileConfigStore store = new FileConfigStore(config);
-
             gateway.keepVersion();
             gateway.keepVersion();
-            assertThat(store.versions()).containsExactly(gateway.configVersion());
+            assertThat(kept()).containsExactly(gateway.configVersion());
 
             Files.writeString(config, Files.readString(config) + "# touched\n");
             gateway.keepVersion();
 
-            assertThat(store.versions()).containsExactly(gateway.configVersion());
+            assertThat(kept()).containsExactly(gateway.configVersion());
         }
     }
 
@@ -392,38 +398,5 @@ class ConfigEditTest {
         assertThat(replaced).isFalse();
         assertThat(Files.readAllBytes(config)).isEqualTo(handWritten);
         assertThat(leftovers()).containsExactly("tollgate.yaml");
-    }
-
-    @Test
-    void theFileStoreReturnsAKeptVersionAndNothingElse() throws Exception {
-        try (Gateway gateway = start()) {
-            FileConfigStore store = new FileConfigStore(config);
-            gateway.keepVersion();
-
-            assertThat(store.version(gateway.configVersion()).orElseThrow()).isEqualTo(handWritten);
-            assertThat(store.version("e".repeat(64))).isEmpty();
-            assertThat(store.version("../x")).isEmpty();
-            assertThat(store.version("..\\tollgate.yaml")).isEmpty();
-        }
-    }
-
-    @Test
-    void theFileStoreListsKeptVersionsNewestFirst() throws Exception {
-        start().close();
-        FileConfigStore store = new FileConfigStore(config);
-        assertThat(store.versions()).isEmpty();
-        String old = "1".repeat(64);
-        String recent = "2".repeat(64);
-        Path history = directory.resolve("config-history");
-        Files.createDirectory(history);
-        Files.write(history.resolve(old + ".yaml"), new byte[] {1});
-        Files.write(history.resolve(recent + ".yaml"), new byte[] {2});
-        Files.write(history.resolve("notes.yaml"), new byte[] {3});
-        Files.setLastModifiedTime(history.resolve(old + ".yaml"), FileTime.from(Instant.parse("2026-01-01T00:00:00Z")));
-        Files.setLastModifiedTime(
-                history.resolve(recent + ".yaml"), FileTime.from(Instant.parse("2026-02-01T00:00:00Z")));
-
-        assertThat(store.versions()).containsExactly(recent, old);
-        assertThat(store.version(old).orElseThrow()).isEqualTo(new byte[] {1});
     }
 }

@@ -17,30 +17,30 @@ class AdminConfigurationTest {
     @ParameterizedTest
     @ValueSource(ints = {-1, 0, 65_536})
     void rejectsPortsOutOfRange(int port) {
-        assertThatThrownBy(() -> new AdminProperties(port, "127.0.0.1", null))
+        assertThatThrownBy(() -> new AdminProperties(port, "127.0.0.1", null, "off"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("tollgate.admin.port");
     }
 
     @Test
     void rejectsABlankAddress() {
-        assertThatThrownBy(() -> new AdminProperties(8081, " ", null))
+        assertThatThrownBy(() -> new AdminProperties(8081, " ", null, "off"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("tollgate.admin.address");
     }
 
     @Test
     void acceptsATokenOfAtLeast32CharactersAndTreatsABlankOneAsNone() {
-        assertThat(new AdminProperties(8081, "127.0.0.1", "t".repeat(32)).token())
+        assertThat(new AdminProperties(8081, "127.0.0.1", "t".repeat(32), "off").token())
                 .hasSize(32);
-        assertThat(new AdminProperties(8081, "127.0.0.1", "  ").token()).isNull();
-        assertThatThrownBy(() -> new AdminProperties(8081, "127.0.0.1", "t".repeat(31)))
+        assertThat(new AdminProperties(8081, "127.0.0.1", "  ", "off").token()).isNull();
+        assertThatThrownBy(() -> new AdminProperties(8081, "127.0.0.1", "t".repeat(31), "off"))
                 .hasMessage("TOLLGATE_ADMIN_TOKEN must be at least 32 characters");
     }
 
     @Test
     void keepsEditsOffUnlessToldOtherwise() {
-        assertThat(new AdminProperties(8081, "127.0.0.1", null).edits()).isEqualTo("off");
+        assertThat(new AdminProperties(8081, "127.0.0.1", null, "off").edits()).isEqualTo("off");
         assertThat(new AdminProperties(8081, "127.0.0.1", null, "file").edits()).isEqualTo("file");
         assertThatThrownBy(() -> new AdminProperties(8081, "127.0.0.1", null, "yes"))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -49,7 +49,8 @@ class AdminConfigurationTest {
 
     @Test
     void refusesToShareTheGatewayPort() {
-        var customizer = new AdminPortConfiguration().adminConnector(new AdminProperties(8080, "127.0.0.1", null));
+        var customizer =
+                new AdminPortConfiguration().adminConnector(new AdminProperties(8080, "127.0.0.1", null, "off"));
         assertThatThrownBy(() -> customizer.customize(new TomcatServletWebServerFactory(8080)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("must differ");
@@ -59,7 +60,7 @@ class AdminConfigurationTest {
     void addsTheAdminConnectorOnTheConfiguredAddress() {
         var factory = new TomcatServletWebServerFactory(8080);
         new AdminPortConfiguration()
-                .adminConnector(new AdminProperties(8081, "127.0.0.1", null))
+                .adminConnector(new AdminProperties(8081, "127.0.0.1", null, "off"))
                 .customize(factory);
         assertThat(factory.getAdditionalConnectors()).singleElement().satisfies(connector -> {
             assertThat(connector.getPort()).isEqualTo(8081);

@@ -140,8 +140,9 @@ only source of truth; there is no second file and no database.
   changed. It knows nothing of its endpoint or of how the file is
   written, so the same operation can run against another store.
 - **The file is written through a small store:** read what is stored now,
-  replace it if it is still the expected version, keep a version, look
-  one up, list them. The file is the only store. This is structure, not
+  replace it if it is still the expected version, keep a version. Looking
+  one up and listing them can be added when something needs them. The file
+  is the only store. This is structure, not
   a setting; nothing chooses a store.
 - **The fixed layout is deterministic and pinned by a test,** because the
   layout decides the config version.
