@@ -10,8 +10,8 @@ import {
   liveFixture,
 } from '../../api/fixtures';
 import { parse, route } from '../../router';
+import { tollgateOn } from '../../state/preview';
 import { Flow } from './Flow';
-import { tollgateOn } from './Preview';
 
 const send = vi.fn();
 let width = 1200;
@@ -175,7 +175,9 @@ test('underEightHundredPixelsItShowsTheSameThingsAsTables', async () => {
   expect(container.querySelector('svg path[data-kind]')).toBeNull();
   expect(within(checks).getByText('Budget')).toBeTruthy();
   expect(
-    within(screen.getByRole('table', { name: 'Providers for support-bot' })).getByText(/^anthropic$/),
+    within(screen.getByRole('table', { name: 'Providers for support-bot' })).getByText(
+      /^anthropic$/,
+    ),
   ).toBeTruthy();
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'research' } });
   expect(location.hash).toBe('#/flow?tenant=research');
@@ -292,9 +294,13 @@ test('fourTilesLinkToMetricsAndNameTheirWindows', async () => {
   render(<Flow />);
   await screen.findByRole('region', { name: 'Policy default' });
   await screen.findByText('Calls per minute');
-  const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '#/metrics');
+  const links = screen
+    .getAllByRole('link')
+    .filter((link) => link.getAttribute('href') === '#/metrics');
   expect(links).toHaveLength(4);
-  expect(links.map((link) => link.textContent).join(' ')).toMatch(/Last minute.*Last 15 minutes.*Last 15 minutes.*Last 5 minutes/);
+  expect(links.map((link) => link.textContent).join(' ')).toMatch(
+    /Last minute.*Last 15 minutes.*Last 15 minutes.*Last 5 minutes/,
+  );
 });
 
 test('aTenantWithNoFlowGetsTheFirstRunPanelUntilItsFirstCall', async () => {

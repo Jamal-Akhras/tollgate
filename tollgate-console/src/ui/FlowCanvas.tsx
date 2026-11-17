@@ -120,7 +120,12 @@ export function FlowCanvas({
       {!drawing && fallback}
       {drawing && (
         <div class={styles.picture} style={{ height: `${drawing.height}px` }}>
-          <svg class={styles.lines} width={drawing.width} height={drawing.height} aria-hidden="true">
+          <svg
+            class={styles.lines}
+            width={drawing.width}
+            height={drawing.height}
+            aria-hidden="true"
+          >
             {lines.map((line) => (
               <g key={line.id}>
                 <path

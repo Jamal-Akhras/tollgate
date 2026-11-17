@@ -16,6 +16,13 @@ type Placed = { index: number; x: number; y: number; marker: boolean };
 const fullLimit = 64;
 const rowHeight = 44;
 const margin = 24;
+const spacingFull = 28;
+const spacingCollapsed = 76;
+
+const leafKinds = new Map([
+  ['intent', styles.intent],
+  ['outcome', styles.outcome],
+]);
 
 export function leafLabel(leaf: LeafView): string {
   return `${leaf.type} ${leaf.leafHash.slice(0, 4)}…`;
@@ -74,10 +81,18 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
   const [shown, setShown] = useState<string | null>(null);
   const collapsed = leaves.length > fullLimit;
   const visible = visibleNodes(nodes, leaves.length, selected);
-  const { placed, count, height } = place(nodes, visible, collapsed ? 76 : 28);
+  const spacing = collapsed ? spacingCollapsed : spacingFull;
+  const { placed, count, height } = place(nodes, visible, spacing);
   const chain = new Set(selected === undefined ? [] : pathNodes(leaves.length, selected));
-  const width = margin * 2 + Math.max(0, count - 1) * (collapsed ? 76 : 28);
+  const width = margin * 2 + Math.max(0, count - 1) * spacing;
   const root = nodes.length - 1;
+
+  const hover = (text: string) => ({
+    onMouseEnter: () => setShown(text),
+    onMouseLeave: () => setShown(null),
+    onFocus: () => setShown(text),
+    onBlur: () => setShown(null),
+  });
 
   const edges = [...placed.values()].flatMap((parent) => {
     const inner = nodes[parent.index];
@@ -124,11 +139,9 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
       if (!leaf) {
         return null;
       }
-      const known = leaf.type === 'intent' || leaf.type === 'outcome';
-      const kind = leaf.type === 'intent' ? styles.intent : leaf.type === 'outcome' ? styles.outcome : styles.other;
+      const known = leafKinds.has(leaf.type);
+      const kind = leafKinds.get(leaf.type) ?? styles.other;
       const label = leafLabel(leaf);
-      const show = () => setShown(`${label} ${inner.hash}`);
-      const hide = () => setShown(null);
       const pick = () => onChoose(leaf);
       return (
         <g
@@ -137,10 +150,7 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
           role={known ? 'button' : 'img'}
           aria-label={label}
           tabIndex={0}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          onFocus={show}
-          onBlur={hide}
+          {...hover(`${label} ${inner.hash}`)}
           onClick={known ? pick : undefined}
           onKeyDown={
             known
@@ -175,10 +185,7 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
         role="img"
         aria-label={label}
         tabIndex={0}
-        onMouseEnter={() => setShown(`${label} ${inner.hash}`)}
-        onMouseLeave={() => setShown(null)}
-        onFocus={() => setShown(`${label} ${inner.hash}`)}
-        onBlur={() => setShown(null)}
+        {...hover(`${label} ${inner.hash}`)}
       >
         <title>{label}</title>
         {body}
@@ -189,7 +196,13 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
   return (
     <div class={styles.wrap}>
       <div class={styles.scroll}>
-        <svg class={styles.svg} width={width} height={height} role="group" aria-label="Merkle tree of the batch">
+        <svg
+          class={styles.svg}
+          width={width}
+          height={height}
+          role="group"
+          aria-label="Merkle tree of the batch"
+        >
           {edges}
           {marks}
         </svg>

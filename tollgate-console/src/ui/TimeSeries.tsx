@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { DataTable, type Column } from './DataTable';
+import { formatClock } from './format';
 import { drawPlot, type Plot, type PlotData } from './plot';
 import styles from './TimeSeries.module.css';
 
@@ -18,10 +19,6 @@ type TimeSeriesProps = {
 type Moment = { time: number; values: (number | null)[] };
 
 const height = 180;
-
-function clock(seconds: number): string {
-  return new Date(seconds * 1000).toISOString().slice(11, 19);
-}
 
 function tokenValue(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -109,7 +106,7 @@ export function TimeSeries({ label, unit, window, x, lines, format, stacked }: T
     .map((time, index) => ({ time, values: lines.map((line) => line.values[index] ?? null) }))
     .reverse();
   const columns: Column<Moment>[] = [
-    { key: 'time', header: 'Time (UTC)', cell: (moment) => clock(moment.time) },
+    { key: 'time', header: 'Time (UTC)', cell: (moment) => formatClock(moment.time) },
     ...lines.map((line, index) => ({
       key: line.name,
       header: `${line.name} (${unit})`,

@@ -38,8 +38,8 @@ class ConfigViewController {
     private final ConfigEditor editor;
 
     ConfigViewController(Gateway gateway, ConfigEditor editor) {
-        this.editor = editor;
         this.gateway = gateway;
+        this.editor = editor;
     }
 
     @GetMapping("/config")

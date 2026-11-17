@@ -93,7 +93,13 @@ export function ConfirmEdit({
         >
           Cancel
         </button>
-        <button type="button" class={styles.confirm} ref={confirm} disabled={writing || disabled} onClick={write}>
+        <button
+          type="button"
+          class={styles.confirm}
+          ref={confirm}
+          disabled={writing || disabled}
+          onClick={write}
+        >
           {writing ? 'Writing…' : confirmLabel}
         </button>
       </div>

@@ -63,8 +63,7 @@ export function BudgetEdit({ config, tenant, state, onChanged, onClose }: Budget
     warning = `${tenant} has already spent ${money(state.spent)} ${spentWord(was)}. With a limit of ${money(limit)}, every priced call from ${tenant} is refused with budget_exceeded as soon as this is written, until ${endWord(period)}.`;
     confirmLabel = `Set ${money(limit)} anyway`;
   } else if (current && current.period !== period) {
-    warning =
-      'Changing the period counts the spend for the new period again from the audit trail.';
+    warning = 'Changing the period counts the spend for the new period again from the audit trail.';
   } else if (!current) {
     note = 'The count starts at zero now. Calls made before this are not counted.';
   }
@@ -92,7 +91,7 @@ export function BudgetEdit({ config, tenant, state, onChanged, onClose }: Budget
               { limit, period } satisfies BudgetChange,
               config.version,
             ),
-          { onChanged },
+          onChanged,
         )
       }
       onClose={onClose}

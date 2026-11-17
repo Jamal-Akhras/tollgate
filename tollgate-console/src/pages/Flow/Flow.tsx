@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'preact/hooks';
-import { ApiError, get } from '../../api/client';
+import { useState } from 'preact/hooks';
+import { get } from '../../api/client';
 import { usePoll } from '../../api/poll';
 import type { BudgetState, ConfigView, LiveSnapshot } from '../../api/types';
+import { HowToChange } from '../../edits/HowToChange';
+import type { Snippet } from '../../edits/snippets';
 import {
   blockedProviders,
   checksFor,
@@ -12,46 +14,19 @@ import {
 } from '../../flow/describe';
 import { describeRule } from '../../flow/rule';
 import { navigate, route } from '../../router';
+import { usePreview } from '../../state/preview';
 import { Banner } from '../../ui/Banner';
 import { FlowCanvas } from '../../ui/FlowCanvas';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
-import { HowToChange } from '../Config/HowToChange';
-import type { Snippet } from '../Config/snippets';
+import { auditOffText, isAuditOff } from '../auditOff';
+import { useConfig } from '../useConfig';
 import { FirstRun } from './FirstRun';
 import styles from './Flow.module.css';
 import { FlowTable } from './FlowTable';
 import { Legend } from './Legend';
-import { usePreview } from './Preview';
 import { RuleCard } from './RuleCard';
 import { StatTiles } from './StatTiles';
-
-const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
-
-function useConfig() {
-  const [config, setConfig] = useState<ConfigView | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [round, setRound] = useState(0);
-  useEffect(() => {
-    let stopped = false;
-    get<ConfigView>('/config')
-      .then((view) => {
-        if (!stopped) {
-          setConfig(view);
-          setError(null);
-        }
-      })
-      .catch((failure: unknown) => {
-        if (!stopped) {
-          setError(failure instanceof Error ? failure : new Error(String(failure)));
-        }
-      });
-    return () => {
-      stopped = true;
-    };
-  }, [round]);
-  return { config, error, retry: () => setRound((value) => value + 1) };
-}
 
 function Loading() {
   return (
@@ -85,7 +60,9 @@ function Diagram({ config, live, budgets, withTollgate, table, onChanged }: Diag
   }
   const nodes = names.flatMap((name) => {
     const item = config.tenants.find((candidate) => candidate.name === name);
-    return item ? [{ name, caption: tenantCaption(config, item), selected: name === selected }] : [];
+    return item
+      ? [{ name, caption: tenantCaption(config, item), selected: name === selected }]
+      : [];
   });
   const checks = checksFor(config, selected, budgets, live);
   const own = providersFor(config, selected, live);
@@ -171,8 +148,7 @@ export function Flow() {
   const [table, setTable] = useState(false);
 
   const liveError = live.error.value;
-  const auditOff =
-    config?.audit.mode === 'off' || (liveError instanceof ApiError && liveError.code === 'audit_off');
+  const auditOff = config?.audit.mode === 'off' || isAuditOff(liveError);
   const snapshot = auditOff ? null : live.data.value;
   const updating = live.data.value !== null && liveError === null && !auditOff;
 
@@ -201,9 +177,7 @@ export function Flow() {
         </button>
       </PageHeader>
       {auditOff && <Banner kind="info">{auditOffText}</Banner>}
-      {snapshot?.skipped && (
-        <Banner kind="info">Busy: the live view skipped some records</Banner>
-      )}
+      {snapshot?.skipped && <Banner kind="info">Busy: the live view skipped some records</Banner>}
       {error && !config && (
         <Banner
           kind="error"

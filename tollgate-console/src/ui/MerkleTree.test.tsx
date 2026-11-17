@@ -20,6 +20,17 @@ function leaves(count: number): LeafView[] {
   }));
 }
 
+function renderTree(
+  list: LeafView[],
+  props: { selected?: number; onChoose?: (leaf: LeafView) => void } = {},
+) {
+  const nodes = shape(list.map((leaf) => leaf.leafHash));
+  const onChoose = props.onChoose ?? (() => undefined);
+  return render(
+    <MerkleTree leaves={list} nodes={nodes} selected={props.selected} onChoose={onChoose} />,
+  );
+}
+
 test('drawsEveryLeafOfASmallBatchAsAButtonWithItsTypeAndHash', async () => {
   const list = leaves(5);
   const nodes = await levels(list.map((leaf) => leaf.leafHash));
@@ -55,20 +66,23 @@ test('showsANodesHashOnFocusAndHoverAndClearsItAfter', async () => {
 });
 
 test('drawsALeafOfAnUnknownTypeFromItsHashAloneWithoutALink', () => {
-  const list: LeafView[] = [...leaves(2), { index: 2, type: 'config-change', id: 'id-2', time: '2026-11-16T09:56:00Z', leafHash: 'ab12cd'.padEnd(64, '0') }];
+  const odd: LeafView = {
+    index: 2,
+    type: 'config-change',
+    id: 'id-2',
+    time: '2026-11-16T09:56:00Z',
+    leafHash: 'ab12cd'.padEnd(64, '0'),
+  };
   const choose = vi.fn();
-  render(<MerkleTree leaves={list} nodes={shape(list.map((leaf) => leaf.leafHash))} onChoose={choose} />);
-  const odd = screen.getByRole('img', { name: 'config-change ab12…' });
-  fireEvent.click(odd);
+  renderTree([...leaves(2), odd], { onChoose: choose });
+  fireEvent.click(screen.getByRole('img', { name: 'config-change ab12…' }));
   expect(choose).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: /config-change/ })).toBeNull();
   expect(screen.getAllByRole('button')).toHaveLength(2);
 });
 
 test('collapsesAboveSixtyFourLeavesAndKeepsTheSelectedPath', () => {
-  const list = leaves(1000);
-  const nodes = shape(list.map((leaf) => leaf.leafHash));
-  const { container } = render(<MerkleTree leaves={list} nodes={nodes} selected={700} onChoose={() => undefined} />);
+  const { container } = renderTree(leaves(1000), { selected: 700 });
   const buttons = screen.getAllByRole('button');
   expect(buttons.length).toBeLessThan(40);
   expect(screen.getByRole('button', { name: 'intent 2bd0…' })).toBeTruthy();
@@ -77,14 +91,12 @@ test('collapsesAboveSixtyFourLeavesAndKeepsTheSelectedPath', () => {
 });
 
 test('drawsAllSixtyFourLeavesInFull', () => {
-  const list = leaves(64);
-  render(<MerkleTree leaves={list} nodes={shape(list.map((leaf) => leaf.leafHash))} onChoose={() => undefined} />);
+  renderTree(leaves(64));
   expect(screen.getAllByRole('button')).toHaveLength(64);
   expect(screen.queryByText(/more/)).toBeNull();
 });
 
 test('collapsesSixtyFiveLeaves', () => {
-  const list = leaves(65);
-  render(<MerkleTree leaves={list} nodes={shape(list.map((leaf) => leaf.leafHash))} onChoose={() => undefined} />);
+  renderTree(leaves(65));
   expect(screen.queryAllByRole('button').length).toBeLessThan(65);
 });

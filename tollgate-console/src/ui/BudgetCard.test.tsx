@@ -7,7 +7,8 @@ import { BudgetCard, tightest } from './BudgetCard';
 const send = vi.fn();
 
 function budget(tenant: string, limit: string, spent: string): BudgetState {
-  return { tenant, limit, period: 'monthly', currency: 'USD', spent, reserved: '0', available: '0' };
+  const period = 'monthly';
+  return { tenant, limit, period, currency: 'USD', spent, reserved: '0', available: '0' };
 }
 
 async function show(budgets: BudgetState[]) {

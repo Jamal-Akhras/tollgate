@@ -55,25 +55,25 @@ public record InclusionProof(int index, int size, String encoding, String leafHa
         }
         int fn = index;
         int sn = size - 1;
-        byte[] r = hash;
+        byte[] reached = hash;
         for (String step : path) {
             if (sn == 0) {
                 return false;
             }
             byte[] sibling = Digests.HEX.parseHex(step);
             if ((fn & 1) == 1 || fn == sn) {
-                r = Digests.sha256(NODE, sibling, r);
+                reached = Digests.sha256(NODE, sibling, reached);
                 while ((fn & 1) == 0 && fn != 0) {
                     fn >>= 1;
                     sn >>= 1;
                 }
             } else {
-                r = Digests.sha256(NODE, r, sibling);
+                reached = Digests.sha256(NODE, reached, sibling);
             }
             fn >>= 1;
             sn >>= 1;
         }
-        return sn == 0 && Digests.HEX.formatHex(r).equals(root);
+        return sn == 0 && Digests.HEX.formatHex(reached).equals(root);
     }
 
     static List<byte[]> hashes(List<? extends AuditRecord> batch) {

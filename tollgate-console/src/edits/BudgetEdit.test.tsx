@@ -27,7 +27,13 @@ function open(tenant: string, budget: BudgetState | null, view: ConfigView = con
   const onClose = vi.fn();
   render(
     <>
-      <BudgetEdit config={view} tenant={tenant} state={budget} onChanged={onChanged} onClose={onClose} />
+      <BudgetEdit
+        config={view}
+        tenant={tenant}
+        state={budget}
+        onChanged={onChanged}
+        onClose={onClose}
+      />
       <Toasts />
     </>,
   );
@@ -63,7 +69,9 @@ test('theFormStartsFromTheTenantsBudgetAndSaysWhatIsTrueNow', () => {
   expect(limit().getAttribute('inputmode')).toBe('decimal');
   expect(screen.getByText('USD')).toBeTruthy();
   expect(screen.getByRole('tab', { name: 'Monthly' }).getAttribute('aria-selected')).toBe('true');
-  expect(screen.getByText('Spent this month: $41.18. Held for calls in flight: $0.05.')).toBeTruthy();
+  expect(
+    screen.getByText('Spent this month: $41.18. Held for calls in flight: $0.05.'),
+  ).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Set budget' })).toBeTruthy();
   expect(screen.queryByText(/Changing the period/)).toBeNull();
 });
@@ -73,7 +81,9 @@ test('withoutABudgetTheFormIsEmptyMonthlyAndNotesTheCountStartsAtZero', () => {
   expect(limit().value).toBe('');
   expect(screen.getByRole('tab', { name: 'Monthly' }).getAttribute('aria-selected')).toBe('true');
   expect(screen.getByText('No budget yet.')).toBeTruthy();
-  const note = screen.getByText('The count starts at zero now. Calls made before this are not counted.');
+  const note = screen.getByText(
+    'The count starts at zero now. Calls made before this are not counted.',
+  );
   expect(note.closest('[role="status"]')).toBeTruthy();
   const confirm = screen.getByRole('button', { name: 'Set budget' }) as HTMLButtonElement;
   expect(confirm.disabled).toBe(true);

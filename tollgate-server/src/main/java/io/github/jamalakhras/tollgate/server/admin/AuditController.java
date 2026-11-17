@@ -73,7 +73,7 @@ class AuditController {
                 settings.publicKey(),
                 AuditKeys.keyId(AuditKeys.publicKey(settings.publicKey())),
                 AuditDirectory.files(directory).size(),
-                last.isEmpty() ? null : LiveWindow.sealView(last.getFirst().seal()));
+                last.isEmpty() ? null : LiveViews.sealView(last.getFirst().seal()));
     }
 
     @GetMapping("/batches")
@@ -98,7 +98,7 @@ class AuditController {
             throw new BadQuery("limit must be between 1 and 200, was " + limit);
         }
         return AuditBatches.recent(directory, limit).stream()
-                .map(batch -> new BatchView(LiveWindow.sealView(batch.seal()), batch.file()))
+                .map(batch -> new BatchView(LiveViews.sealView(batch.seal()), batch.file()))
                 .toList();
     }
 
@@ -135,7 +135,7 @@ class AuditController {
             leaves.add(new LeafView(i, type(record), record.id(), time(record), hashes.get(i)));
         }
         return new BatchDetail(
-                LiveWindow.sealView(seal),
+                LiveViews.sealView(seal),
                 seal.signature(),
                 found.file(),
                 seal.signedBy(publicKey),
@@ -206,7 +206,7 @@ class AuditController {
                 report.batches(),
                 problems(report.failures()),
                 problems(report.warnings()),
-                report.lastSeal() == null ? null : LiveWindow.sealView(report.lastSeal()),
+                report.lastSeal() == null ? null : LiveViews.sealView(report.lastSeal()),
                 (System.nanoTime() - start) / 1_000_000);
     }
 
@@ -231,7 +231,7 @@ class AuditController {
                 true,
                 new ProofView(
                         proof.index(), proof.size(), proof.encoding(), proof.leafHash(), proof.path(), proof.root()),
-                LiveWindow.sealView(batch.seal()),
+                LiveViews.sealView(batch.seal()),
                 batch.seal().signedBy(publicKey));
     }
 

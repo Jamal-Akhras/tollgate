@@ -148,7 +148,8 @@ test('aRequestBodyWithAnUnknownModeOrFieldFails', () => {
   expect(check({ mode: 'pause' }, request('put', modeRoute), 'body')).toEqual([
     'body.mode: pause is not one of enforce, monitor',
   ]);
-  expect(check({ limit: '5', period: 'daily', extra: 1 }, request('put', budgetRoute), 'body')).toEqual([
+  const budget = { limit: '5', period: 'daily', extra: 1 };
+  expect(check(budget, request('put', budgetRoute), 'body')).toEqual([
     'body.extra: not in the API',
   ]);
 });

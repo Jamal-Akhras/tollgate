@@ -76,14 +76,26 @@ class AuditBatchesTest {
         assertThat(batch.seal().seals(batch.records())).isTrue();
     }
 
+    private static AuditBatches.Located intentOf(AuditBatches.Found found) {
+        return Objects.requireNonNull(found.intent());
+    }
+
+    private static AuditBatches.Located outcomeOf(AuditBatches.Found found) {
+        return Objects.requireNonNull(found.outcome());
+    }
+
+    private static AuditBatches.Batch batchOf(AuditBatches.Located located) {
+        return Objects.requireNonNull(located.batch());
+    }
+
     @Test
     void listsBatchesNewestFirstAcrossFiles() throws IOException {
         List<AuditBatches.Batch> batches = AuditBatches.recent(trail, 10);
 
         assertThat(numbers(batches)).containsExactly(4L, 3L, 2L, 1L);
-        assertThat(batches.get(0).file()).isEqualTo("tollgate-audit-00000002.jsonl");
-        assertThat(batches.get(3).file()).isEqualTo("tollgate-audit-00000001.jsonl");
-        assertThat(batches.get(0).records()).extracting(AuditRecord::id).containsExactly("7c0e", "7c0e.2");
+        assertThat(batches.getFirst().file()).isEqualTo("tollgate-audit-00000002.jsonl");
+        assertThat(batches.getLast().file()).isEqualTo("tollgate-audit-00000001.jsonl");
+        assertThat(batches.getFirst().records()).extracting(AuditRecord::id).containsExactly("7c0e", "7c0e.2");
         batches.forEach(AuditBatchesTest::assertSealed);
     }
 
@@ -168,26 +180,14 @@ class AuditBatchesTest {
 
     @Test
     void stopsLookingOnceASealPassesTheNumber() throws IOException {
-        List<String> first = Files.readAllLines(AuditDirectory.files(trail).get(0));
+        List<String> first = Files.readAllLines(AuditDirectory.files(trail).getFirst());
         List<String> second = Files.readAllLines(second(trail));
         Files.write(
                 other.resolve("tollgate-audit-00000001.jsonl"),
-                List.of(first.get(0), first.get(1), second.get(2), second.get(3), second.get(4)));
+                List.of(first.getFirst(), first.get(1), second.get(2), second.get(3), second.get(4)));
 
         assertThat(numbers(AuditBatches.recent(other, 10))).containsExactly(4L, 1L);
         assertThat(AuditBatches.batch(other, 2)).isEmpty();
-    }
-
-    private static AuditBatches.Located intentOf(AuditBatches.Found found) {
-        return Objects.requireNonNull(found.intent());
-    }
-
-    private static AuditBatches.Located outcomeOf(AuditBatches.Found found) {
-        return Objects.requireNonNull(found.outcome());
-    }
-
-    private static AuditBatches.Batch batchOf(AuditBatches.Located located) {
-        return Objects.requireNonNull(located.batch());
     }
 
     @Test

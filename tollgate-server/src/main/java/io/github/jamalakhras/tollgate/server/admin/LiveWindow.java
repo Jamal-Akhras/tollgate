@@ -16,7 +16,6 @@ import io.github.jamalakhras.tollgate.server.admin.LiveViews.Flow;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.GuardCount;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Live;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.OutcomeView;
-import io.github.jamalakhras.tollgate.server.admin.LiveViews.SealView;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.StepView;
 import java.io.Serial;
 import java.time.Duration;
@@ -44,6 +43,7 @@ final class LiveWindow {
     private static final int STEPS = 40;
     private static final String OTHER = "other";
     private static final long[] BOUNDS = new long[STEPS];
+    private static final BucketData EMPTY_BUCKET = new BucketData();
 
     static {
         for (int i = 0; i < STEPS; i++) {
@@ -55,8 +55,6 @@ final class LiveWindow {
     private Instant latest;
     private @Nullable Instant skippedAt;
     private @Nullable Seal lastSeal;
-    private static final BucketData EMPTY_BUCKET = new BucketData();
-
     private final TreeMap<Long, BucketData> buckets = new TreeMap<>();
     private final TreeMap<Long, Map<FlowKey, FlowData>> flows = new TreeMap<>();
     private final TreeMap<Long, Map<GuardKey, GuardData>> guards = new TreeMap<>();
@@ -127,7 +125,7 @@ final class LiveWindow {
                         .map(entry -> entry.getValue().view(entry.getKey()))
                         .toList(),
                 List.copyOf(callViews),
-                seal == null ? null : sealView(seal));
+                seal == null ? null : LiveViews.sealView(seal));
     }
 
     private void add(Intent intent) {
@@ -307,11 +305,6 @@ final class LiveWindow {
 
     private static Map<Currency, Long> costs() {
         return new TreeMap<>(Comparator.comparing(Currency::getCurrencyCode));
-    }
-
-    static SealView sealView(Seal seal) {
-        return new SealView(
-                seal.batch(), seal.records(), seal.time(), seal.root(), seal.previous(), seal.key(), seal.hmacKey());
     }
 
     private record FlowKey(String tenant, String model, String provider) {

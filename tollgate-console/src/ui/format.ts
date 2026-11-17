@@ -50,6 +50,10 @@ export function formatRate(perSecond: number): string {
   return `${trimmed(perSecond * 60)}/min`;
 }
 
+export function formatClock(seconds: number): string {
+  return new Date(seconds * 1000).toISOString().slice(11, 19);
+}
+
 export function relativeTime(iso: string, now: number): string {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) {

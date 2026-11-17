@@ -10,7 +10,9 @@ test('theBusySetHasThreeTenantsAMonitoredGuardABudgetAFallbackAndRefusals', () =
   expect(tenants).toHaveLength(3);
   expect(tenants.some((tenant) => tenant.budget !== null)).toBe(true);
   const guards = fixtures.configBusyFixture.policies.flatMap((policy) => policy.guards);
-  expect(guards.some((guard) => guard.type === 'tool-names' && guard.mode === 'monitor')).toBe(true);
+  expect(guards.some((guard) => guard.type === 'tool-names' && guard.mode === 'monitor')).toBe(
+    true,
+  );
   expect(fixtures.activityBusyFixture.some((call) => call.fallback)).toBe(true);
   expect(fixtures.activityBusyFixture.some((call) => !call.allowed)).toBe(true);
   expect(fixtures.liveBusyFixture.flows.some((flow) => Object.keys(flow.refused).length > 0)).toBe(

@@ -141,11 +141,14 @@ class BudgetRecountTest {
         spend("tollgate-audit-00000098.jsonl", "morning", THIS_MORNING, "0.30");
     }
 
-    private static Money spent(Gateway gateway) {
-        Budget budget = Objects.requireNonNull(
+    private static Budget budgetOf(Gateway gateway) {
+        return Objects.requireNonNull(
                 Objects.requireNonNull(gateway.config().tenants().get("metered"))
                         .budget());
-        return gateway.budgetStore().spent("metered", budget);
+    }
+
+    private static Money spent(Gateway gateway) {
+        return gateway.budgetStore().spent("metered", budgetOf(gateway));
     }
 
     private static Money usd(String amount) {
@@ -233,9 +236,7 @@ class BudgetRecountTest {
     void aCallReservedBeforeTheRecountKeepsItWhenItSettlesAfter() throws Exception {
         write(", budget: { limit: 5, period: monthly }", true);
         try (Gateway gateway = start()) {
-            Budget monthly = Objects.requireNonNull(
-                    Objects.requireNonNull(gateway.config().tenants().get("metered"))
-                            .budget());
+            Budget monthly = budgetOf(gateway);
             Reservation inFlight =
                     gateway.budgetStore().reserve("metered", monthly, usd("1")).orElseThrow();
             spendThisMonth();
@@ -252,9 +253,7 @@ class BudgetRecountTest {
     void aCallStartedOnTheOldConfigAfterTheRecountKeepsItToo() throws Exception {
         write(", budget: { limit: 5, period: monthly }", true);
         try (Gateway gateway = start()) {
-            Budget monthly = Objects.requireNonNull(
-                    Objects.requireNonNull(gateway.config().tenants().get("metered"))
-                            .budget());
+            Budget monthly = budgetOf(gateway);
             spendThisMonth();
 
             write(", budget: { limit: 5, period: daily }", true);

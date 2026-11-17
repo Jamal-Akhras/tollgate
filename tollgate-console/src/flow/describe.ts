@@ -77,7 +77,8 @@ function guardDetail(guard: GuardView, tenant: TenantView): string {
   }
   if (guard.regions !== null) {
     const regions = tenant.dataClass === null ? undefined : guard.regions[tenant.dataClass];
-    return `${tenant.dataClass ?? 'no class'} → ${regions && regions.length > 0 ? regions.join(', ') : 'none'}`;
+    const reach = regions && regions.length > 0 ? regions.join(', ') : 'none';
+    return `${tenant.dataClass ?? 'no class'} → ${reach}`;
   }
   if (guard.refuse && guard.refuse.length > 0) {
     return `${guard.refuse.length} refused`;
@@ -193,6 +194,12 @@ export function checksFor(
   return checks;
 }
 
+function providersOf(config: ConfigView, models: Iterable<string>): Set<string> {
+  return new Set(
+    [...models].flatMap((name) => config.models.find((item) => item.name === name)?.provider ?? []),
+  );
+}
+
 function reachedProviders(config: ConfigView, tenant: TenantView): Set<string> {
   const seen = new Set<string>();
   const queue = [...tenant.models];
@@ -204,9 +211,7 @@ function reachedProviders(config: ConfigView, tenant: TenantView): Set<string> {
       queue.push(...model.fallback);
     }
   }
-  return new Set(
-    [...seen].flatMap((name) => config.models.find((item) => item.name === name)?.provider ?? []),
-  );
+  return providersOf(config, seen);
 }
 
 function reachable(
@@ -214,7 +219,9 @@ function reachable(
   dataClass: string | null,
   region: string | null,
 ): boolean {
-  const guard = policy?.guards.find((item) => item.type === 'data-class' && item.mode === 'enforce');
+  const guard = policy?.guards.find(
+    (item) => item.type === 'data-class' && item.mode === 'enforce',
+  );
   if (!guard) {
     return true;
   }
@@ -246,6 +253,7 @@ export function opensFor(
     return open.length > 0 ? [{ dataClass, regions: open }] : [];
   });
 }
+
 export function providersFor(
   config: ConfigView,
   tenantName: string,
@@ -256,9 +264,7 @@ export function providersFor(
     return [];
   }
   const policy = config.policies.find((item) => item.name === tenant.policy);
-  const direct = new Set(
-    tenant.models.flatMap((name) => config.models.find((item) => item.name === name)?.provider ?? []),
-  );
+  const direct = providersOf(config, tenant.models);
   const reached = reachedProviders(config, tenant);
   const flows = flowsOf(live, tenantName);
   return config.providers
@@ -306,9 +312,7 @@ export function blockedProviders(config: ConfigView, tenantName: string): Provid
   const tenant = config.tenants.find((item) => item.name === tenantName);
   const policy = config.policies.find((item) => item.name === tenant?.policy);
   return tenant
-    ? config.providers.filter(
-        (provider) => !reachable(policy, tenant.dataClass, provider.region),
-      )
+    ? config.providers.filter((provider) => !reachable(policy, tenant.dataClass, provider.region))
     : [];
 }
 

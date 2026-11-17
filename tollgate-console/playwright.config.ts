@@ -5,8 +5,6 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   globalSetup: './e2e/start-server.mjs',
   workers: 1,
-  fullyParallel: false,
-  retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
   reporter: [['list'], ['html', { open: 'never' }]],

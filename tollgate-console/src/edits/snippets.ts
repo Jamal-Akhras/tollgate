@@ -1,4 +1,4 @@
-import type { BudgetView, ConfigView } from '../../api/types';
+import type { BudgetView, ConfigView } from '../api/types';
 
 export type Snippet = { note: string; code: string | null };
 

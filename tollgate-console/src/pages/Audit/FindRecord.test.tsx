@@ -6,7 +6,9 @@ afterEach(cleanup);
 
 test('goesToTheRecordOfTheTraceIdWithItEncoded', () => {
   render(<FindRecord />);
-  fireEvent.input(screen.getByLabelText('Find a record by trace ID'), { target: { value: ' 01KA3W.2 ' } });
+  fireEvent.input(screen.getByLabelText('Find a record by trace ID'), {
+    target: { value: ' 01KA3W.2 ' },
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Find' }));
   expect(location.hash).toBe('#/audit/records/01KA3W.2');
 });

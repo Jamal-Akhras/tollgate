@@ -24,16 +24,17 @@ test('editsAreOnOnlyWhenTheConfigIsManaged', () => {
 test('aWrittenChangeToastsTheVersionAndReloadsTheView', async () => {
   toasts();
   const onChanged = vi.fn();
-  const result = await runEdit(() => Promise.resolve(changeFixture), { onChanged });
+  const result = await runEdit(() => Promise.resolve(changeFixture), onChanged);
   expect(result).toBe(changeFixture);
-  expect(await screen.findByText(`Written. Config version ${changeFixture.version.slice(0, 8)}…`))
-    .toBeTruthy();
+  expect(
+    await screen.findByText(`Written. Config version ${changeFixture.version.slice(0, 8)}…`),
+  ).toBeTruthy();
   expect(onChanged).toHaveBeenCalledTimes(1);
 });
 
 test('aCreatedKeyCountsAsWritten', async () => {
   toasts();
-  const result = await runEdit(() => Promise.resolve(createdKeyFixture), { onChanged: vi.fn() });
+  const result = await runEdit(() => Promise.resolve(createdKeyFixture), vi.fn());
   expect(result).toBe(createdKeyFixture);
   expect(
     await screen.findByText(`Written. Config version ${createdKeyFixture.version.slice(0, 8)}…`),
@@ -43,7 +44,7 @@ test('aCreatedKeyCountsAsWritten', async () => {
 test('aChangeThatChangedNothingSaysSo', async () => {
   toasts();
   const onChanged = vi.fn();
-  await runEdit(() => Promise.resolve({ ...changeFixture, changed: false }), { onChanged });
+  await runEdit(() => Promise.resolve({ ...changeFixture, changed: false }), onChanged);
   expect(await screen.findByText('Nothing to change')).toBeTruthy();
   expect(onChanged).toHaveBeenCalledTimes(1);
 });
@@ -53,7 +54,7 @@ test('aMovedVersionToastsTheServersMessageAndReloadsTheView', async () => {
   const onChanged = vi.fn();
   const result = await runEdit(
     () => Promise.reject(new ApiError(412, 'config_changed', 'tollgate.yaml was changed by hand')),
-    { onChanged },
+    onChanged,
   );
   expect(result).toBeUndefined();
   expect(await screen.findByText('tollgate.yaml was changed by hand')).toBeTruthy();
@@ -65,7 +66,7 @@ test('editsSwitchedOffToastAndReloadTheView', async () => {
   const onChanged = vi.fn();
   const result = await runEdit(
     () => Promise.reject(new ApiError(409, 'edits_off', 'Edits are off')),
-    { onChanged },
+    onChanged,
   );
   expect(result).toBeUndefined();
   expect(await screen.findByText('Edits were switched off on the server.')).toBeTruthy();
@@ -75,8 +76,8 @@ test('editsSwitchedOffToastAndReloadTheView', async () => {
 test('otherFailuresAreLeftForTheDialog', async () => {
   const onChanged = vi.fn();
   const failure = new ApiError(422, 'invalid_config', 'tenant my-app has no models');
-  await expect(runEdit(() => Promise.reject(failure), { onChanged })).rejects.toBe(failure);
+  await expect(runEdit(() => Promise.reject(failure), onChanged)).rejects.toBe(failure);
   const missing = new ApiError(428, 'precondition_required', 'If-Match is required');
-  await expect(runEdit(() => Promise.reject(missing), { onChanged })).rejects.toBe(missing);
+  await expect(runEdit(() => Promise.reject(missing), onChanged)).rejects.toBe(missing);
   expect(onChanged).not.toHaveBeenCalled();
 });

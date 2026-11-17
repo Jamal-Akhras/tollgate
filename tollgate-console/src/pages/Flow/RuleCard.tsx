@@ -3,12 +3,12 @@ import type { ConfigView } from '../../api/types';
 import { BudgetEdit } from '../../edits/BudgetEdit';
 import { editsOn } from '../../edits/edit';
 import { GuardSwitch } from '../../edits/GuardSwitch';
+import { setBudget, type Snippet } from '../../edits/snippets';
 import type { Rule } from '../../flow/rule';
 import { href } from '../../router';
 import { formatCount } from '../../ui/format';
 import { Meter } from '../../ui/Meter';
 import { moneyText } from '../../ui/Money';
-import { setBudget, type Snippet } from '../Config/snippets';
 import styles from './RuleCard.module.css';
 
 type RuleCardProps = {
@@ -30,7 +30,15 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function RuleCard({ rule, config, tenant, guard, onChange, onChanged, onClose }: RuleCardProps) {
+export function RuleCard({
+  rule,
+  config,
+  tenant,
+  guard,
+  onChange,
+  onChanged,
+  onClose,
+}: RuleCardProps) {
   const [changing, setChanging] = useState(false);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
@@ -96,7 +104,9 @@ export function RuleCard({ rule, config, tenant, guard, onChange, onChanged, onC
             type="button"
             class={styles.button}
             onClick={() =>
-              editsOn(config) ? setChanging(true) : onChange(setBudget(tenant, budget.tenant.budget))
+              editsOn(config)
+                ? setChanging(true)
+                : onChange(setBudget(tenant, budget.tenant.budget))
             }
           >
             Change budget

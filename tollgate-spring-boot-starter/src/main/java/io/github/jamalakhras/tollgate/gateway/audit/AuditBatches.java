@@ -46,7 +46,7 @@ public final class AuditBatches {
             long size = Files.size(file);
             long allowed = Math.min(size, left);
             left -= allowed;
-            long span = Math.min(allowed, Math.max(1, firstSpan));
+            long span = Math.min(allowed, firstSpan);
             List<Batch> read;
             while (true) {
                 Pass pass = new Pass(file, batch -> true);

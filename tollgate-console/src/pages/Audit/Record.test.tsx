@@ -21,7 +21,13 @@ function show(hash: string, response: Response) {
   render(<AuditRecord />);
 }
 
-const unsealed: ProvedRecord = { record: { type: 'intent', id: 'request-5' }, sealed: false, proof: null, seal: null, signatureValid: null };
+const unsealed: ProvedRecord = {
+  record: { type: 'intent', id: 'request-5' },
+  sealed: false,
+  proof: null,
+  seal: null,
+  signatureValid: null,
+};
 
 beforeEach(() => {
   send.mockReset();
@@ -37,13 +43,15 @@ test('checksTheIntentsProofInTheBrowserAndEndsInEqual', async () => {
   show('#/audit/records/request-5', answer(200, recordFixture));
   await screen.findByText('Checked in your browser');
   expect(send.mock.calls[0]?.[0]).toBe('/admin/v1/audit/records/request-5');
-  expect(screen.getByText('Hash the record\'s encoding')).toBeTruthy();
+  expect(screen.getByText("Hash the record's encoding")).toBeTruthy();
   expect(screen.getAllByText(/^Combine with/)).toHaveLength(3);
   expect(screen.getAllByText('equal')).toHaveLength(3);
   expect(screen.queryByText('not equal')).toBeNull();
   expect(screen.getByText('valid')).toBeTruthy();
   expect(screen.getByText(/"tenant": "support-bot"/)).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Leaf 5 of 7 in batch 4' }).getAttribute('href')).toBe('#/audit/batches/4?leaf=5');
+  expect(screen.getByRole('link', { name: 'Leaf 5 of 7 in batch 4' }).getAttribute('href')).toBe(
+    '#/audit/batches/4?leaf=5',
+  );
 });
 
 test('showsTheOutcomeUnderItsOwnTab', async () => {
@@ -65,7 +73,13 @@ test('saysNotEqualAndWhatRootItReachedWhenASiblingIsChanged', async () => {
   const intent = recordFixture.intent as ProvedRecord;
   const proof = intent.proof as NonNullable<ProvedRecord['proof']>;
   const changed: RecordProofs = {
-    intent: { ...intent, proof: { ...proof, path: [proof.path[0] as string, 'ff'.repeat(32), proof.path[2] as string] } },
+    intent: {
+      ...intent,
+      proof: {
+        ...proof,
+        path: [proof.path[0] as string, 'ff'.repeat(32), proof.path[2] as string],
+      },
+    },
     outcome: null,
   };
   show('#/audit/records/request-5', answer(200, changed));
@@ -78,14 +92,23 @@ test('saysNotEqualAndWhatRootItReachedWhenASiblingIsChanged', async () => {
 test('saysNotEqualWhenTheEncodingDoesNotHashToTheLeafHash', async () => {
   const intent = recordFixture.intent as ProvedRecord;
   const proof = intent.proof as NonNullable<ProvedRecord['proof']>;
-  show('#/audit/records/request-5', answer(200, { intent: { ...intent, proof: { ...proof, leafHash: 'aa'.repeat(32) } }, outcome: null }));
+  show(
+    '#/audit/records/request-5',
+    answer(200, {
+      intent: { ...intent, proof: { ...proof, leafHash: 'aa'.repeat(32) } },
+      outcome: null,
+    }),
+  );
   await screen.findByText(/The proof does not hold/);
 });
 
 test('saysNotEqualWhenTheProofRootIsNotTheSealsRoot', async () => {
   const intent = recordFixture.intent as ProvedRecord;
   const seal = intent.seal as NonNullable<ProvedRecord['seal']>;
-  show('#/audit/records/request-5', answer(200, { intent: { ...intent, seal: { ...seal, root: 'bb'.repeat(32) } }, outcome: null }));
+  show(
+    '#/audit/records/request-5',
+    answer(200, { intent: { ...intent, seal: { ...seal, root: 'bb'.repeat(32) } }, outcome: null }),
+  );
   await screen.findByText(/The proof does not hold/);
   expect(screen.getAllByText('not equal')).toHaveLength(1);
 });
@@ -108,7 +131,9 @@ test('asksForARecordWhoseIdHasADotWithItEncoded', async () => {
 test('asksAgainEveryTwoSecondsForAnUnsealedRecordUpToFiveTimesThenOffersToCheckAgain', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   try {
-    send.mockImplementation(() => Promise.resolve(answer(200, { intent: unsealed, outcome: null })));
+    send.mockImplementation(() =>
+      Promise.resolve(answer(200, { intent: unsealed, outcome: null })),
+    );
     location.hash = '#/audit/records/request-5';
     route.value = parse('#/audit/records/request-5');
     render(<AuditRecord />);
@@ -129,7 +154,10 @@ test('showsTheProofOnceTheRecordIsSealed', async () => {
   send.mockImplementation(() => {
     calls += 1;
     return Promise.resolve(
-      answer(200, calls === 1 ? { intent: unsealed, outcome: null } : { ...recordFixture, outcome: null }),
+      answer(
+        200,
+        calls === 1 ? { intent: unsealed, outcome: null } : { ...recordFixture, outcome: null },
+      ),
     );
   });
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -158,7 +186,10 @@ test('saysSoWhenTheAuditTrailIsOff', async () => {
 });
 
 test('showsTheServersMessageWithRetry', async () => {
-  show('#/audit/records/request-5', answer(500, { code: 'boom', message: 'Could not read the file' }));
+  show(
+    '#/audit/records/request-5',
+    answer(500, { code: 'boom', message: 'Could not read the file' }),
+  );
   await screen.findByText('Could not read the file');
   expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
 });

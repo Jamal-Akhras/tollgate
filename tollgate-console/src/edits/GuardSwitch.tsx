@@ -2,12 +2,12 @@ import { useState } from 'preact/hooks';
 import { put, segment } from '../api/client';
 import type { ConfigChange, ConfigView, GuardMode } from '../api/types';
 import { opensFor } from '../flow/describe';
-import { guardMode } from '../pages/Config/snippets';
-import { HowToChange } from '../pages/Config/HowToChange';
 import { Switch } from '../ui/Switch';
 import { ConfirmEdit } from './ConfirmEdit';
 import { editsOn, runEdit } from './edit';
 import styles from './GuardSwitch.module.css';
+import { HowToChange } from './HowToChange';
+import { guardMode } from './snippets';
 import { guardModeLines } from './yaml';
 
 type GuardSwitchProps = {
@@ -86,7 +86,7 @@ export function GuardSwitch({ config, policy, index, onChanged }: GuardSwitchPro
                   { mode },
                   config.version,
                 ),
-              { onChanged },
+              onChanged,
             )
           }
           onClose={() => setAsking(false)}

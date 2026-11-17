@@ -55,8 +55,7 @@ public final class ConfigFile {
 
     static LoadedConfig parse(Path path, byte[] bytes) {
         try {
-            PriceCatalog catalog = PriceCatalog.bundled();
-            return new LoadedConfig(path, ConfigReader.read(document(bytes), catalog), version(bytes));
+            return new LoadedConfig(path, ConfigReader.read(document(bytes), PriceCatalog.bundled()), version(bytes));
         } catch (JacksonException e) {
             throw new IllegalStateException(path + " is not valid YAML: " + e.getOriginalMessage(), e);
         } catch (InvalidConfigException e) {
@@ -79,9 +78,8 @@ public final class ConfigFile {
 
     static String version(byte[] bytes) {
         try {
-            PriceCatalog catalog = PriceCatalog.bundled();
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update((catalog.version() + "\n").getBytes(StandardCharsets.UTF_8));
+            digest.update((PriceCatalog.bundled().version() + "\n").getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest.digest(bytes));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Every Java runtime provides SHA-256", e);

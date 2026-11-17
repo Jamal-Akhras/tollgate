@@ -101,19 +101,12 @@ public final class AuditDirectory {
             if (end == 0) {
                 return length == maxBytes ? from + length : from;
             }
-            for (String line :
-                    new String(bytes, 0, end, StandardCharsets.UTF_8).lines().toList()) {
-                if (line.isBlank()) {
-                    continue;
-                }
-                AuditEntry entry;
-                try {
-                    entry = AuditJson.read(line);
-                } catch (IllegalArgumentException e) {
-                    continue;
-                }
-                each.accept(entry);
-            }
+            new String(bytes, 0, end, StandardCharsets.UTF_8)
+                    .lines()
+                    .filter(line -> !line.isBlank())
+                    .map(AuditDirectory::entry)
+                    .flatMap(Optional::stream)
+                    .forEach(each);
             return from + end;
         }
     }
@@ -207,8 +200,12 @@ public final class AuditDirectory {
     }
 
     private static Optional<Seal> sealIn(String text) {
+        return entry(text).filter(Seal.class::isInstance).map(Seal.class::cast);
+    }
+
+    private static Optional<AuditEntry> entry(String text) {
         try {
-            return AuditJson.read(text) instanceof Seal seal ? Optional.of(seal) : Optional.empty();
+            return Optional.of(AuditJson.read(text));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }

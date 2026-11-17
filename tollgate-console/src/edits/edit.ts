@@ -10,7 +10,7 @@ type Outcome = ConfigChange | CreatedKey;
 
 export async function runEdit<T extends Outcome>(
   send: () => Promise<T>,
-  { onChanged }: { onChanged: () => void },
+  onChanged: () => void,
 ): Promise<T | undefined> {
   try {
     const result = await send();
@@ -24,7 +24,11 @@ export async function runEdit<T extends Outcome>(
   } catch (failure) {
     if (failure instanceof ApiError && failure.status === 412) {
       showToast(failure.message, 'error');
-    } else if (failure instanceof ApiError && failure.status === 409 && failure.code === 'edits_off') {
+    } else if (
+      failure instanceof ApiError &&
+      failure.status === 409 &&
+      failure.code === 'edits_off'
+    ) {
       showToast('Edits were switched off on the server.', 'error');
     } else {
       throw failure;

@@ -1,12 +1,27 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { get } from '../../api/client';
-import type { BudgetState, BudgetView, ConfigView, GuardView, LimitsView, PolicyView } from '../../api/types';
+import type {
+  BudgetState,
+  BudgetView,
+  ConfigView,
+  GuardView,
+  LimitsView,
+  PolicyView,
+} from '../../api/types';
 import { BudgetEdit } from '../../edits/BudgetEdit';
 import { CreateKey } from '../../edits/CreateKey';
 import { GuardSwitch } from '../../edits/GuardSwitch';
+import { HowToChange, useReload } from '../../edits/HowToChange';
 import { RevokeKey } from '../../edits/RevokeKey';
 import { editsOn } from '../../edits/edit';
+import {
+  forSection,
+  removeKey,
+  setBudget,
+  type SectionName,
+  type Snippet,
+} from '../../edits/snippets';
 import { href } from '../../router';
 import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
@@ -15,9 +30,8 @@ import { Hash } from '../../ui/Hash';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
+import { useConfig } from '../useConfig';
 import styles from './Config.module.css';
-import { HowToChange, useReload } from './HowToChange';
-import { forSection, removeKey, setBudget, type SectionName, type Snippet } from './snippets';
 
 type Change = (snippet: Snippet) => void;
 type SectionProps = { config: ConfigView; change: Change };
@@ -120,7 +134,12 @@ function Tenants({ config, change, budgets, onChanged }: SectionProps & Budgets)
       header: 'Policy',
       cell: (tenant) => <Jump kind="policy" name={tenant.policy} />,
     },
-    { key: 'models', header: 'Models', cell: (tenant) => <List items={tenant.models} />, priority: 2 },
+    {
+      key: 'models',
+      header: 'Models',
+      cell: (tenant) => <List items={tenant.models} />,
+      priority: 2,
+    },
     {
       key: 'budget',
       header: 'Budget',
@@ -244,7 +263,15 @@ function describe(map: Record<string, string[]>): string {
     : entries.map(([key, values]) => `${key}: ${values.join(', ')}`).join('; ');
 }
 
-function Guards({ policy, config, onChanged }: { policy: PolicyView; config: ConfigView; onChanged: () => void }) {
+function Guards({
+  policy,
+  config,
+  onChanged,
+}: {
+  policy: PolicyView;
+  config: ConfigView;
+  onChanged: () => void;
+}) {
   if (policy.guards.length === 0) {
     return <span class={styles.none}>none</span>;
   }
@@ -265,8 +292,17 @@ function Guards({ policy, config, onChanged }: { policy: PolicyView; config: Con
 function Policies({ config, change, onChanged }: SectionProps & { onChanged: () => void }) {
   const columns: Column<PolicyView>[] = [
     { key: 'name', header: 'Policy', cell: (policy) => <Name kind="policy" name={policy.name} /> },
-    { key: 'guards', header: 'Guards, in order', cell: (policy) => <Guards policy={policy} config={config} onChanged={onChanged} /> },
-    { key: 'features', header: 'Features', cell: (policy) => describe(policy.features), priority: 2 },
+    {
+      key: 'guards',
+      header: 'Guards, in order',
+      cell: (policy) => <Guards policy={policy} config={config} onChanged={onChanged} />,
+    },
+    {
+      key: 'features',
+      header: 'Features',
+      cell: (policy) => describe(policy.features),
+      priority: 2,
+    },
     { key: 'redact', header: 'Redact', cell: (policy) => describe(policy.redact), priority: 2 },
     { key: 'refuse', header: 'Refuse', cell: (policy) => describe(policy.refuse), priority: 3 },
   ];
@@ -298,7 +334,12 @@ function Providers({ config, change }: SectionProps) {
       cell: (provider) => provider.concurrent ?? '-',
       priority: 2,
     },
-    { key: 'apiKey', header: 'API key from', cell: (provider) => provider.apiKey ?? '-', priority: 3 },
+    {
+      key: 'apiKey',
+      header: 'API key from',
+      cell: (provider) => provider.apiKey ?? '-',
+      priority: 3,
+    },
   ];
   return (
     <Section title="Providers" name="providers" config={config} change={change}>
@@ -321,7 +362,12 @@ function Models({ config, change }: SectionProps) {
       cell: (model) => <Jump kind="provider" name={model.provider} />,
     },
     { key: 'upstream', header: 'Upstream', cell: (model) => model.upstream, priority: 2 },
-    { key: 'price', header: 'Price', cell: (model) => (model.free ? 'free' : 'priced'), priority: 2 },
+    {
+      key: 'price',
+      header: 'Price',
+      cell: (model) => (model.free ? 'free' : 'priced'),
+      priority: 2,
+    },
     { key: 'cap', header: 'Output cap', cell: (model) => model.outputCap ?? '-', priority: 3 },
     {
       key: 'fallback',
@@ -355,7 +401,9 @@ function DataClasses({ config, change }: SectionProps) {
         columns={columns}
         rows={rows}
         rowKey={(item) => item.name}
-        empty={<p class={styles.empty}>No data classes. Least to most strict, when there are some.</p>}
+        empty={
+          <p class={styles.empty}>No data classes. Least to most strict, when there are some.</p>
+        }
       />
     </Section>
   );
@@ -373,31 +421,10 @@ function Loading() {
 }
 
 export function Config() {
-  const [config, setConfig] = useState<ConfigView | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const { config, error, round, retry } = useConfig();
   const [snippet, setSnippet] = useState<Snippet | null>(null);
   const [budgets, setBudgets] = useState<BudgetState[]>([]);
-  const [round, setRound] = useState(0);
-  const reloading = useReload(() => setRound((value) => value + 1));
-
-  useEffect(() => {
-    let stopped = false;
-    get<ConfigView>('/config')
-      .then((view) => {
-        if (!stopped) {
-          setConfig(view);
-          setError(null);
-        }
-      })
-      .catch((failure: unknown) => {
-        if (!stopped) {
-          setError(failure instanceof Error ? failure : new Error(String(failure)));
-        }
-      });
-    return () => {
-      stopped = true;
-    };
-  }, [round]);
+  const reloading = useReload(retry);
 
   const managed = config?.edits === 'managed';
 
@@ -442,7 +469,7 @@ export function Config() {
         <Banner
           kind="error"
           action={
-            <button type="button" class={styles.button} onClick={() => setRound(round + 1)}>
+            <button type="button" class={styles.button} onClick={retry}>
               Retry
             </button>
           }
@@ -453,33 +480,16 @@ export function Config() {
       {!config && !error && <Loading />}
       {config && (
         <>
-          <Tenants
-            config={config}
-            change={setSnippet}
-            budgets={budgets}
-            onChanged={() => setRound((value) => value + 1)}
-          />
-          <Keys
-            config={config}
-            change={setSnippet}
-            onChanged={() => setRound((value) => value + 1)}
-          />
-          <Policies
-            config={config}
-            change={setSnippet}
-            onChanged={() => setRound((value) => value + 1)}
-          />
+          <Tenants config={config} change={setSnippet} budgets={budgets} onChanged={retry} />
+          <Keys config={config} change={setSnippet} onChanged={retry} />
+          <Policies config={config} change={setSnippet} onChanged={retry} />
           <Providers config={config} change={setSnippet} />
           <Models config={config} change={setSnippet} />
           <DataClasses config={config} change={setSnippet} />
         </>
       )}
       {snippet && (
-        <HowToChange
-          snippet={snippet}
-          onClose={() => setSnippet(null)}
-          onChanged={() => setRound((value) => value + 1)}
-        />
+        <HowToChange snippet={snippet} onClose={() => setSnippet(null)} onChanged={retry} />
       )}
     </div>
   );

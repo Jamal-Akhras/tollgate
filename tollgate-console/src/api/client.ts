@@ -76,7 +76,11 @@ async function request<T>(method: string, path: string, options: Options = {}): 
   try {
     return (await response.json()) as T;
   } catch {
-    throw new ApiError(response.status, 'invalid_response', 'The admin API sent an answer that is not JSON');
+    throw new ApiError(
+      response.status,
+      'invalid_response',
+      'The admin API sent an answer that is not JSON',
+    );
   }
 }
 

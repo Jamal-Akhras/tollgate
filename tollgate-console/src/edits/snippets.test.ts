@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { configBusyFixture, configFixture } from '../../api/fixtures';
+import { configBusyFixture, configFixture } from '../api/fixtures';
 import { addKey, editSection, forSection, guardMode, removeKey, setBudget } from './snippets';
 
 test('guardModeToMonitorShowsTheLineToAdd', () => {
@@ -26,17 +26,13 @@ test('addKeyGivesTheCommandAndWhereItsLineGoes', () => {
 
 test('setBudgetSuggestsALimitWhereThereIsNone', () => {
   const snippet = setBudget('my-app', null);
-  expect(snippet.code).toBe(
-    'tenants:\n  my-app:\n    budget: { limit: 50.00, period: monthly }',
-  );
+  expect(snippet.code).toBe('tenants:\n  my-app:\n    budget: { limit: 50.00, period: monthly }');
   expect(snippet.note).toContain('add a budget line');
 });
 
 test('setBudgetKeepsTheCurrentValues', () => {
   const snippet = setBudget('support-bot', { limit: '150', currency: 'USD', period: 'daily' });
-  expect(snippet.code).toBe(
-    'tenants:\n  support-bot:\n    budget: { limit: 150, period: daily }',
-  );
+  expect(snippet.code).toBe('tenants:\n  support-bot:\n    budget: { limit: 150, period: daily }');
   expect(snippet.note).toContain('change the budget line');
 });
 

@@ -49,7 +49,9 @@ export function DayBars({ rows }: { rows: Row[] }) {
       >
         {shown ? 'Hide data' : 'Show data'}
       </button>
-      {shown && <DataTable label="Calls per day" columns={columns} rows={rows} rowKey={(r) => r.key} />}
+      {shown && (
+        <DataTable label="Calls per day" columns={columns} rows={rows} rowKey={(r) => r.key} />
+      )}
     </div>
   );
 }

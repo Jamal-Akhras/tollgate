@@ -9,7 +9,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { PageHeader } from '../../ui/PageHeader';
 import { Segmented } from '../../ui/Segmented';
 import { Skeleton } from '../../ui/Skeleton';
-import { auditOffText } from './Audit';
+import { auditOffText, isAuditOff } from '../auditOff';
 import { noRecordText } from './FindRecord';
 import { ProofSteps } from './ProofSteps';
 import styles from './Record.module.css';
@@ -49,12 +49,14 @@ function RecordPage({ id }: { id: string }) {
   );
   const [tab, setTab] = useState<'intent' | 'outcome'>('intent');
   const tries = useRef(0);
-  const off = error instanceof ApiError && error.code === 'audit_off';
+  const off = isAuditOff(error);
   const missing = error instanceof ApiError && error.status === 404;
   const failed = error && !off && !missing;
   const both = data?.intent && data.outcome;
   const shown = data ? (both ? data[tab] : (data.intent ?? data.outcome)) : null;
-  const waiting = [data?.intent, data?.outcome].some((proved) => proved && !(proved.sealed && proved.proof));
+  const waiting = [data?.intent, data?.outcome].some(
+    (proved) => proved && !(proved.sealed && proved.proof),
+  );
   const retrying = waiting && tries.current < unsealedRetries;
 
   useEffect(() => {
@@ -80,7 +82,9 @@ function RecordPage({ id }: { id: string }) {
       </a>
       <PageHeader title="Audit record" note={id} />
       {off && <Banner kind="info">{auditOffText}</Banner>}
-      {missing && <EmptyState title={noRecordText} text={`The audit trail has nothing under ${id}.`} />}
+      {missing && (
+        <EmptyState title={noRecordText} text={`The audit trail has nothing under ${id}.`} />
+      )}
       {failed && (
         <Banner
           kind="error"
@@ -97,7 +101,9 @@ function RecordPage({ id }: { id: string }) {
         <div aria-busy="true">
           <Skeleton height="200px" />
           {busy && (
-            <p class={styles.source}>Another long read of the audit trail is running. Trying again in a moment.</p>
+            <p class={styles.source}>
+              Another long read of the audit trail is running. Trying again in a moment.
+            </p>
           )}
         </div>
       )}

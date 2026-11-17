@@ -13,7 +13,9 @@ function answer(status: number, body: unknown) {
 function serve(routes: Record<string, () => Response>) {
   send.mockImplementation((url: string) => {
     const found = Object.entries(routes).find(([path]) => url.startsWith(`/admin/v1${path}`));
-    return Promise.resolve(found ? found[1]() : answer(404, { code: 'not_found', message: 'none' }));
+    return Promise.resolve(
+      found ? found[1]() : answer(404, { code: 'not_found', message: 'none' }),
+    );
   });
 }
 

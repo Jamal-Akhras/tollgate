@@ -160,8 +160,9 @@ test('thePreviewDrawsOneGreyLineFromTheTenantToEveryProviderAndNothingElse', () 
     'direct-ollama',
     'direct-openai',
   ]);
-  expect(lines.every((line) => line.kind === 'idle' && !line.moving && line.end === null)).toBe(true);
+  expect(lines.every((line) => line.kind === 'idle' && !line.moving && !line.end)).toBe(true);
   const card = picture.tenants[0]!;
   expect(lines[0]!.from).toEqual({ x: card.x + card.w + 8, y: card.y + card.h / 2 });
-  expect(lines[1]!.d.endsWith(`${picture.providers[1]!.x - 8} ${picture.providers[1]!.y + 48}`)).toBe(true);
+  const second = picture.providers[1]!;
+  expect(lines[1]!.d.endsWith(`${second.x - 8} ${second.y + 48}`)).toBe(true);
 });

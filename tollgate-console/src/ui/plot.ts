@@ -1,4 +1,5 @@
-﻿import type uPlot from 'uplot';
+import type uPlot from 'uplot';
+import { formatClock } from './format';
 
 export type PlotLine = { name: string; color: string; values: (number | null)[] };
 
@@ -38,10 +39,6 @@ function shaded(color: string): string {
   return `color-mix(in srgb, ${color} 35%, transparent)`;
 }
 
-function clock(seconds: number): string {
-  return new Date(seconds * 1000).toISOString().slice(11, 19);
-}
-
 export async function drawPlot(
   parent: HTMLElement,
   data: PlotData,
@@ -68,7 +65,7 @@ export async function drawPlot(
       y: { range: (_plot, _min, max) => [0, max > 0 ? max * 1.1 : 1] },
     },
     axes: [
-      { ...axis, values: (_plot, ticks) => ticks.map(clock) },
+      { ...axis, values: (_plot, ticks) => ticks.map(formatClock) },
       { ...axis, size: 64, values: (_plot, ticks) => ticks.map((tick) => look.format(tick)) },
     ],
     series: [

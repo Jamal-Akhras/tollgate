@@ -62,19 +62,27 @@ test('aGuardMatchesWhenItsStepRefusedOrWouldHaveRefused', () => {
   expect(refusedByDataClass.some((call) => !call.allowed)).toBe(true);
   const monitored = filterCalls(calls, { ...none, guard: 'tool-names' });
   expect(monitored.some((call) => call.allowed)).toBe(true);
-  expect(monitored.every((call) => call.steps.some((step) => step.guard === 'tool-names' && !step.allowed))).toBe(
-    true,
-  );
+  expect(
+    monitored.every((call) =>
+      call.steps.some((step) => step.guard === 'tool-names' && !step.allowed),
+    ),
+  ).toBe(true);
 });
 
 test('aGuardThatOnlyAllowedDoesNotMatch', () => {
-  const allowed = calls.find((call) => call.steps.length > 0 && call.steps.every((step) => step.allowed));
+  const allowed = calls.find(
+    (call) => call.steps.length > 0 && call.steps.every((step) => step.allowed),
+  );
   expect(allowed).toBeTruthy();
   expect(filterCalls([allowed as CallView], { ...none, guard: 'data-class' })).toEqual([]);
 });
 
 test('filtersCombine', () => {
-  const rows = filterCalls(calls, { tenant: 'support-bot', result: 'refused', guard: 'data-class' });
+  const rows = filterCalls(calls, {
+    tenant: 'support-bot',
+    result: 'refused',
+    guard: 'data-class',
+  });
   expect(rows.every((call) => call.tenant === 'support-bot' && !call.allowed)).toBe(true);
 });
 

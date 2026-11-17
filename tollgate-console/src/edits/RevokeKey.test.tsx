@@ -16,7 +16,12 @@ function open(id: string) {
   const onClose = vi.fn();
   render(
     <>
-      <RevokeKey config={configManagedFixture} keyView={keyView} onChanged={onChanged} onClose={onClose} />
+      <RevokeKey
+        config={configManagedFixture}
+        keyView={keyView}
+        onChanged={onChanged}
+        onClose={onClose}
+      />
       <Toasts />
     </>,
   );
@@ -48,7 +53,9 @@ test('theQuestionNamesTheKeyAndTheWarningAlwaysShowsWithFocusOnCancel', () => {
 test('theLastKeySentenceAppearsOnlyForATenantsLastKey', () => {
   open('3f9a1c2eK7mQ');
   expect(
-    screen.getByText(/It is my-app's last key, so my-app can make no calls until you create another\./),
+    screen.getByText(
+      /It is my-app's last key, so my-app can make no calls until you create another\./,
+    ),
   ).toBeTruthy();
   cleanup();
   open('a81d07b4Xp2R');

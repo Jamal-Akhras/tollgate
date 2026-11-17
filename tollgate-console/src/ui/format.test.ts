@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   formatBytes,
+  formatClock,
   formatCount,
   formatDecimal,
   formatMillis,
@@ -92,4 +93,8 @@ test('relativeTimeSaysHowLongAgo', () => {
   for (const [input, output] of table) {
     expect(relativeTime(input, now), input).toBe(output);
   }
+});
+
+test('formatClockShowsTheUtcTimeOfDay', () => {
+  expect(formatClock(Date.parse('2026-11-16T09:05:07Z') / 1000)).toBe('09:05:07');
 });

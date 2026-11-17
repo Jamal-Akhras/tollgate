@@ -21,7 +21,8 @@ async function watch(page: Page): Promise<Watched> {
   });
   page.on('console', (message) => {
     const text = message.text();
-    const refusedByTheApi = /Failed to load resource: the server responded with a status of (401|412)/;
+    const refusedByTheApi =
+      /Failed to load resource: the server responded with a status of (401|412)/;
     if (message.type() === 'error' && !refusedByTheApi.test(text)) {
       watched.errors.push(text);
     }
@@ -151,9 +152,12 @@ test('the console shows what the server decided and proves it', async ({ page })
     const unreachable = await send('hello');
     expect(unreachable).toBeGreaterThanOrEqual(500);
 
-    await expect(page.getByRole('link', { name: /^Refused/ })).toContainText(/Refused[1-9]\d*calls/, {
-      timeout: 15_000,
-    });
+    await expect(page.getByRole('link', { name: /^Refused/ })).toContainText(
+      /Refused[1-9]\d*calls/,
+      {
+        timeout: 15_000,
+      },
+    );
 
     await open(page, 'Activity');
     await expectHeading(page, 'Activity');
@@ -165,7 +169,11 @@ test('the console shows what the server decided and proves it', async ({ page })
   });
 
   await test.step('the refused record is proved in the browser', async () => {
-    await page.getByRole('table', { name: 'Calls' }).getByRole('row').filter({ hasText: 'refused' }).click();
+    await page
+      .getByRole('table', { name: 'Calls' })
+      .getByRole('row')
+      .filter({ hasText: 'refused' })
+      .click();
     await page.getByRole('link', { name: 'Prove this record' }).click();
     await expect(page.getByText('Checked in your browser')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText('equal', { exact: true }).first()).toBeVisible();
@@ -215,7 +223,9 @@ test('the console shows what the server decided and proves it', async ({ page })
     await openCheck(page, /data-class/);
     await page.getByRole('switch', { name: 'Enforce data-class' }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading', { name: 'Monitor data-class instead of enforcing it?' })).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: 'Monitor data-class instead of enforcing it?' }),
+    ).toBeVisible();
     await expect(dialog.getByText('This is the first change made from the console')).toBeVisible();
     await expect(dialog.getByText('While data-class only monitors')).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();

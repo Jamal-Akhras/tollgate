@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { ApiError, get } from '../../api/client';
+import { get } from '../../api/client';
 import type { BatchView } from '../../api/types';
 import { href } from '../../router';
 import { Banner } from '../../ui/Banner';
@@ -7,6 +7,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Hash } from '../../ui/Hash';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
+import { isAuditOff } from '../auditOff';
 import styles from './Chain.module.css';
 import { useLoaded } from './useLoaded';
 
@@ -25,7 +26,7 @@ export function Chain({ lastBatch }: { lastBatch: number | null }) {
     }
   }, [count, lastBatch]);
 
-  if (error && !(error instanceof ApiError && error.code === 'audit_off')) {
+  if (error && !isAuditOff(error)) {
     return (
       <Banner
         kind="error"
@@ -43,7 +44,11 @@ export function Chain({ lastBatch }: { lastBatch: number | null }) {
     return (
       <div aria-busy="true">
         <Skeleton height="110px" />
-        {busy && <p class={styles.note}>Another long read of the audit trail is running. Trying again in a moment.</p>}
+        {busy && (
+          <p class={styles.note}>
+            Another long read of the audit trail is running. Trying again in a moment.
+          </p>
+        )}
       </div>
     );
   }

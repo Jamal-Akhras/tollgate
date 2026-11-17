@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ApiError, get } from '../../api/client';
+import { get } from '../../api/client';
 import { usePoll } from '../../api/poll';
-import type { CallView, ConfigView } from '../../api/types';
+import type { CallView } from '../../api/types';
 import { navigate, route } from '../../router';
 import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
@@ -12,6 +12,8 @@ import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
 import { FirstRun } from '../Flow/FirstRun';
+import { auditOffText, isAuditOff } from '../auditOff';
+import { useConfig } from '../useConfig';
 import styles from './Activity.module.css';
 import { CallDrawer } from './CallDrawer';
 import {
@@ -25,8 +27,6 @@ import {
   tenantsIn,
   type Filters,
 } from './filters';
-
-const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 
 function ResultCell({ call }: { call: CallView }) {
   const kind = resultKind(call);
@@ -119,25 +119,30 @@ function FilterBar({ calls, filters }: FilterBarProps) {
         options={tenantsIn(calls)}
         onChange={change('tenant')}
       />
-      <Select label="Result" value={filters.result} options={resultKinds} onChange={change('result')} />
-      <Select label="Guard" value={filters.guard} options={guardsIn(calls)} onChange={change('guard')} />
+      <Select
+        label="Result"
+        value={filters.result}
+        options={resultKinds}
+        onChange={change('result')}
+      />
+      <Select
+        label="Guard"
+        value={filters.guard}
+        options={guardsIn(calls)}
+        onChange={change('guard')}
+      />
     </div>
   );
 }
 
 function Empty() {
-  const [config, setConfig] = useState<ConfigView | null>(null);
-  useEffect(() => {
-    let stopped = false;
-    get<ConfigView>('/config')
-      .then((view) => !stopped && setConfig(view))
-      .catch(() => undefined);
-    return () => {
-      stopped = true;
-    };
-  }, []);
+  const { config } = useConfig();
   const tenant = config?.tenants[0]?.name;
-  return config && tenant ? <FirstRun config={config} tenant={tenant} /> : <Skeleton height="120px" />;
+  return config && tenant ? (
+    <FirstRun config={config} tenant={tenant} />
+  ) : (
+    <Skeleton height="120px" />
+  );
 }
 
 function useTopOfPage() {
@@ -167,7 +172,7 @@ export function Activity() {
   const filters = readFilters(route.value.query);
 
   const error = activity.error.value;
-  const auditOff = error instanceof ApiError && error.code === 'audit_off';
+  const auditOff = isAuditOff(error);
   const calls = auditOff ? null : activity.data.value;
   const now = Date.now();
   const shown = calls ? filterCalls(calls, filters) : [];

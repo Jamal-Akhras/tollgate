@@ -57,8 +57,8 @@ export function SignIn() {
             </div>
             {disabled && (
               <p class={styles.error} role="alert">
-                The admin API is off. Set TOLLGATE_ADMIN_TOKEN to a value of at least 32
-                characters, restart Tollgate, and sign in with it.
+                The admin API is off. Set TOLLGATE_ADMIN_TOKEN to a value of at least 32 characters,
+                restart Tollgate, and sign in with it.
               </p>
             )}
             <label class={styles.label} for="admin-token">

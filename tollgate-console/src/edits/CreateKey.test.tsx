@@ -53,15 +53,21 @@ afterEach(() => {
 test('theFirstStepAsksForATenantAndSaysOnlyTheHashIsWritten', () => {
   open();
   expect(screen.getByRole('dialog', { name: 'Create a key' })).toBeTruthy();
-  expect(screen.getByText('Tollgate makes the key and writes only its hash to tollgate.yaml.')).toBeTruthy();
+  expect(
+    screen.getByText('Tollgate makes the key and writes only its hash to tollgate.yaml.'),
+  ).toBeTruthy();
   expect(screen.getByText("sha256: (the new key's hash)")).toBeTruthy();
-  expect((screen.getByRole('button', { name: 'Create key' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Create key' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
 });
 
 test('withOneTenantItIsAlreadyChosen', () => {
   open(configFixture);
   expect((screen.getByLabelText('Tenant') as HTMLSelectElement).value).toBe('my-app');
-  expect((screen.getByRole('button', { name: 'Create key' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: 'Create key' }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
 });
 
 test('creatingShowsTheKeyOnceAndSendsThePathAndTheVersion', async () => {
@@ -108,9 +114,12 @@ test('theKeyIsInNoToastAndNoStorage', async () => {
   send.mockResolvedValue(answer(200, createdKeyFixture));
   open();
   await create();
-  expect(screen.getAllByRole('status').map((item) => item.textContent).join()).not.toContain(
-    createdKeyFixture.key,
-  );
+  expect(
+    screen
+      .getAllByRole('status')
+      .map((item) => item.textContent)
+      .join(),
+  ).not.toContain(createdKeyFixture.key);
   expect(JSON.stringify({ ...localStorage })).not.toContain(createdKeyFixture.key);
 });
 
@@ -133,7 +142,9 @@ test('withoutAClipboardThereIsNoCopyButton', async () => {
 });
 
 test('anUnknownTenantStaysInTheFirstStepWithTheMessage', async () => {
-  send.mockResolvedValue(answer(404, { code: 'tenant_not_found', message: 'No tenant named my-app' }));
+  send.mockResolvedValue(
+    answer(404, { code: 'tenant_not_found', message: 'No tenant named my-app' }),
+  );
   const { onClose } = open();
   fireEvent.change(screen.getByLabelText('Tenant'), { target: { value: 'my-app' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create key' }));

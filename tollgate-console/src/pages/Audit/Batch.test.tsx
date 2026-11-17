@@ -37,13 +37,17 @@ test('showsTheSealAndTheServersVerdictsAndRecomputesTheRootInTheBrowser', async 
   expect(screen.getByText('Signature valid')).toBeTruthy();
   expect(screen.getAllByText('Root matches')).toHaveLength(2);
   expect(screen.getAllByTitle(batchFixture.seal.root).length).toBe(2);
-  expect(screen.getAllByRole('button', { name: /^(intent|outcome) / })).toHaveLength(batchFixture.leaves.length);
+  expect(screen.getAllByRole('button', { name: /^(intent|outcome) / })).toHaveLength(
+    batchFixture.leaves.length,
+  );
 });
 
 test('saysRootDoesNotMatchWhenTheLeavesGiveAnotherRoot', async () => {
   const changed: BatchDetail = {
     ...batchFixture,
-    leaves: batchFixture.leaves.map((leaf, index) => (index === 0 ? { ...leaf, leafHash: 'ab'.repeat(32) } : leaf)),
+    leaves: batchFixture.leaves.map((leaf, index) =>
+      index === 0 ? { ...leaf, leafHash: 'ab'.repeat(32) } : leaf,
+    ),
   };
   show('#/audit/batches/4', answer(200, changed));
   await screen.findByText('Recomputed in your browser');
@@ -51,7 +55,10 @@ test('saysRootDoesNotMatchWhenTheLeavesGiveAnotherRoot', async () => {
 });
 
 test('reportsTheServersVerdictWhenItSaysTheSignatureIsNotValid', async () => {
-  show('#/audit/batches/4', answer(200, { ...batchFixture, signatureValid: false, rootMatches: false }));
+  show(
+    '#/audit/batches/4',
+    answer(200, { ...batchFixture, signatureValid: false, rootMatches: false }),
+  );
   await screen.findByText('Signature not valid');
   expect(screen.getAllByText('Root does not match').length).toBeGreaterThan(0);
 });
@@ -76,7 +83,10 @@ test('drawsALeafOfAnUnknownTypeWithItsTypeAndHashWithoutALinkAndItsRootStillMatc
   ];
   const nodes = await levels(leaves.map((leaf) => leaf.leafHash));
   const root = nodes[nodes.length - 1]?.hash ?? '';
-  show('#/audit/batches/4', answer(200, { ...batchFixture, leaves, seal: { ...batchFixture.seal, root } }));
+  show(
+    '#/audit/batches/4',
+    answer(200, { ...batchFixture, leaves, seal: { ...batchFixture.seal, root } }),
+  );
   await screen.findByText('Recomputed in your browser');
   expect(screen.getByRole('img', { name: 'config-change cd34…' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /config-change/ })).toBeNull();
@@ -89,7 +99,9 @@ test('showsTheServersResultOnlyWhenTheBrowserCannotHash', async () => {
   await screen.findByText(/Your browser can't hash here \(it needs HTTPS or localhost\)/);
   expect(screen.queryByText('Recomputed in your browser')).toBeNull();
   expect(screen.getByText('Signature valid')).toBeTruthy();
-  expect(await screen.findAllByRole('button', { name: /^(intent|outcome) / })).toHaveLength(batchFixture.leaves.length);
+  expect(await screen.findAllByRole('button', { name: /^(intent|outcome) / })).toHaveLength(
+    batchFixture.leaves.length,
+  );
 });
 
 test('saysSoForABatchThatDoesNotExist', async () => {
@@ -109,13 +121,17 @@ test('saysItIsBusyAndTriesAgain', async () => {
     send.mockImplementation(() => {
       calls += 1;
       return Promise.resolve(
-        calls === 1 ? answer(429, { code: 'audit_busy', message: 'busy' }) : answer(200, batchFixture),
+        calls === 1
+          ? answer(429, { code: 'audit_busy', message: 'busy' })
+          : answer(200, batchFixture),
       );
     });
     location.hash = '#/audit/batches/4';
     route.value = parse('#/audit/batches/4');
     render(<Batch />);
-    await screen.findByText('Another long read of the audit trail is running. Trying again in a moment.');
+    await screen.findByText(
+      'Another long read of the audit trail is running. Trying again in a moment.',
+    );
     await vi.advanceTimersByTimeAsync(2000);
     await screen.findByText('Signature valid');
     expect(calls).toBe(2);

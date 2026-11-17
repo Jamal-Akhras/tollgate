@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 class InMemoryBudgetStoreTest {
 
     private static final Budget TEN_DOLLARS_A_MONTH = new Budget(Prices.usd("10"), Period.MONTHLY);
+    private static final Budget TEN_DOLLARS_A_DAY = new Budget(Prices.usd("10"), Period.DAILY);
 
     private final AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-10-29T12:00:00Z"));
     private final InMemoryBudgetStore store = new InMemoryBudgetStore(new Clock() {
@@ -42,6 +43,10 @@ class InMemoryBudgetStoreTest {
     private Reservation reserve(String amount) {
         return store.reserve("support-bot", TEN_DOLLARS_A_MONTH, Prices.usd(amount))
                 .orElseThrow();
+    }
+
+    private void recountTo(Budget budget, String spent) {
+        store.recount("support-bot", budget, () -> store.restore("support-bot", budget, Prices.usd(spent), now.get()));
     }
 
     @Test
@@ -169,12 +174,6 @@ class InMemoryBudgetStoreTest {
         var stranger = new Reservation("billing", TEN_DOLLARS_A_MONTH, Prices.usd("1"));
 
         assertThatThrownBy(() -> store.settle(stranger, Prices.usd("1"))).isInstanceOf(IllegalStateException.class);
-    }
-
-    private static final Budget TEN_DOLLARS_A_DAY = new Budget(Prices.usd("10"), Period.DAILY);
-
-    private void recountTo(Budget budget, String spent) {
-        store.recount("support-bot", budget, () -> store.restore("support-bot", budget, Prices.usd(spent), now.get()));
     }
 
     @Test

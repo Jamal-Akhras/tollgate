@@ -1,4 +1,4 @@
-import { ApiError, get } from '../../api/client';
+import { get } from '../../api/client';
 import { usePoll } from '../../api/poll';
 import type { AuditStatus } from '../../api/types';
 import { href } from '../../router';
@@ -8,19 +8,18 @@ import { Hash } from '../../ui/Hash';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
+import { auditOffText, isAuditOff } from '../auditOff';
 import styles from './Audit.module.css';
 import { Chain } from './Chain';
 import { FindRecord } from './FindRecord';
 import { Verify } from './Verify';
-
-export const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 
 export function Audit() {
   const audit = usePoll(() => get<AuditStatus>('/audit'), 5000);
   const status = audit.data.value;
   const error = audit.error.value;
   const now = Date.now();
-  const off = error instanceof ApiError && error.code === 'audit_off';
+  const off = isAuditOff(error);
   const seal = status?.lastSeal ?? null;
 
   return (

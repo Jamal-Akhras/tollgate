@@ -34,7 +34,13 @@ test('listsAFailureAndAWarningWithTheirFilesAndLinesAndExplainsTheWarning', asyn
   const result = {
     ...verificationBusyFixture,
     intact: false,
-    failures: [{ file: 'tollgate-audit-00000002.jsonl', line: 40, message: 'The seal of batch 3 is not signed by the key' }],
+    failures: [
+      {
+        file: 'tollgate-audit-00000002.jsonl',
+        line: 40,
+        message: 'The seal of batch 3 is not signed by the key',
+      },
+    ],
   };
   send.mockImplementation(() => Promise.resolve(answer(200, result)));
   render(<Verify />);
@@ -60,7 +66,11 @@ test('triesAgainWhenAnotherReadIsRunning', async () => {
     let calls = 0;
     send.mockImplementation(() => {
       calls += 1;
-      return Promise.resolve(calls === 1 ? answer(429, { code: 'audit_busy', message: 'busy' }) : answer(200, verificationFixture));
+      return Promise.resolve(
+        calls === 1
+          ? answer(429, { code: 'audit_busy', message: 'busy' })
+          : answer(200, verificationFixture),
+      );
     });
     render(<Verify />);
     fireEvent.click(screen.getByRole('button', { name: 'Verify the whole trail' }));
@@ -74,7 +84,9 @@ test('triesAgainWhenAnotherReadIsRunning', async () => {
 });
 
 test('showsTheServersMessageWhenTheReadFails', async () => {
-  send.mockImplementation(() => Promise.resolve(answer(500, { code: 'boom', message: 'Could not read the trail' })));
+  send.mockImplementation(() =>
+    Promise.resolve(answer(500, { code: 'boom', message: 'Could not read the trail' })),
+  );
   render(<Verify />);
   fireEvent.click(screen.getByRole('button', { name: 'Verify the whole trail' }));
   await screen.findByText('Could not read the trail');

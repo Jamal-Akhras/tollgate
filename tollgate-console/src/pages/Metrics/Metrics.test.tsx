@@ -53,7 +53,9 @@ test('asksForTheFifteenMinuteWindowByDefaultAndSaysWhatTheNumbersCover', async (
   await show('#/metrics', () => answer(200, liveBusyFixture));
   expect(send.mock.calls[0]?.[0]).toBe('/admin/v1/live?minutes=15');
   expect(
-    screen.getByText('Since this instance started, at most one hour. For longer periods see Usage.'),
+    screen.getByText(
+      'Since this instance started, at most one hour. For longer periods see Usage.',
+    ),
   ).toBeTruthy();
   expect(screen.getByText('calls/s, last 15 minutes')).toBeTruthy();
   expect(screen.getByText('ms, last 15 minutes')).toBeTruthy();
@@ -82,7 +84,9 @@ test('showsEachChartsNumbersAsATableOnRequest', async () => {
   const calls = screen.getByRole('region', { name: 'Calls per second' });
   fireEvent.click(within(calls).getByRole('button', { name: 'Show data' }));
   const table = screen.getByRole('table', { name: 'Calls per second, last 15 minutes' });
-  const headers = within(table).getAllByRole('columnheader').map((cell) => cell.textContent);
+  const headers = within(table)
+    .getAllByRole('columnheader')
+    .map((cell) => cell.textContent);
   expect(headers).toEqual([
     'Time (UTC)',
     'Sent (calls/s)',
@@ -98,9 +102,7 @@ test('showsEachChartsNumbersAsATableOnRequest', async () => {
 test('showsAGapAsADashInTheTable', async () => {
   const live = {
     ...liveBusyFixture,
-    buckets: [
-      { ...(liveBusyFixture.buckets[0] as object), p50Millis: null, p95Millis: null },
-    ],
+    buckets: [{ ...(liveBusyFixture.buckets[0] as object), p50Millis: null, p95Millis: null }],
   };
   await show('#/metrics', () => answer(200, live));
   const latency = screen.getByRole('region', { name: 'Latency' });

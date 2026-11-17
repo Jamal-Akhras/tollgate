@@ -55,7 +55,10 @@ test('showsTheTenantsWithTheirCallsRefusalsTokensAndCost', async () => {
 });
 
 test('sendsTheDatesAndGroupingFromTheUrlAsTheApiTakesThem', async () => {
-  await show('#/usage?from=2026-10-01&to=2026-11-01&by=model', answer(200, grouped('model', ['gpt'])));
+  await show(
+    '#/usage?from=2026-10-01&to=2026-11-01&by=model',
+    answer(200, grouped('model', ['gpt'])),
+  );
   expect(send.mock.calls[0]?.[0]).toBe('/admin/v1/usage?from=2026-10-01&to=2026-11-01&by=model');
   expect(screen.getByRole('columnheader', { name: 'model' })).toBeTruthy();
   expect((screen.getByLabelText('From (UTC)') as HTMLInputElement).value).toBe('2026-10-01');

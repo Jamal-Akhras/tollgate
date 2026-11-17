@@ -95,7 +95,11 @@ test('clearsTheErrorWhenALoadSucceeds', async () => {
 
 test('retriesABusyAnswerAfterTwoSecondsWithoutReplacingTheData', async () => {
   const busy = new ApiError(429, 'audit_busy', 'Busy');
-  const load = vi.fn().mockResolvedValueOnce('good').mockRejectedValueOnce(busy).mockResolvedValue('next');
+  const load = vi
+    .fn()
+    .mockResolvedValueOnce('good')
+    .mockRejectedValueOnce(busy)
+    .mockResolvedValue('next');
   const { result } = renderHook(() => usePoll(load, 60_000));
   await tick(0);
   await tick(60_000);

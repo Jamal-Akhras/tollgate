@@ -200,8 +200,12 @@ test('theTenantsBudgetCellHasAChangeOrSetButton', async () => {
   send.mockResolvedValue(answer(200, configBusyFixture));
   open();
   const tenants = within(await screen.findByRole('region', { name: 'Tenants' }));
-  expect(tenants.getByRole('button', { name: 'Change budget of support-bot' }).textContent).toBe('Change');
-  expect(tenants.getByRole('button', { name: 'Set a budget for my-app' }).textContent).toBe('Set a budget');
+  expect(tenants.getByRole('button', { name: 'Change budget of support-bot' }).textContent).toBe(
+    'Change',
+  );
+  expect(tenants.getByRole('button', { name: 'Set a budget for my-app' }).textContent).toBe(
+    'Set a budget',
+  );
 });
 
 test('withEditsOffTheBudgetButtonOpensTheYamlPanel', async () => {
@@ -221,9 +225,7 @@ test('withEditsOnTheBudgetButtonOpensTheFormWithTheTenantsSpendAndWritesIt', asy
       written = true;
       return Promise.resolve(answer(200, changeFixture));
     }
-    return Promise.resolve(
-      answer(200, path.endsWith('/budgets') ? budgetsBusyFixture : managed),
-    );
+    return Promise.resolve(answer(200, path.endsWith('/budgets') ? budgetsBusyFixture : managed));
   });
   open();
   fireEvent.click(await screen.findByRole('button', { name: 'Change budget of support-bot' }));
@@ -241,9 +243,9 @@ test('withEditsOffCreateAndRevokeOpenTheYamlPanel', async () => {
   open();
   const keys = within(await screen.findByRole('region', { name: 'Keys' }));
   fireEvent.click(keys.getByRole('button', { name: 'Create a key' }));
-  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
-    'tollgate keys create --tenant',
-  );
+  expect(
+    screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent,
+  ).toContain('tollgate keys create --tenant');
   cleanup();
   send.mockResolvedValue(answer(200, configBusyFixture));
   open();

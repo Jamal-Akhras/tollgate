@@ -61,9 +61,9 @@ test('withEditsOffTheSwitchOpensTheYamlAndStaysWhereItIs', () => {
   const { onChange } = card('guard-0');
   const toggle = screen.getByRole('switch', { name: 'Enforce data-class' });
   fireEvent.click(toggle);
-  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
-    'mode: monitor',
-  );
+  expect(
+    screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent,
+  ).toContain('mode: monitor');
   expect(toggle.getAttribute('aria-checked')).toBe('true');
   expect(onChange).not.toHaveBeenCalled();
 });
@@ -77,9 +77,9 @@ test('aMonitoredGuardShowsWhatItWouldHaveRefusedAndOffersToEnforce', () => {
   expect(toggle.getAttribute('aria-checked')).toBe('false');
   expect(within(toggle).getByText('Monitoring')).toBeTruthy();
   fireEvent.click(toggle);
-  expect(screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent).toContain(
-    'mode: enforce',
-  );
+  expect(
+    screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' }).textContent,
+  ).toContain('mode: enforce');
 });
 test('aBuiltInCheckWithoutATotalSaysWhatItDoesAndAlwaysEnforces', () => {
   card('budget');
@@ -99,11 +99,16 @@ test('withEditsOffTheBudgetCardOpensTheHowToForTheBudget', () => {
 });
 
 test('withEditsOnTheBudgetCardOpensTheBudgetForm', () => {
-  const { onChange } = card('budget', vi.fn(), vi.fn(), vi.fn(), { ...configBusyFixture, edits: 'managed' });
+  const { onChange } = card('budget', vi.fn(), vi.fn(), vi.fn(), {
+    ...configBusyFixture,
+    edits: 'managed',
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Change budget' }));
   expect(screen.getByRole('dialog', { name: 'Budget for support-bot' })).toBeTruthy();
   expect((screen.getByLabelText('Limit') as HTMLInputElement).value).toBe('150');
-  expect(screen.getByText('Spent this month: $41.18. Held for calls in flight: $0.05.')).toBeTruthy();
+  expect(
+    screen.getByText('Spent this month: $41.18. Held for calls in flight: $0.05.'),
+  ).toBeTruthy();
   expect(onChange).not.toHaveBeenCalled();
 });
 

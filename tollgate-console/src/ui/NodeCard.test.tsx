@@ -17,6 +17,8 @@ test('nodeCardDrawsAConnectorStubOnTheGivenSide', () => {
 });
 
 test('nodeCardCanHaveADashedOutline', () => {
-  const { container } = render(<NodeCard icon={<i />} title="Gateway" caption="Port 8080" dashed />);
+  const { container } = render(
+    <NodeCard icon={<i />} title="Gateway" caption="Port 8080" dashed />,
+  );
   expect(container.firstElementChild?.className).toContain('dashed');
 });

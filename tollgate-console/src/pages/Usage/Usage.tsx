@@ -9,12 +9,12 @@ import { Hash } from '../../ui/Hash';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
+import { auditOffText, isAuditOff } from '../auditOff';
 import { refusedTotal, toCsv } from './csv';
 import { DayBars } from './DayBars';
 import styles from './Usage.module.css';
 
 const groupings = ['tenant', 'model', 'key', 'user', 'day'];
-const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 
 function day(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
@@ -159,7 +159,7 @@ export function Usage() {
   };
 
   const rejected = error instanceof ApiError && error.status === 400;
-  const auditOff = error instanceof ApiError && error.code === 'audit_off';
+  const auditOff = isAuditOff(error);
   const failed = error && !rejected && !auditOff;
 
   return (
@@ -229,7 +229,8 @@ export function Usage() {
           {by === 'user' && (
             <p class={styles.note}>
               Each row is a hashed user ID: the HMAC a user ID is recorded under. To get the hash
-              for an ID, run <code>java -jar tollgate.jar audit user tollgate.yaml &lt;id&gt;</code>.
+              for an ID, run <code>java -jar tollgate.jar audit user tollgate.yaml &lt;id&gt;</code>
+              .
             </p>
           )}
           {by === 'day' && report.rows.length > 0 && <DayBars rows={report.rows} />}

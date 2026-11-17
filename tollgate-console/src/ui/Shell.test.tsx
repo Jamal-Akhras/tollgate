@@ -156,9 +156,8 @@ test('signingOutFromTheSidebarShowsSignInAndKeepsTheRoute', () => {
 });
 
 test('anUnauthorisedAnswerReturnsToSignIn', async () => {
-  send.mockImplementation(() =>
-    Promise.resolve(new Response(JSON.stringify({ code: 'admin_unauthorized', message: 'No' }), { status: 401 })),
-  );
+  const body = JSON.stringify({ code: 'admin_unauthorized', message: 'No' });
+  send.mockImplementation(() => Promise.resolve(new Response(body, { status: 401 })));
   render(<App />);
   expect(await screen.findByLabelText('Admin token')).toBeTruthy();
 });

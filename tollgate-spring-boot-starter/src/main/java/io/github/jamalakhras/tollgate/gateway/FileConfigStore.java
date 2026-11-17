@@ -46,14 +46,7 @@ final class FileConfigStore implements ConfigStore {
         boolean created = writeIfAbsent(kept, bytes);
         Path tmp = path.resolveSibling(path.getFileName() + ".tmp");
         try {
-            try (FileChannel channel = FileChannel.open(
-                    tmp, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
-                ByteBuffer buffer = ByteBuffer.wrap(bytes);
-                while (buffer.hasRemaining()) {
-                    channel.write(buffer);
-                }
-                channel.force(true);
-            }
+            writeDurably(tmp, bytes);
             Files.move(tmp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException | RuntimeException e) {
             Files.deleteIfExists(tmp);
@@ -70,6 +63,17 @@ final class FileConfigStore implements ConfigStore {
         Path folder = history(path);
         Files.createDirectories(folder);
         writeIfAbsent(folder.resolve(head.version() + EXTENSION), head.bytes());
+    }
+
+    private static void writeDurably(Path file, byte[] bytes) throws IOException {
+        try (FileChannel channel = FileChannel.open(
+                file, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+            channel.force(true);
+        }
     }
 
     private static boolean writeIfAbsent(Path file, byte[] bytes) throws IOException {

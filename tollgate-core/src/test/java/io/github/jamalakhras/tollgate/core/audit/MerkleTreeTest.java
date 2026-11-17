@@ -37,11 +37,7 @@ class MerkleTreeTest {
         "8, 5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328"
     })
     void matchesTheRfc6962TestVectors(int size, String root) {
-        List<byte[]> leafHashes = RFC_6962_LEAVES.subList(0, size).stream()
-                .map(MerkleTree::leafHash)
-                .toList();
-
-        assertThat(Digests.HEX.formatHex(MerkleTree.root(leafHashes))).isEqualTo(root);
+        assertThat(Digests.HEX.formatHex(MerkleTree.root(hashes(size)))).isEqualTo(root);
     }
 
     @Test

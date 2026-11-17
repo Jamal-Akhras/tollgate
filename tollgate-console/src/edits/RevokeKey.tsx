@@ -26,11 +26,13 @@ export function RevokeKey({ config, keyView, onChanged, onClose }: RevokeKeyProp
       warning={warning}
       confirmLabel="Revoke key"
       onConfirm={() =>
-        runEdit(() => del<ConfigChange>(`/keys/${segment(keyView.id)}`, config.version), { onChanged })
+        runEdit(() => del<ConfigChange>(`/keys/${segment(keyView.id)}`, config.version), onChanged)
       }
       onClose={onClose}
     >
-      <p>Stop {keyView.tenant} using key {keyView.id}.</p>
+      <p>
+        Stop {keyView.tenant} using key {keyView.id}.
+      </p>
     </ConfirmEdit>
   );
 }

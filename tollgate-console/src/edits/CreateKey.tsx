@@ -23,7 +23,7 @@ export function CreateKey({ config, onChanged, onClose }: CreateKeyProps) {
   async function create() {
     const result = await runEdit(
       () => post<CreatedKey>(`/tenants/${segment(tenant)}/keys`, undefined, config.version),
-      { onChanged },
+      onChanged,
     );
     if (result) {
       shown.current = true;
@@ -72,8 +72,8 @@ export function CreateKey({ config, onChanged, onClose }: CreateKeyProps) {
           </div>
         </div>
         <p class={styles.text}>
-          This is the only time the key is shown. Tollgate keeps its hash, not the key. If you lose it,
-          revoke it and create another.
+          This is the only time the key is shown. Tollgate keeps its hash, not the key. If you lose
+          it, revoke it and create another.
         </p>
         <button type="button" class={`${styles.button} ${styles.done}`} onClick={done}>
           Done

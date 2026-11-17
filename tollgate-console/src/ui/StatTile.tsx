@@ -35,8 +35,18 @@ export function StatTile({ caption, value, unit, series, window }: StatTileProps
         <span class={styles.value}>{value}</span>
         {unit && <span class={styles.unit}>{unit}</span>}
       </div>
-      <svg class={styles.spark} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-        <polyline points={sparkPoints(series)} fill="none" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+      <svg
+        class={styles.spark}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <polyline
+          points={sparkPoints(series)}
+          fill="none"
+          stroke-width="1.5"
+          vector-effect="non-scaling-stroke"
+        />
       </svg>
       <div class={styles.window}>{window}</div>
     </div>

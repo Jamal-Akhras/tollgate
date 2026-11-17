@@ -5,13 +5,13 @@ import { tenantCalls, type Check } from './describe';
 
 export type Fact = { label: string; value: string };
 
-export type Counts = { allowed: number; refused: number; monitored: number };
+export type GuardTotals = { allowed: number; refused: number; monitored: number };
 
 export type Rule = {
   title: string;
   what: string;
   calls: number;
-  counts: Counts | null;
+  counts: GuardTotals | null;
   perCheck: boolean;
   facts: Fact[];
   mode: 'enforce' | 'monitor' | 'built-in';
@@ -27,6 +27,10 @@ function refusedFor(live: LiveSnapshot | null, tenant: string, code: string): nu
   return (live?.flows ?? [])
     .filter((flow) => flow.tenant === tenant)
     .reduce((sum, flow) => sum + (flow.refused[code] ?? 0), 0);
+}
+
+function refusedFact(live: LiveSnapshot, tenant: string, code: string): Fact {
+  return { label: `Refused, ${code}`, value: String(refusedFor(live, tenant, code)) };
 }
 
 function guardFacts(guard: GuardView, tenant: TenantView): { what: string; facts: Fact[] } {
@@ -90,7 +94,7 @@ export function describeRule(
   const own = live?.guards.find(
     (item) => item.tenant === tenantName && item.guard === check.guard,
   );
-  const counts: Counts | null =
+  const counts: GuardTotals | null =
     live && check.guard !== null
       ? {
           allowed: own?.allowed ?? 0,
@@ -136,12 +140,15 @@ export function describeRule(
     };
   }
   if (check.id === 'personal-data') {
+    const redacted = detectorsFor(policy.redact, tenant.dataClass);
+    const refused = detectorsFor(policy.refuse, tenant.dataClass);
     return {
       ...rule,
-      what: "Looks for personal data in what is sent, and redacts it or refuses the call, by this tenant's data class.",
+      what:
+        "Looks for personal data in what is sent, and redacts it or refuses the call, by this tenant's data class.",
       facts: [
-        { label: 'Redacted', value: list(detectorsFor(policy.redact, tenant.dataClass), 'nothing') },
-        { label: 'Refused', value: list(detectorsFor(policy.refuse, tenant.dataClass), 'nothing') },
+        { label: 'Redacted', value: list(redacted, 'nothing') },
+        { label: 'Refused', value: list(refused, 'nothing') },
       ],
     };
   }
@@ -151,7 +158,8 @@ export function describeRule(
     const money = (amount: string) => moneyText({ amount, currency });
     return {
       ...rule,
-      what: 'Refuses calls once the tenant has spent its limit. Money held for calls in flight counts as spent.',
+      what:
+        'Refuses calls once the tenant has spent its limit. Money held for calls in flight counts as spent.',
       facts: [
         { label: 'Limit', value: `${money(limit)} ${period}` },
         ...(state
@@ -162,7 +170,7 @@ export function describeRule(
             ]
           : []),
         ...(live
-          ? [{ label: 'Refused, budget_exceeded', value: String(refusedFor(live, tenantName, 'budget_exceeded')) }]
+          ? [refusedFact(live, tenantName, 'budget_exceeded')]
           : []),
       ],
       budget: { state, tenant },
@@ -185,7 +193,7 @@ export function describeRule(
       facts: [
         ...limits,
         ...(live
-          ? [{ label: 'Refused, rate_limited', value: String(refusedFor(live, tenantName, 'rate_limited')) }]
+          ? [refusedFact(live, tenantName, 'rate_limited')]
           : []),
       ],
     };

@@ -107,11 +107,13 @@ test('verifiesTheProofThatTheServersCoreTestPins', async () => {
 
 test('hashesTheServersEncodingToTheLeafHashItPinnedAndTheProofVerifies', async () => {
   expect(await leafHash(pinned.encoding)).toBe(pinned.leafHash);
-  expect((await verifyProof({ ...pinned, leafHash: await leafHash(pinned.encoding) })).matches).toBe(true);
+  const hashed = { ...pinned, leafHash: await leafHash(pinned.encoding) };
+  expect((await verifyProof(hashed)).matches).toBe(true);
 });
 
 test('failsWhenASiblingIsChanged', async () => {
-  const changed = { ...pinned, path: [pinned.path[0] as string, 'ff'.repeat(32), pinned.path[2] as string] };
+  const [first, , third] = pinned.path as [string, string, string];
+  const changed = { ...pinned, path: [first, 'ff'.repeat(32), third] };
   const result = await verifyProof(changed);
   expect(result.matches).toBe(false);
   expect(result.root).not.toBe(pinned.root);
@@ -121,7 +123,8 @@ test('failsWhenTheLeafOrTheRootIsChangedOrThePathIsTheWrongLength', async () => 
   expect((await verifyProof({ ...pinned, leafHash: 'aa'.repeat(32) })).matches).toBe(false);
   expect((await verifyProof({ ...pinned, root: 'aa'.repeat(32) })).matches).toBe(false);
   expect((await verifyProof({ ...pinned, path: pinned.path.slice(1) })).matches).toBe(false);
-  expect((await verifyProof({ ...pinned, path: [...pinned.path, 'aa'.repeat(32)] })).matches).toBe(false);
+  const longer = { ...pinned, path: [...pinned.path, 'aa'.repeat(32)] };
+  expect((await verifyProof(longer)).matches).toBe(false);
   expect((await verifyProof({ ...pinned, index: 7 })).matches).toBe(false);
 });
 
@@ -149,7 +152,8 @@ test('hasTwoNodesLessOnePerLeafAndTheRightRootForEachSize', { timeout: 60000 }, 
   for (const size of [1, 2, 3, 5, 8, 1000]) {
     const nodes = await levels(hashes.slice(0, size));
     expect(nodes).toHaveLength(2 * size - 1);
-    expect(nodes[nodes.length - 1]?.hash, `size ${size}`).toBe(await pairwiseRoot(hashes.slice(0, size)));
+    const expected = await pairwiseRoot(hashes.slice(0, size));
+    expect(nodes[nodes.length - 1]?.hash, `size ${size}`).toBe(expected);
   }
 });
 

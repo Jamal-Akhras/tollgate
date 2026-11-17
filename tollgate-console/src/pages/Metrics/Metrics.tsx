@@ -1,4 +1,4 @@
-import { ApiError, get } from '../../api/client';
+import { get } from '../../api/client';
 import { usePoll } from '../../api/poll';
 import type { BudgetState, LiveSnapshot } from '../../api/types';
 import { navigate, route } from '../../router';
@@ -10,12 +10,12 @@ import { PageHeader } from '../../ui/PageHeader';
 import { Segmented } from '../../ui/Segmented';
 import { Skeleton } from '../../ui/Skeleton';
 import { TimeSeries } from '../../ui/TimeSeries';
+import { auditOffText, isAuditOff } from '../auditOff';
 import styles from './Metrics.module.css';
 import { chartsFor } from './series';
 
 const windows = [5, 15, 60];
 const defaultWindow = 15;
-const auditOffText = 'The audit trail is off in tollgate.yaml, so there is nothing to show here';
 const note = 'Since this instance started, at most one hour. For longer periods see Usage.';
 
 const options = windows.map((minutes) => ({ value: String(minutes), label: `${minutes} min` }));
@@ -79,10 +79,9 @@ function Panels({ minutes }: { minutes: number }) {
   const budgets = usePoll(() => get<BudgetState[]>('/budgets'), 30_000);
   const snapshot = live.data.value;
   const error = live.error.value;
-  const auditOff = error instanceof ApiError && error.code === 'audit_off';
   const span = `last ${minutes} minutes`;
 
-  if (auditOff) {
+  if (isAuditOff(error)) {
     return <Banner kind="info">{auditOffText}</Banner>;
   }
   const charts = snapshot ? chartsFor(snapshot) : null;
@@ -100,9 +99,7 @@ function Panels({ minutes }: { minutes: number }) {
           {error.message}
         </Banner>
       )}
-      {snapshot?.skipped && (
-        <Banner kind="info">Busy: the live view skipped some records</Banner>
-      )}
+      {snapshot?.skipped && <Banner kind="info">Busy: the live view skipped some records</Banner>}
       {!charts && !error && (
         <div class={styles.loading} aria-busy="true">
           <Skeleton height="220px" />

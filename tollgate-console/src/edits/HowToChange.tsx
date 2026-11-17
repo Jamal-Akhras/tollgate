@@ -1,10 +1,10 @@
 import { useState } from 'preact/hooks';
-import { ApiError, post } from '../../api/client';
-import type { ReloadResult } from '../../api/types';
-import { Banner } from '../../ui/Banner';
-import { CodeBlock } from '../../ui/CodeBlock';
-import { Drawer } from '../../ui/Drawer';
-import { showToast } from '../../ui/Toast';
+import { ApiError, post } from '../api/client';
+import type { ReloadResult } from '../api/types';
+import { Banner } from '../ui/Banner';
+import { CodeBlock } from '../ui/CodeBlock';
+import { Drawer } from '../ui/Drawer';
+import { showToast } from '../ui/Toast';
 import styles from './HowToChange.module.css';
 import type { Snippet } from './snippets';
 

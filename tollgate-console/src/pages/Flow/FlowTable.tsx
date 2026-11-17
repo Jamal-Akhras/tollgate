@@ -53,7 +53,14 @@ const providerColumns: Column<ProviderNode>[] = [
   { key: 'caption', header: 'Region and calls', cell: (provider) => provider.caption },
 ];
 
-export function FlowTable({ tenants, selected, live, checks, providers, onSelect }: FlowTableProps) {
+export function FlowTable({
+  tenants,
+  selected,
+  live,
+  checks,
+  providers,
+  onSelect,
+}: FlowTableProps) {
   const guards: GuardCount[] = live?.guards.filter((guard) => guard.tenant === selected) ?? [];
   const counts = (check: Check) => guards.find((guard) => guard.guard === check.guard);
   const checkColumns: Column<Check>[] = [
@@ -63,7 +70,8 @@ export function FlowTable({ tenants, selected, live, checks, providers, onSelect
       key: 'mode',
       header: 'Mode',
       priority: 2,
-      cell: (check) => (check.state === 'monitor' ? 'monitor' : check.state === 'off' ? 'off' : 'enforce'),
+      cell: (check) =>
+        check.state === 'monitor' ? 'monitor' : check.state === 'off' ? 'off' : 'enforce',
     },
     {
       key: 'allowed',

@@ -134,7 +134,10 @@ export function linesFor(layout: Layout, input: LineInput, now: number): Line[] 
     });
   });
 
-  const refusedAt = latest([...flows.map((flow) => flow.lastRefused), ...guards.map((g) => g.lastRefused)]);
+  const refusedAt = latest([
+    ...flows.map((flow) => flow.lastRefused),
+    ...guards.map((guard) => guard.lastRefused),
+  ]);
   const refused = refusedAt !== null || flows.some((flow) => Object.keys(flow.refused).length > 0);
   const pillIndex = refusingPill(checks, guards);
   const pill = layout.pills[pillIndex];

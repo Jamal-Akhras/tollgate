@@ -10,7 +10,11 @@ const busyRetryMillis = 2000;
 export const warningsText =
   'A running server always has a few of these: the batch that is still open, and calls still in flight.';
 
-type State = { kind: 'idle' } | { kind: 'running' } | { kind: 'done'; result: Verification } | { kind: 'failed'; error: Error };
+type State =
+  | { kind: 'idle' }
+  | { kind: 'running' }
+  | { kind: 'done'; result: Verification }
+  | { kind: 'failed'; error: Error };
 
 function Problems({ problems }: { problems: ProblemView[] }) {
   return (
@@ -79,9 +83,7 @@ export function Verify() {
           <p class={styles.source}>{warningsText}</p>
         </>
       )}
-      {state.kind === 'failed' && (
-        <Banner kind="error">{state.error.message}</Banner>
-      )}
+      {state.kind === 'failed' && <Banner kind="error">{state.error.message}</Banner>}
     </Card>
   );
 }

@@ -214,7 +214,9 @@ test('thePreviewListsEveryProviderInTheConfigAsReachableDirectly', () => {
 });
 
 test('aClassWithAnOpenRegionNamesIt', () => {
-  expect(opensFor(configBusyFixture, 'strict')).toEqual([{ dataClass: 'restricted', regions: ['us'] }]);
+  expect(opensFor(configBusyFixture, 'strict')).toEqual([
+    { dataClass: 'restricted', regions: ['us'] },
+  ]);
 });
 
 test('aClassWhoseProvidersAreAllInAllowedRegionsOpensNothing', () => {

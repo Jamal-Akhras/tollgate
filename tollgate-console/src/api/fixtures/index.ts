@@ -46,8 +46,14 @@ function shaped<T>(json: T): Defined<T> {
 export const infoFixture: AdminInfo = shaped(info);
 export const configFixture: ConfigView = shaped({ ...config, edits: 'read-only' as const });
 export const configBusyFixture: ConfigView = shaped({ ...configBusy, edits: 'read-only' as const });
-export const configManagedFixture: ConfigView = shaped({ ...configManaged, edits: 'managed' as const });
-export const configRewrittenFixture: ConfigView = shaped({ ...configRewritten, edits: 'managed' as const });
+export const configManagedFixture: ConfigView = shaped({
+  ...configManaged,
+  edits: 'managed' as const,
+});
+export const configRewrittenFixture: ConfigView = shaped({
+  ...configRewritten,
+  edits: 'managed' as const,
+});
 export const changeFixture: ConfigChange = shaped(change);
 export const createdKeyFixture: CreatedKey = shaped(createdKey);
 export const liveFixture: LiveSnapshot = shaped(live);

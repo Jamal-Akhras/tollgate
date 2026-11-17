@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, expect, test } from 'vitest';
-import { tollgateOn } from '../pages/Flow/Preview';
 import { parse, route } from '../router';
+import { tollgateOn } from '../state/preview';
 import { TopBar } from './TopBar';
 
 afterEach(() => {

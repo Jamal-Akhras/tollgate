@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useId, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useRef } from 'preact/hooks';
 import styles from './Dialog.module.css';
+import { focusable, useModal } from './useModal';
 
 type DialogProps = {
   title: string;
@@ -9,70 +10,27 @@ type DialogProps = {
   children: ComponentChildren;
 };
 
-const focusable = 'a[href], button:not([disabled]), input, select, textarea, [tabindex="0"]';
-
 export function Dialog({ title, onClose, locked = false, children }: DialogProps) {
   const titleId = useId();
-  const [opener] = useState(() => document.activeElement);
   const panel = useRef<HTMLDivElement>(null);
-  const closing = useRef(onClose);
-  closing.current = onClose;
-  const stuck = useRef(locked);
-  stuck.current = locked;
+  const close = () => {
+    if (!locked) {
+      onClose();
+    }
+  };
+  useModal(panel, close);
 
   useEffect(() => {
     if (panel.current && !panel.current.contains(document.activeElement)) {
       panel.current.querySelector<HTMLElement>(focusable)?.focus();
     }
-    return () => {
-      if (opener instanceof HTMLElement && opener.isConnected) {
-        opener.focus();
-      }
-    };
-  }, [opener]);
-
-  useEffect(() => {
-    const keys = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        if (!stuck.current) {
-          closing.current();
-        }
-        return;
-      }
-      if (event.key !== 'Tab' || !panel.current) {
-        return;
-      }
-      const items = Array.from(panel.current.querySelectorAll<HTMLElement>(focusable));
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (!first || !last) {
-        return;
-      }
-      const active = document.activeElement;
-      if (!panel.current.contains(active)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && active === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', keys);
-    return () => document.removeEventListener('keydown', keys);
   }, []);
 
   return (
     <div class={styles.layer}>
       <div
         class={styles.backdrop}
-        onClick={() => {
-          if (!locked) {
-            onClose();
-          }
-        }}
+        onClick={close}
         aria-hidden="true"
       />
       <div

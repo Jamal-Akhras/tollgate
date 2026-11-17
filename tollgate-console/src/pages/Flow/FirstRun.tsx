@@ -2,7 +2,11 @@ import type { ConfigView } from '../../api/types';
 import { CodeBlock } from '../../ui/CodeBlock';
 import styles from './FirstRun.module.css';
 
-export function firstRunCommand(host: string, config: ConfigView, tenantName: string): string | null {
+export function firstRunCommand(
+  host: string,
+  config: ConfigView,
+  tenantName: string,
+): string | null {
   const tenant = config.tenants.find((item) => item.name === tenantName);
   const model = config.models.find((item) => item.name === tenant?.models[0]);
   const provider = config.providers.find((item) => item.name === model?.provider);

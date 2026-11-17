@@ -12,7 +12,7 @@ import { MerkleTree } from '../../ui/MerkleTree';
 import { PageHeader } from '../../ui/PageHeader';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
-import { auditOffText } from './Audit';
+import { auditOffText, isAuditOff } from '../auditOff';
 import styles from './Batch.module.css';
 import { useLoaded } from './useLoaded';
 
@@ -91,7 +91,8 @@ function Sealed({ batch }: { batch: BatchDetail }) {
         )}
         {!hashes && (
           <p class={styles.source}>
-            Your browser can't hash here (it needs HTTPS or localhost). These are the server's results.
+            Your browser can't hash here (it needs HTTPS or localhost). These are the server's
+            results.
           </p>
         )}
       </Card>
@@ -99,7 +100,11 @@ function Sealed({ batch }: { batch: BatchDetail }) {
         <MerkleTree
           leaves={batch.leaves}
           nodes={nodes}
-          selected={Number.isInteger(selected) && selected >= 0 && selected < batch.leaves.length ? selected : undefined}
+          selected={
+            Number.isInteger(selected) && selected >= 0 && selected < batch.leaves.length
+              ? selected
+              : undefined
+          }
           onChoose={(leaf) => navigate(`audit/records/${leaf.id}`)}
         />
       )}
@@ -108,8 +113,11 @@ function Sealed({ batch }: { batch: BatchDetail }) {
 }
 
 function BatchPage({ number }: { number: string }) {
-  const { data, error, busy, retry } = useLoaded(() => get<BatchDetail>(`/audit/batches/${number}`), number);
-  const off = error instanceof ApiError && error.code === 'audit_off';
+  const { data, error, busy, retry } = useLoaded(
+    () => get<BatchDetail>(`/audit/batches/${number}`),
+    number,
+  );
+  const off = isAuditOff(error);
   const missing = error instanceof ApiError && error.status === 404;
   const failed = error && !off && !missing;
 
@@ -139,7 +147,9 @@ function BatchPage({ number }: { number: string }) {
         <div aria-busy="true">
           <Skeleton height="200px" />
           {busy && (
-            <p class={styles.source}>Another long read of the audit trail is running. Trying again in a moment.</p>
+            <p class={styles.source}>
+              Another long read of the audit trail is running. Trying again in a moment.
+            </p>
           )}
         </div>
       )}

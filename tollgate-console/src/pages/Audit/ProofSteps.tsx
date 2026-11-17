@@ -49,7 +49,9 @@ function Signature({ seal, valid }: { seal: SealView | null; valid: boolean | nu
       </span>
       <span class={styles.result}>
         <Mark good={valid === true} />
-        <span class={valid === true ? styles.good : styles.bad}>{valid === true ? 'valid' : 'not valid'}</span>
+        <span class={valid === true ? styles.good : styles.bad}>
+          {valid === true ? 'valid' : 'not valid'}
+        </span>
         <span class={styles.source}>as the server reports it</span>
       </span>
     </li>
@@ -94,7 +96,8 @@ export function ProofSteps({ proof, seal, signatureValid }: ProofStepsProps) {
           </li>
           <li class={styles.step}>
             <span class={styles.label}>
-              Combined with {proof.path.length} {proof.path.length === 1 ? 'sibling' : 'siblings'} up to the root
+              Combined with {proof.path.length} {proof.path.length === 1 ? 'sibling' : 'siblings'}{' '}
+              up to the root
             </span>
             <Hash value={proof.root} />
           </li>
@@ -112,7 +115,9 @@ export function ProofSteps({ proof, seal, signatureValid }: ProofStepsProps) {
   }
 
   if (checked === 'unreadable') {
-    return <p class={styles.failure}>The proof's encoding could not be read, so it cannot be checked.</p>;
+    return (
+      <p class={styles.failure}>The proof's encoding could not be read, so it cannot be checked.</p>
+    );
   }
 
   const done = checked !== null;
@@ -120,7 +125,12 @@ export function ProofSteps({ proof, seal, signatureValid }: ProofStepsProps) {
   const verified = done ? checked.verified : null;
   const reached = verified?.root ?? '';
   const sealRoot = seal?.root ?? proof.root;
-  const holds = done && leaf === proof.leafHash && verified !== null && verified.matches && proof.root === sealRoot;
+  const holds =
+    done &&
+    leaf === proof.leafHash &&
+    verified !== null &&
+    verified.matches &&
+    proof.root === sealRoot;
 
   return (
     <div class={styles.steps}>
@@ -180,8 +190,8 @@ export function ProofSteps({ proof, seal, signatureValid }: ProofStepsProps) {
             <>
               <Mark good={false} />
               <span>
-                The proof does not hold. It reached root <Hash value={reached} /> and the batch's root is{' '}
-                <Hash value={sealRoot} />.
+                The proof does not hold. It reached root <Hash value={reached} /> and the batch's
+                root is <Hash value={sealRoot} />.
               </span>
             </>
           )}

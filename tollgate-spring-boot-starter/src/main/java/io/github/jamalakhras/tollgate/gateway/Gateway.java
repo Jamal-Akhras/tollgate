@@ -512,8 +512,7 @@ public final class Gateway implements AutoCloseable {
         if (next.version().equals(before.loaded().version())) {
             return new Reload(next.version(), false);
         }
-        Snapshot after = accepted(before, next);
-        return swap(before, after);
+        return swap(before, accepted(before, next));
     }
 
     private Snapshot accepted(Snapshot before, LoadedConfig next) {

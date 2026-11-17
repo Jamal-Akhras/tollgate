@@ -23,7 +23,9 @@ function spendPerMinute(live: LiveSnapshot): Chart {
     minutes.set(minute, costs);
   }
   const x = [...minutes.keys()].sort((a, b) => a - b);
-  const currencies = [...new Set([...minutes.values()].flatMap((costs) => [...costs.keys()]))].sort();
+  const currencies = [
+    ...new Set([...minutes.values()].flatMap((costs) => [...costs.keys()])),
+  ].sort();
   return {
     x,
     lines: currencies.map((currency) => ({

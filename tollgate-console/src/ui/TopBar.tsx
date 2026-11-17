@@ -1,8 +1,8 @@
 import type { Ref } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { signOut } from '../api/client';
-import { tollgateOn } from '../pages/Flow/Preview';
 import { route } from '../router';
+import { tollgateOn } from '../state/preview';
 import { setTheme, theme, type Theme } from '../state/theme';
 import { ChevronsUpDown, Menu, SidebarToggle, TollgateMark } from './icons';
 import { Segmented } from './Segmented';

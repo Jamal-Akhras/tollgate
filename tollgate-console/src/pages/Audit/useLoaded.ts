@@ -5,7 +5,11 @@ const busyRetryMillis = 2000;
 
 type Loaded<T> = { data: T | null; error: Error | null; busy: boolean; key: string | number };
 
-export function useLoaded<T>(load: () => Promise<T>, key: string | number, keepWhileLoading = false) {
+export function useLoaded<T>(
+  load: () => Promise<T>,
+  key: string | number,
+  keepWhileLoading = false,
+) {
   const [state, setState] = useState<Loaded<T>>({ data: null, error: null, busy: false, key });
   const [attempt, setAttempt] = useState(0);
 
@@ -39,5 +43,10 @@ export function useLoaded<T>(load: () => Promise<T>, key: string | number, keepW
 
   const stale = state.key !== key && !keepWhileLoading;
   const shown = stale ? { data: null, error: null, busy: false } : state;
-  return { data: shown.data, error: shown.error, busy: shown.busy, retry: () => setAttempt(attempt + 1) };
+  return {
+    data: shown.data,
+    error: shown.error,
+    busy: shown.busy,
+    retry: () => setAttempt(attempt + 1),
+  };
 }

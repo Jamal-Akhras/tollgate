@@ -116,6 +116,13 @@ class ConfigEditTest {
         });
     }
 
+    private static ConfigOperation currency() {
+        return new ConfigOperation("currency", "currency", document -> {
+            document.put("currency", "USD");
+            return document;
+        });
+    }
+
     private static boolean showsCosts(Gateway gateway) {
         return Objects.requireNonNull(gateway.config().tenants().get("support-bot"))
                 .showCosts();
@@ -340,10 +347,10 @@ class ConfigEditTest {
             String version = gateway.configVersion();
             CountDownLatch go = new CountDownLatch(1);
             List<Future<Gateway.Reload>> edits = new ArrayList<>();
-            for (boolean value : new boolean[] {true, false}) {
+            for (ConfigOperation operation : List.of(showCosts(true), currency())) {
                 edits.add(threads.submit(() -> {
                     go.await();
-                    return gateway.edit(version, List.of(value ? showCosts(true) : currency()));
+                    return gateway.edit(version, List.of(operation));
                 }));
             }
             go.countDown();
@@ -365,13 +372,6 @@ class ConfigEditTest {
             assertThat(succeeded).isEqualTo(1);
             assertThat(refused).isEqualTo(1);
         }
-    }
-
-    private static ConfigOperation currency() {
-        return new ConfigOperation("currency", "currency", document -> {
-            document.put("currency", "USD");
-            return document;
-        });
     }
 
     @Test

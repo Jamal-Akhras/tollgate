@@ -55,7 +55,9 @@ test('aGuardThatIsNotThereRendersNothing', () => {
 test('monitoringADataClassGuardWarnsWhichRegionsOpen', () => {
   open(configManagedFixture, 'strict', 0);
   press('data-class');
-  expect(screen.getByRole('dialog', { name: 'Monitor data-class instead of enforcing it?' })).toBeTruthy();
+  expect(
+    screen.getByRole('dialog', { name: 'Monitor data-class instead of enforcing it?' }),
+  ).toBeTruthy();
   expect(
     screen.getByText(
       'It will still run on every call and record what it would have refused, but it will refuse nothing.',
@@ -87,7 +89,9 @@ test('monitoringADataClassGuardSaysWhenNothingNewOpens', () => {
 test('monitoringAnotherGuardHasNoWarning', () => {
   open(configManagedFixture, 'strict', 1);
   press('request-size');
-  expect(screen.getByRole('dialog', { name: 'Monitor request-size instead of enforcing it?' })).toBeTruthy();
+  expect(
+    screen.getByRole('dialog', { name: 'Monitor request-size instead of enforcing it?' }),
+  ).toBeTruthy();
   expect(screen.queryByText(/While data-class/)).toBeNull();
   expect(screen.getByRole('button', { name: 'Monitor' })).toBeTruthy();
 });
@@ -122,9 +126,9 @@ test('confirmSendsThePathTheBodyAndTheVersion', async () => {
   expect(init.body).toBe('{"mode":"enforce"}');
   expect(init.headers['If-Match']).toBe(`"${configManagedFixture.version}"`);
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(screen.getByRole('switch', { name: 'Enforce tool-names' }).getAttribute('aria-checked')).toBe(
-    'false',
-  );
+  expect(
+    screen.getByRole('switch', { name: 'Enforce tool-names' }).getAttribute('aria-checked'),
+  ).toBe('false');
 });
 
 test('cancelWritesNothing', () => {
@@ -144,9 +148,9 @@ test('withEditsOffItOpensTheYamlAndSendsNothing', () => {
   press('data-class');
   const panel = screen.getByRole('dialog', { name: 'Change this in tollgate.yaml' });
   expect(panel.textContent).toContain('mode: monitor');
-  expect(screen.getByRole('switch', { name: 'Enforce data-class' }).getAttribute('aria-checked')).toBe(
-    'true',
-  );
+  expect(
+    screen.getByRole('switch', { name: 'Enforce data-class' }).getAttribute('aria-checked'),
+  ).toBe('true');
   expect(send).not.toHaveBeenCalled();
 });
 

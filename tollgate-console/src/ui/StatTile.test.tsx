@@ -15,7 +15,9 @@ test('sparkPointsPutsTheHighestValueAtTheTop', () => {
 });
 
 test('statTileShowsCaptionValueUnitAndWindow', () => {
-  render(<StatTile caption="Calls" value="1,204" unit="calls" series={[1, 2, 3]} window="last 60 min" />);
+  render(
+    <StatTile caption="Calls" value="1,204" unit="calls" series={[1, 2, 3]} window="last 60 min" />,
+  );
   expect(screen.getByText('Calls')).toBeTruthy();
   expect(screen.getByText('1,204')).toBeTruthy();
   expect(screen.getByText('calls')).toBeTruthy();
@@ -23,6 +25,8 @@ test('statTileShowsCaptionValueUnitAndWindow', () => {
 });
 
 test('statTileDrawsOnePolyline', () => {
-  const { container } = render(<StatTile caption="Calls" value="0" series={[]} window="last 60 min" />);
+  const { container } = render(
+    <StatTile caption="Calls" value="0" series={[]} window="last 60 min" />,
+  );
   expect(container.querySelectorAll('polyline')).toHaveLength(1);
 });

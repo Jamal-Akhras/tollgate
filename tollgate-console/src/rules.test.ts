@@ -17,7 +17,11 @@ const rules: Rule[] = [
     pattern: /sessionStorage/,
     allowedIn: 'state/session.ts',
   },
-  { name: 'import of state/session outside api/client.ts', pattern: /state\/session/, allowedIn: 'api/client.ts' },
+  {
+    name: 'import of state/session outside api/client.ts',
+    pattern: /state\/session/,
+    allowedIn: 'api/client.ts',
+  },
   { name: 'console.log, info or debug', pattern: /console\.(log|info|debug)\(/ },
   {
     name: 'colour outside styles/tokens.css',
