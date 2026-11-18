@@ -66,6 +66,7 @@ final class Init {
                   %1$s:
                     models: [qwen3]
                     dataClass: internal
+                    userHeader: X-Tollgate-User
 
                 keys:
                   - { id: %2$s, tenant: %1$s, sha256: %3$s }

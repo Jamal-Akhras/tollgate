@@ -114,6 +114,8 @@ class CommandsTest {
         assertThat(config.keys())
                 .singleElement()
                 .satisfies(entry -> assertThat(entry.sha256()).isEqualTo(key.sha256()));
+        assertThat(Objects.requireNonNull(config.tenants().get(Init.TENANT)).userHeader())
+                .isEqualTo("X-Tollgate-User");
         Policy policy = Objects.requireNonNull(config.policies().get(GatewayConfig.DEFAULT_POLICY));
         for (String dataClass : config.dataClasses()) {
             assertThat(policy.refuses(dataClass)).containsExactly(Detector.SECRET);
