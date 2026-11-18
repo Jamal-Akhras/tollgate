@@ -6,6 +6,7 @@ final class Endpoints {
 
     static final String OPENAI_CHAT = "/v1/chat/completions";
     static final String OPENAI_MODELS = "/v1/models";
+    static final String ANTHROPIC_MODELS = "/anthropic/v1/models";
     static final String ANTHROPIC_MESSAGES = "/anthropic/v1/messages";
 
     private Endpoints() {}

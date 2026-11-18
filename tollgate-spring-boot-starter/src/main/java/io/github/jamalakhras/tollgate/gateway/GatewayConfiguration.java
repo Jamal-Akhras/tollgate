@@ -36,6 +36,7 @@ import org.springframework.core.env.Environment;
 @EnableConfigurationProperties(GatewayProperties.class)
 @Import({
     ChatCompletionsController.class,
+    AnthropicModelsController.class,
     MessagesController.class,
     ModelsController.class,
     OpenAiErrorHandler.class,

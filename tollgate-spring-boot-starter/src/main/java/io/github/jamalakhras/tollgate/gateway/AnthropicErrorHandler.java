@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = MessagesController.class)
+@RestControllerAdvice(assignableTypes = {MessagesController.class, AnthropicModelsController.class})
 class AnthropicErrorHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AnthropicErrorHandler.class);
