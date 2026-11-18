@@ -21,7 +21,6 @@ export { signOut };
 
 type Options = {
   params?: Params;
-  headers?: Record<string, string>;
   body?: unknown;
   version?: string;
   token?: string | null;
@@ -47,7 +46,7 @@ async function failure(response: Response): Promise<ApiError> {
 
 async function request<T>(method: string, path: string, options: Options = {}): Promise<T> {
   const bearer = options.token ?? token.value;
-  const headers: Record<string, string> = { ...options.headers };
+  const headers: Record<string, string> = {};
   if (options.version !== undefined) {
     headers['If-Match'] = `"${options.version}"`;
   }

@@ -37,13 +37,9 @@ export function parse(hash: string): Route {
   const second = parts[1];
   const third = parts[2];
   const param = third ? decoded(third) : null;
-  if (first === 'audit' && parts.length === 3 && param) {
-    if (second === 'batches') {
-      return { name: 'batch', path: parts.join('/'), param, query };
-    }
-    if (second === 'records') {
-      return { name: 'record', path: parts.join('/'), param, query };
-    }
+  const detail = second === 'batches' ? 'batch' : second === 'records' ? 'record' : null;
+  if (first === 'audit' && parts.length === 3 && param && detail) {
+    return { name: detail, path: parts.join('/'), param, query };
   }
   const name = parts.length <= 1 ? simple.find((candidate) => candidate === first) : undefined;
   return { name: name ?? 'flow', path: name ?? 'flow', param: null, query: name ? query : {} };

@@ -25,8 +25,6 @@ import budgetsBusy from './budgets.busy.json';
 import change from './change.json';
 import config from './config.json';
 import configBusy from './config.busy.json';
-import configManaged from './config.managed.json';
-import configRewritten from './config.rewritten.json';
 import createdKey from './created-key.json';
 import info from './info.json';
 import live from './live.json';
@@ -46,14 +44,8 @@ function shaped<T>(json: T): Defined<T> {
 export const infoFixture: AdminInfo = shaped(info);
 export const configFixture: ConfigView = shaped({ ...config, edits: 'read-only' as const });
 export const configBusyFixture: ConfigView = shaped({ ...configBusy, edits: 'read-only' as const });
-export const configManagedFixture: ConfigView = shaped({
-  ...configManaged,
-  edits: 'managed' as const,
-});
-export const configRewrittenFixture: ConfigView = shaped({
-  ...configRewritten,
-  edits: 'managed' as const,
-});
+export const configManagedFixture: ConfigView = { ...configBusyFixture, edits: 'managed' };
+export const configRewrittenFixture: ConfigView = { ...configManagedFixture, rewritten: true };
 export const changeFixture: ConfigChange = shaped(change);
 export const createdKeyFixture: CreatedKey = shaped(createdKey);
 export const liveFixture: LiveSnapshot = shaped(live);

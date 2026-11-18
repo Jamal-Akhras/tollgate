@@ -3,10 +3,12 @@ import { usePoll } from '../../api/poll';
 import type { BudgetState, LiveSnapshot } from '../../api/types';
 import { navigate, route } from '../../router';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { formatCount, formatDecimal } from '../../ui/format';
 import { Meter } from '../../ui/Meter';
 import { moneyText } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Segmented } from '../../ui/Segmented';
 import { Skeleton } from '../../ui/Skeleton';
 import { TimeSeries } from '../../ui/TimeSeries';
@@ -88,16 +90,7 @@ function Panels({ minutes }: { minutes: number }) {
   return (
     <>
       {error && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={live.refresh}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
+        <RetryBanner error={error} onRetry={live.refresh} />
       )}
       {snapshot?.skipped && <Banner kind="info">Busy: the live view skipped some records</Banner>}
       {!charts && !error && (

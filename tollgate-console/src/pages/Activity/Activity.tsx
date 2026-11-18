@@ -5,10 +5,12 @@ import type { CallView } from '../../api/types';
 import { navigate, route } from '../../router';
 import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { formatCount, formatMillis } from '../../ui/format';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
 import { FirstRun } from '../Flow/FirstRun';
@@ -189,16 +191,7 @@ export function Activity() {
       />
       {auditOff && <Banner kind="info">{auditOffText}</Banner>}
       {error && !calls && !auditOff && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={activity.refresh}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
+        <RetryBanner error={error} onRetry={activity.refresh} />
       )}
       {!calls && !error && (
         <div class={styles.loading} aria-busy="true">

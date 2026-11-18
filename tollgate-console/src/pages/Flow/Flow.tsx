@@ -16,8 +16,10 @@ import { describeRule } from '../../flow/rule';
 import { navigate, route } from '../../router';
 import { usePreview } from '../../state/preview';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { FlowCanvas } from '../../ui/FlowCanvas';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Skeleton } from '../../ui/Skeleton';
 import { auditOffText, isAuditOff } from '../auditOff';
 import { useConfig } from '../useConfig';
@@ -49,21 +51,21 @@ type DiagramProps = {
 function Diagram({ config, live, budgets, withTollgate, table, onChanged }: DiagramProps) {
   const [open, setOpen] = useState<{ tenant: string; id: string } | null>(null);
   const [snippet, setSnippet] = useState<Snippet | null>(null);
-  const names = config.tenants
-    .map((tenant) => tenant.name)
-    .sort((a, b) => tenantCalls(live, b) - tenantCalls(live, a) || a.localeCompare(b));
+  const tenants = [...config.tenants].sort(
+    (a, b) => tenantCalls(live, b.name) - tenantCalls(live, a.name) || a.name.localeCompare(b.name),
+  );
+  const names = tenants.map((item) => item.name);
   const asked = route.value.query.tenant;
-  const selected = asked && names.includes(asked) ? asked : names[0];
-  const tenant = config.tenants.find((item) => item.name === selected);
-  if (!selected || !tenant) {
+  const tenant = tenants.find((item) => item.name === asked) ?? tenants[0];
+  if (!tenant) {
     return <Banner kind="info">No tenants are configured in tollgate.yaml.</Banner>;
   }
-  const nodes = names.flatMap((name) => {
-    const item = config.tenants.find((candidate) => candidate.name === name);
-    return item
-      ? [{ name, caption: tenantCaption(config, item), selected: name === selected }]
-      : [];
-  });
+  const selected = tenant.name;
+  const nodes = tenants.map((item) => ({
+    name: item.name,
+    caption: tenantCaption(config, item),
+    selected: item.name === selected,
+  }));
   const checks = checksFor(config, selected, budgets, live);
   const own = providersFor(config, selected, live);
   const providers = withTollgate ? own : previewProviders(config, selected, live);
@@ -115,22 +117,20 @@ function Diagram({ config, live, budgets, withTollgate, table, onChanged }: Diag
           fallback={tables}
         />
       )}
-      <div class={styles.below}>
-        <div class={styles.panel}>
-          {rule && check ? (
-            <RuleCard
-              rule={rule}
-              config={config}
-              tenant={selected}
-              guard={check.guard}
-              onChange={setSnippet}
-              onChanged={onChanged}
-              onClose={() => setOpen(null)}
-            />
-          ) : (
-            noCalls && <FirstRun config={config} tenant={selected} />
-          )}
-        </div>
+      <div class={styles.panel}>
+        {rule && check ? (
+          <RuleCard
+            rule={rule}
+            config={config}
+            tenant={selected}
+            guard={check.guard}
+            onChange={setSnippet}
+            onChanged={onChanged}
+            onClose={() => setOpen(null)}
+          />
+        ) : (
+          noCalls && <FirstRun config={config} tenant={selected} />
+        )}
       </div>
       {live && <StatTiles live={live} />}
       {snippet && (
@@ -169,7 +169,7 @@ export function Flow() {
         )}
         <button
           type="button"
-          class={styles.button}
+          class={buttons.button}
           aria-pressed={table}
           onClick={() => setTable(!table)}
         >
@@ -178,18 +178,7 @@ export function Flow() {
       </PageHeader>
       {auditOff && <Banner kind="info">{auditOffText}</Banner>}
       {snapshot?.skipped && <Banner kind="info">Busy: the live view skipped some records</Banner>}
-      {error && !config && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={retry}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
-      )}
+      {error && !config && <RetryBanner error={error} onRetry={retry} />}
       {!config && !error && <Loading />}
       {config && (
         <Diagram

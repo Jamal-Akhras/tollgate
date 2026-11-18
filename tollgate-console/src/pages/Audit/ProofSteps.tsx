@@ -13,13 +13,9 @@ type Checked = { leaf: string; verified: Verified } | 'unreadable';
 type ProofStepsProps = { proof: ProofView; seal: SealView | null; signatureValid: boolean | null };
 
 function Mark({ good }: { good: boolean }) {
-  return good ? (
-    <span class={styles.good}>
-      <Check size={14} />
-    </span>
-  ) : (
-    <span class={styles.bad}>
-      <Cross size={14} />
+  return (
+    <span class={good ? styles.good : styles.bad}>
+      {good ? <Check size={14} /> : <Cross size={14} />}
     </span>
   );
 }
@@ -121,16 +117,12 @@ export function ProofSteps({ proof, seal, signatureValid }: ProofStepsProps) {
   }
 
   const done = checked !== null;
-  const leaf = done ? checked.leaf : '';
-  const verified = done ? checked.verified : null;
+  const leaf = checked?.leaf ?? '';
+  const verified = checked?.verified;
   const reached = verified?.root ?? '';
   const sealRoot = seal?.root ?? proof.root;
   const holds =
-    done &&
-    leaf === proof.leafHash &&
-    verified !== null &&
-    verified.matches &&
-    proof.root === sealRoot;
+    done && leaf === proof.leafHash && verified?.matches === true && proof.root === sealRoot;
 
   return (
     <div class={styles.steps}>

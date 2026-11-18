@@ -4,13 +4,10 @@ import { configFixture, configManagedFixture, createdKeyFixture } from '../api/f
 import type { ConfigView } from '../api/types';
 import { Toasts } from '../ui/Toast';
 import { CreateKey } from './CreateKey';
+import { answer } from '../testing';
 
 const send = vi.fn();
 const write = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function open(config: ConfigView = configManagedFixture) {
   const onChanged = vi.fn();

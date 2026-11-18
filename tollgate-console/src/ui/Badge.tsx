@@ -11,18 +11,7 @@ export type BadgeKind =
   | 'waiting'
   | 'failed';
 
-const classes: Record<BadgeKind, string> = {
-  enforce: styles.enforce ?? '',
-  monitor: styles.monitor ?? '',
-  refused: styles.refused ?? '',
-  fallback: styles.fallback ?? '',
-  'dry run': styles.dry ?? '',
-  unsealed: styles.dry ?? '',
-  sent: styles.sent ?? '',
-  waiting: styles.waiting ?? '',
-  failed: styles.failed ?? '',
-};
-
 export function Badge({ kind }: { kind: BadgeKind }) {
-  return <span class={`${styles.badge} ${classes[kind]}`}>{kind}</span>;
+  const look = kind === 'dry run' || kind === 'unsealed' ? 'dry' : kind;
+  return <span class={`${styles.badge} ${styles[look]}`}>{kind}</span>;
 }

@@ -27,7 +27,7 @@ const bands: Record<Layout['band'], Band> = {
   medium: { tenant: 200, policy: 240, provider: 200, pad: 16, minGap: 48, maxGap: 120 },
 };
 
-export const visibleTenants = 8;
+const visibleTenants = 8;
 const filterHeight = 36;
 const tenantHeight = 72;
 const providerHeight = 96;

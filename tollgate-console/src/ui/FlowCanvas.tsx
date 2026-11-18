@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Flow, GuardCount } from '../api/types';
 import type { Check, ProviderNode } from '../flow/describe';
 import { layout, type Rect } from '../flow/layout';
@@ -25,6 +25,13 @@ type FlowCanvasProps = {
   onSelect: (tenant: string) => void;
   legend: ComponentChildren;
   fallback: ComponentChildren;
+};
+
+const steps: Record<string, number | undefined> = {
+  ArrowDown: 1,
+  ArrowRight: 1,
+  ArrowUp: -1,
+  ArrowLeft: -1,
 };
 
 function place(rect: Rect) {
@@ -69,15 +76,10 @@ export function FlowCanvas({
 }: FlowCanvasProps) {
   const { element, width } = useWidth();
   const [filter, setFilter] = useState('');
-  const selected = tenants.find((tenant) => tenant.selected);
-  const ordered = useMemo(
-    () => (selected ? [selected, ...tenants.filter((tenant) => !tenant.selected)] : tenants),
-    [tenants, selected],
-  );
   const needle = filter.trim().toLowerCase();
-  const visible = ordered.filter(
-    (tenant) => tenant.selected || tenant.name.toLowerCase().includes(needle),
-  );
+  const visible = tenants
+    .filter((tenant) => tenant.selected || tenant.name.toLowerCase().includes(needle))
+    .sort((a, b) => Number(b.selected) - Number(a.selected));
   const drawing = layout(width, {
     tenants: tenants.length,
     checks: checks.length,
@@ -88,7 +90,7 @@ export function FlowCanvas({
   const column =
     first && last
       ? { x: first.x - 3, y: first.y - 3, w: first.w + 11, h: last.y + last.h - first.y + 6 }
-      : { x: 0, y: 0, w: 0, h: 0 };
+      : undefined;
   const lines = drawing
     ? linesFor(
         drawing,
@@ -98,14 +100,12 @@ export function FlowCanvas({
     : [];
 
   function onKeyDown(event: KeyboardEvent, index: number) {
-    const step =
-      event.key === 'ArrowDown' || event.key === 'ArrowRight'
-        ? 1
-        : event.key === 'ArrowUp' || event.key === 'ArrowLeft'
-          ? -1
-          : 0;
+    const step = steps[event.key];
+    if (step === undefined) {
+      return;
+    }
     const next = visible[(index + step + visible.length) % visible.length];
-    if (step === 0 || !next) {
+    if (!next) {
       return;
     }
     event.preventDefault();
@@ -148,7 +148,7 @@ export function FlowCanvas({
               </g>
             ))}
           </svg>
-          {first && (
+          {column && (
             <div class={styles.column} style={place(column)}>
               {tenants.filter((tenant) => visible.includes(tenant)).map((tenant) => (
                 <button

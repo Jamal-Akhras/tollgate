@@ -64,19 +64,12 @@ export async function levels(leafHashes: string[]): Promise<TreeNode[]> {
 
 export function pathNodes(size: number, index: number): number[] {
   const nodes = shape(Array.from({ length: size }, () => ''));
-  const parent = new Map<number, number>();
-  nodes.forEach((inner, at) => {
-    if (inner.left >= 0) {
-      parent.set(inner.left, at);
-      parent.set(inner.right, at);
-    }
-  });
   const path: number[] = [];
-  for (let at: number | undefined = index; at !== undefined; at = parent.get(at)) {
-    if (at < 0 || at >= nodes.length) {
-      return [];
-    }
+  let at = index;
+  while (at >= 0 && at < nodes.length) {
     path.push(at);
+    const child = at;
+    at = nodes.findIndex((inner) => inner.left === child || inner.right === child);
   }
   return path;
 }

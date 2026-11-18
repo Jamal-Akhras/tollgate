@@ -5,12 +5,11 @@ import { ApiError } from './client';
 export type Poll<T> = {
   data: Signal<T | null>;
   error: Signal<Error | null>;
-  loading: Signal<boolean>;
   updatedAt: Signal<number | null>;
   refresh: () => void;
 };
 
-const busyRetryMillis = 2000;
+export const busyRetryMillis = 2000;
 
 export function usePoll<T>(
   load: () => Promise<T>,
@@ -20,7 +19,6 @@ export function usePoll<T>(
   const [poll] = useState(() => ({
     data: signal<T | null>(null),
     error: signal<Error | null>(null),
-    loading: signal(false),
     updatedAt: signal<number | null>(null),
   }));
   const latest = useRef(load);
@@ -37,11 +35,7 @@ export function usePoll<T>(
     function schedule(millis: number) {
       clearTimeout(timer);
       if (!stopped) {
-        timer = setTimeout(() => {
-          if (!document.hidden) {
-            void run();
-          }
-        }, millis);
+        timer = setTimeout(shown, millis);
       }
     }
 
@@ -55,7 +49,6 @@ export function usePoll<T>(
         return;
       }
       running = true;
-      poll.loading.value = true;
       let next = everyMillis;
       try {
         const result = await latest.current();
@@ -77,7 +70,6 @@ export function usePoll<T>(
       } finally {
         running = false;
         if (!stopped) {
-          poll.loading.value = false;
           schedule(next);
         }
       }

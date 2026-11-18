@@ -8,20 +8,8 @@ import { Flow } from './pages/Flow/Flow';
 import { Metrics } from './pages/Metrics/Metrics';
 import { SignIn } from './pages/SignIn/SignIn';
 import { Usage } from './pages/Usage/Usage';
-import { route, type RouteName } from './router';
+import { route } from './router';
 import { Shell } from './ui/Shell';
-
-const titles: Record<RouteName, string> = {
-  flow: 'Flow',
-  activity: 'Activity',
-  metrics: 'Metrics',
-  usage: 'Usage',
-  audit: 'Audit',
-  batch: 'Audit batch',
-  record: 'Audit record',
-  config: 'Config',
-  'sign-in': 'Flow',
-};
 
 function page() {
   switch (route.value.name) {
@@ -42,8 +30,6 @@ function page() {
       return <Usage />;
     case 'config':
       return <Config />;
-    default:
-      return <h1>{titles[route.value.name]}</h1>;
   }
 }
 

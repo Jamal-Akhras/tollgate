@@ -2,12 +2,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { verificationBusyFixture, verificationFixture } from '../../api/fixtures';
 import { Verify, warningsText } from './Verify';
+import { answer } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 beforeEach(() => {
   send.mockReset();

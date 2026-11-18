@@ -1,14 +1,10 @@
 import { cleanup, render, screen, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { auditBusyFixture, batchesBusyFixture } from '../../api/fixtures';
-import { parse, route } from '../../router';
 import { Audit } from './Audit';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function serve(routes: Record<string, () => Response>) {
   send.mockImplementation((url: string) => {
@@ -19,10 +15,16 @@ function serve(routes: Record<string, () => Response>) {
   });
 }
 
+function serveTrail(batches: unknown = batchesBusyFixture, audit: unknown = auditBusyFixture) {
+  serve({
+    '/audit/batches': () => answer(200, batches),
+    '/audit': () => answer(200, audit),
+  });
+}
+
 beforeEach(() => {
   send.mockReset();
-  location.hash = '#/audit';
-  route.value = parse('#/audit');
+  at('#/audit');
   vi.stubGlobal('fetch', send);
 });
 
@@ -32,10 +34,7 @@ afterEach(() => {
 });
 
 test('showsTheModeKeysLastBatchAndTheSmallPrint', async () => {
-  serve({
-    '/audit/batches': () => answer(200, batchesBusyFixture),
-    '/audit': () => answer(200, auditBusyFixture),
-  });
+  serveTrail();
   render(<Audit />);
   await screen.findByText('async');
   expect(screen.getByText(/Checked against the public key in this server's config/)).toBeTruthy();
@@ -45,10 +44,7 @@ test('showsTheModeKeysLastBatchAndTheSmallPrint', async () => {
 });
 
 test('drawsTheChainOldestFirstEachCardLinkingToItsBatch', async () => {
-  serve({
-    '/audit/batches': () => answer(200, batchesBusyFixture),
-    '/audit': () => answer(200, auditBusyFixture),
-  });
+  serveTrail();
   render(<Audit />);
   const list = await screen.findByRole('list');
   const cards = within(list).getAllByRole('link');
@@ -60,10 +56,7 @@ test('drawsTheChainOldestFirstEachCardLinkingToItsBatch', async () => {
 });
 
 test('saysSoWhenNothingIsSealedYet', async () => {
-  serve({
-    '/audit/batches': () => answer(200, []),
-    '/audit': () => answer(200, { ...auditBusyFixture, lastSeal: null }),
-  });
+  serveTrail([], { ...auditBusyFixture, lastSeal: null });
   render(<Audit />);
   await screen.findByText('No sealed batches yet');
   expect(screen.getByText('None yet')).toBeTruthy();

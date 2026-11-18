@@ -40,15 +40,9 @@ export function CreateKey({ config, onChanged, onClose }: CreateKeyProps) {
     }
   }
 
-  function done() {
-    setCreated(null);
-    onChanged();
-    onClose();
-  }
-
   if (created) {
     return (
-      <Dialog title="Copy the key now" locked onClose={done}>
+      <Dialog title="Copy the key now" locked onClose={onClose}>
         <div class={styles.field}>
           <label for="new-key" class={styles.label}>
             API key for {created.tenant}
@@ -75,7 +69,7 @@ export function CreateKey({ config, onChanged, onClose }: CreateKeyProps) {
           This is the only time the key is shown. Tollgate keeps its hash, not the key. If you lose
           it, revoke it and create another.
         </p>
-        <button type="button" class={`${styles.button} ${styles.done}`} onClick={done}>
+        <button type="button" class={`${styles.button} ${styles.done}`} onClick={onClose}>
           Done
         </button>
       </Dialog>

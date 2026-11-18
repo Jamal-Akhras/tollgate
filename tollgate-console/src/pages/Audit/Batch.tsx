@@ -3,18 +3,20 @@ import { ApiError, get } from '../../api/client';
 import type { BatchDetail } from '../../api/types';
 import { canHash } from '../../merkle/proof';
 import { levels, shape, type TreeNode } from '../../merkle/tree';
-import { href, navigate, route } from '../../router';
+import { navigate, route } from '../../router';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { Card } from '../../ui/Card';
 import { EmptyState } from '../../ui/EmptyState';
 import { Hash } from '../../ui/Hash';
 import { MerkleTree } from '../../ui/MerkleTree';
 import { PageHeader } from '../../ui/PageHeader';
-import { Skeleton } from '../../ui/Skeleton';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Time } from '../../ui/Time';
 import { auditOffText, isAuditOff } from '../auditOff';
 import styles from './Batch.module.css';
 import { useLoaded } from './useLoaded';
+import { BackToAudit, Waiting } from './Waiting';
 
 function Sealed({ batch }: { batch: BatchDetail }) {
   const [nodes, setNodes] = useState<TreeNode[] | null>(null);
@@ -33,9 +35,10 @@ function Sealed({ batch }: { batch: BatchDetail }) {
     };
   }, [batch, hashes]);
 
-  const top = nodes && nodes.length > 0 ? nodes[nodes.length - 1] : undefined;
+  const top = nodes?.at(-1);
   const recomputed = hashes && top ? top.hash : null;
-  const selected = Number(route.value.query.leaf ?? '');
+  const asked = route.value.query.leaf;
+  const selected = asked ? Number(asked) : NaN;
   const now = Date.now();
 
   return (
@@ -123,36 +126,14 @@ function BatchPage({ number }: { number: string }) {
 
   return (
     <div class={styles.page}>
-      <a class={styles.back} href={href('audit')}>
-        ← Audit
-      </a>
+      <BackToAudit />
       <PageHeader title={`Batch ${number}`} note={data ? `In ${data.file}` : undefined} />
       {off && <Banner kind="info">{auditOffText}</Banner>}
       {missing && (
         <EmptyState title="No such batch" text={`The audit trail has no sealed batch ${number}.`} />
       )}
-      {failed && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={retry}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
-      )}
-      {!data && !error && (
-        <div aria-busy="true">
-          <Skeleton height="200px" />
-          {busy && (
-            <p class={styles.source}>
-              Another long read of the audit trail is running. Trying again in a moment.
-            </p>
-          )}
-        </div>
-      )}
+      {failed && <RetryBanner error={error} onRetry={retry} />}
+      {!data && !error && <Waiting height="200px" busy={busy} />}
       {data && <Sealed batch={data} />}
     </div>
   );

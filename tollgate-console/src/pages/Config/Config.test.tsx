@@ -10,12 +10,9 @@ import {
 } from '../../api/fixtures';
 import { Toasts } from '../../ui/Toast';
 import { Config } from './Config';
+import { answer } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function paths(): string[] {
   return send.mock.calls.map((call) => `${call[1].method} ${call[0]}`);
@@ -187,13 +184,15 @@ test('switchingAGuardWithEditsOnWritesAndShowsTheNewConfig', async () => {
       screen.getByRole('switch', { name: 'Enforce tool-names' }).getAttribute('aria-checked'),
     ).toBe('true'),
   );
-  expect(paths()).toEqual([
-    'GET /admin/v1/config',
-    'GET /admin/v1/budgets',
-    'PUT /admin/v1/policies/default/guards/1/mode',
-    'GET /admin/v1/config',
-    'GET /admin/v1/budgets',
-  ]);
+  await waitFor(() =>
+    expect(paths()).toEqual([
+      'GET /admin/v1/config',
+      'GET /admin/v1/budgets',
+      'PUT /admin/v1/policies/default/guards/1/mode',
+      'GET /admin/v1/config',
+      'GET /admin/v1/budgets',
+    ]),
+  );
 });
 
 test('theTenantsBudgetCellHasAChangeOrSetButton', async () => {

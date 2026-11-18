@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import type { CallView } from '../../api/types';
 import { href } from '../../router';
 import { Badge } from '../../ui/Badge';
@@ -74,6 +75,15 @@ function Outcome({ call }: { call: CallView }) {
   );
 }
 
+function Section({ title, children }: { title: string; children: ComponentChildren }) {
+  return (
+    <section class={styles.section} aria-label={title}>
+      <h3 class={styles.heading}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export function CallDrawer({ call, now, onClose }: CallDrawerProps) {
   const redactions = Object.entries(call.redacted);
   return (
@@ -109,26 +119,17 @@ export function CallDrawer({ call, now, onClose }: CallDrawerProps) {
             <dd>{call.attributed ? 'Attributed to a user' : 'Not attributed to a user'}</dd>
           </dl>
         </section>
-        <section class={styles.section} aria-labelledby="trace-title">
-          <h3 class={styles.heading} id="trace-title">
-            Decision trace
-          </h3>
+        <Section title="Decision trace">
           <Trace call={call} />
-        </section>
-        <section class={styles.section} aria-labelledby="reservation-title">
-          <h3 class={styles.heading} id="reservation-title">
-            Reservation
-          </h3>
+        </Section>
+        <Section title="Reservation">
           {call.reservation ? (
             <Money amount={call.reservation.amount} currency={call.reservation.currency} />
           ) : (
             <p class={styles.note}>None.</p>
           )}
-        </section>
-        <section class={styles.section} aria-labelledby="redactions-title">
-          <h3 class={styles.heading} id="redactions-title">
-            Redactions
-          </h3>
+        </Section>
+        <Section title="Redactions">
           {redactions.length === 0 ? (
             <p class={styles.note}>None.</p>
           ) : (
@@ -140,13 +141,10 @@ export function CallDrawer({ call, now, onClose }: CallDrawerProps) {
               ))}
             </ul>
           )}
-        </section>
-        <section class={styles.section} aria-labelledby="outcome-title">
-          <h3 class={styles.heading} id="outcome-title">
-            Outcome
-          </h3>
+        </Section>
+        <Section title="Outcome">
           <Outcome call={call} />
-        </section>
+        </Section>
         <a class={styles.prove} href={href(`audit/records/${encodeURIComponent(call.id)}`)}>
           Prove this record
         </a>

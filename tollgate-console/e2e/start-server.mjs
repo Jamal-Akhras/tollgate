@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,8 +87,6 @@ export default async function start() {
       server.kill();
       await stopped;
     }
-    if (existsSync(folder)) {
-      rmSync(folder, { recursive: true, force: true });
-    }
+    rmSync(folder, { recursive: true, force: true });
   };
 }

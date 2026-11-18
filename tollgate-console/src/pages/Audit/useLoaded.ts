@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ApiError } from '../../api/client';
-
-const busyRetryMillis = 2000;
+import { busyRetryMillis } from '../../api/poll';
 
 type Loaded<T> = { data: T | null; error: Error | null; busy: boolean; key: string | number };
 

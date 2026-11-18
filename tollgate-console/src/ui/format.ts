@@ -43,13 +43,6 @@ export function formatMillis(ms: number): string {
   return `${Math.round(ms / 60_000)} min`;
 }
 
-export function formatRate(perSecond: number): string {
-  if (perSecond >= 1) {
-    return `${trimmed(perSecond)}/s`;
-  }
-  return `${trimmed(perSecond * 60)}/min`;
-}
-
 export function formatClock(seconds: number): string {
   return new Date(seconds * 1000).toISOString().slice(11, 19);
 }

@@ -3,11 +3,13 @@ import { ApiError, get } from '../../api/client';
 import type { Row, UsageReport } from '../../api/types';
 import { navigate, route } from '../../router';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { formatCount } from '../../ui/format';
 import { Hash } from '../../ui/Hash';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Skeleton } from '../../ui/Skeleton';
 import { auditOffText, isAuditOff } from '../auditOff';
 import { refusedTotal, toCsv } from './csv';
@@ -135,7 +137,7 @@ function CopyCsv({ report }: { report: UsageReport }) {
     }
   }
   return (
-    <button type="button" class={styles.button} onClick={copy}>
+    <button type="button" class={buttons.button} onClick={copy}>
       {copied ? 'Copied' : 'Copy as CSV'}
     </button>
   );
@@ -149,7 +151,7 @@ export function Usage() {
   const now = Date.now();
   const { report, error, retry } = useReport(from, to, by);
 
-  const change = (name: 'from' | 'to' | 'by') => (value: string) => {
+  const change = (name: 'from' | 'to' | 'by', value: string) => {
     navigate('usage', {
       from: from ?? defaultFrom(now),
       to: to ?? defaultTo(now),
@@ -174,7 +176,7 @@ export function Usage() {
             class={styles.input}
             type="date"
             value={from ?? defaultFrom(now)}
-            onChange={(event) => change('from')(event.currentTarget.value)}
+            onChange={(event) => change('from', event.currentTarget.value)}
           />
         </label>
         <label class={styles.field}>
@@ -183,7 +185,7 @@ export function Usage() {
             class={styles.input}
             type="date"
             value={to ?? defaultTo(now)}
-            onChange={(event) => change('to')(event.currentTarget.value)}
+            onChange={(event) => change('to', event.currentTarget.value)}
           />
         </label>
         <label class={styles.field}>
@@ -191,7 +193,7 @@ export function Usage() {
           <select
             class={styles.input}
             value={by}
-            onChange={(event) => change('by')(event.currentTarget.value)}
+            onChange={(event) => change('by', event.currentTarget.value)}
           >
             {groupings.map((grouping) => (
               <option key={grouping} value={grouping}>
@@ -208,16 +210,7 @@ export function Usage() {
       )}
       {auditOff && <Banner kind="info">{auditOffText}</Banner>}
       {failed && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={retry}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
+        <RetryBanner error={error} onRetry={retry} />
       )}
       {!report && !error && (
         <div class={styles.loading} aria-busy="true">

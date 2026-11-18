@@ -32,8 +32,6 @@ const routes: Record<string, [string, string, string?]> = {
   'change.json': ['put', '/admin/v1/policies/{policy}/guards/{index}/mode', '200'],
   'config.busy.json': ['get', '/admin/v1/config'],
   'config.json': ['get', '/admin/v1/config'],
-  'config.managed.json': ['get', '/admin/v1/config'],
-  'config.rewritten.json': ['get', '/admin/v1/config'],
   'created-key.json': ['post', '/admin/v1/tenants/{tenant}/keys', '201'],
   'info.json': ['get', '/admin/v1/info'],
   'live.busy.json': ['get', '/admin/v1/live'],

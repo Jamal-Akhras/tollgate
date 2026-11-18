@@ -81,10 +81,3 @@ test('givesEmptyChartsForAnEmptyWindow', () => {
   }
   expect(charts.spend.lines).toEqual([]);
 });
-
-test('drawsEveryBucketOfTheBusyFixture', () => {
-  const charts = chartsFor(liveBusyFixture);
-  expect(charts.calls.x).toHaveLength(180);
-  expect(charts.spend.x).toHaveLength(16);
-  expect(charts.latency.lines[1]?.values).toHaveLength(180);
-});

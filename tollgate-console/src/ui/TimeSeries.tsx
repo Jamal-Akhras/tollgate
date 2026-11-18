@@ -63,13 +63,12 @@ export function TimeSeries({ label, unit, window, x, lines, format, stacked }: T
       return;
     }
     let stopped = false;
-    const style = getComputedStyle(document.documentElement);
     const look = {
-      stacked: stacked === true,
+      stacked: !!stacked,
       height,
       text: tokenValue('--text-muted'),
       grid: tokenValue('--border'),
-      font: `12px ${style.getPropertyValue('--font-text').trim() || 'sans-serif'}`,
+      font: `12px ${tokenValue('--font-text') || 'sans-serif'}`,
       format: (value: number) => formatter.current(value),
     };
     const first = plotData(latest.current.x, latest.current.lines);

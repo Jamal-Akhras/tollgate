@@ -2,14 +2,15 @@ import { useEffect, useRef } from 'preact/hooks';
 import { get } from '../../api/client';
 import type { BatchView } from '../../api/types';
 import { href } from '../../router';
-import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { EmptyState } from '../../ui/EmptyState';
 import { Hash } from '../../ui/Hash';
-import { Skeleton } from '../../ui/Skeleton';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Time } from '../../ui/Time';
 import { isAuditOff } from '../auditOff';
 import styles from './Chain.module.css';
 import { useLoaded } from './useLoaded';
+import { Waiting } from './Waiting';
 
 export function Chain({ lastBatch }: { lastBatch: number | null }) {
   const { data, error, busy, retry } = useLoaded(
@@ -27,30 +28,10 @@ export function Chain({ lastBatch }: { lastBatch: number | null }) {
   }, [count, lastBatch]);
 
   if (error && !isAuditOff(error)) {
-    return (
-      <Banner
-        kind="error"
-        action={
-          <button type="button" class={styles.button} onClick={retry}>
-            Retry
-          </button>
-        }
-      >
-        {error.message}
-      </Banner>
-    );
+    return <RetryBanner error={error} onRetry={retry} />;
   }
   if (!data) {
-    return (
-      <div aria-busy="true">
-        <Skeleton height="110px" />
-        {busy && (
-          <p class={styles.note}>
-            Another long read of the audit trail is running. Trying again in a moment.
-          </p>
-        )}
-      </div>
-    );
+    return <Waiting height="110px" busy={busy} />;
   }
   if (data.length === 0) {
     return (

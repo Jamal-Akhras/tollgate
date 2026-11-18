@@ -48,10 +48,8 @@ test('waitsForTheAnswerBeforeCountingTheInterval', async () => {
   const { result } = renderHook(() => usePoll(load, 1000));
   await tick(5000);
   expect(load).toHaveBeenCalledTimes(1);
-  expect(result.current.loading.value).toBe(true);
   finish('slow');
   await tick(0);
-  expect(result.current.loading.value).toBe(false);
   await tick(999);
   expect(load).toHaveBeenCalledTimes(1);
   await tick(1);

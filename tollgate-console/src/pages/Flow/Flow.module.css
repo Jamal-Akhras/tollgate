@@ -24,41 +24,10 @@
   border-radius: 50%;
 }
 
-.button {
-  min-height: 30px;
-  padding: var(--space-1) var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-button);
-  color: var(--text);
-  font-size: var(--size-cell);
-}
-
-.button:hover {
-  border-color: var(--accent);
-}
-
 .loading {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.below {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.below:empty {
-  display: none;
-}
-
-.panel {
-  flex: 1 1 360px;
-  min-width: 0;
 }
 
 .panel:empty {

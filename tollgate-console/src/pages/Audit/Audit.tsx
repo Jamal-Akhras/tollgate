@@ -3,9 +3,11 @@ import { usePoll } from '../../api/poll';
 import type { AuditStatus } from '../../api/types';
 import { href } from '../../router';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { Card } from '../../ui/Card';
 import { Hash } from '../../ui/Hash';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Skeleton } from '../../ui/Skeleton';
 import { Time } from '../../ui/Time';
 import { auditOffText, isAuditOff } from '../auditOff';
@@ -33,16 +35,7 @@ export function Audit() {
       />
       {off && <Banner kind="info">{auditOffText}</Banner>}
       {error && !off && !status && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={audit.refresh}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
+        <RetryBanner error={error} onRetry={audit.refresh} />
       )}
       {!status && !error && (
         <div aria-busy="true">

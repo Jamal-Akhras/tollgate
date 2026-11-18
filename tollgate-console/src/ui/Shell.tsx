@@ -41,7 +41,7 @@ export function Shell({ children }: { children: ComponentChildren }) {
   useEffect(() => {
     get<AdminInfo>('/info')
       .then((info) => setVersion(info.version))
-      .catch(() => setVersion(null));
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -82,9 +82,7 @@ export function Shell({ children }: { children: ComponentChildren }) {
     setChosen(next);
     try {
       localStorage.setItem(key, next ? 'collapsed' : 'open');
-    } catch {
-      return;
-    }
+    } catch {}
   }
 
   const dotted = current === 'flow' || current === 'audit';

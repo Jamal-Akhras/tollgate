@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { navigate } from '../../router';
+import buttons from '../../ui/button.module.css';
 import { Card } from '../../ui/Card';
 import styles from './FindRecord.module.css';
 
@@ -33,7 +34,7 @@ export function FindRecord() {
             spellcheck={false}
             onInput={(event) => setId(event.currentTarget.value)}
           />
-          <button type="submit" class={styles.button}>
+          <button type="submit" class={buttons.button}>
             Find
           </button>
         </div>

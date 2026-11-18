@@ -6,9 +6,7 @@ export function editsOn(config: ConfigView): boolean {
   return config.edits === 'managed';
 }
 
-type Outcome = ConfigChange | CreatedKey;
-
-export async function runEdit<T extends Outcome>(
+export async function runEdit<T extends ConfigChange | CreatedKey>(
   send: () => Promise<T>,
   onChanged: () => void,
 ): Promise<T | undefined> {

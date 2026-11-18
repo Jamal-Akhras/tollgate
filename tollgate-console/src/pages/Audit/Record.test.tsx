@@ -2,21 +2,16 @@ import { cleanup, configure, fireEvent, render, screen } from '@testing-library/
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { recordFixture } from '../../api/fixtures';
 import type { ProvedRecord, RecordProofs } from '../../api/types';
-import { parse, route } from '../../router';
 import { cannotHashText } from './ProofSteps';
 import { AuditRecord } from './Record';
+import { answer, at } from '../../testing';
 
 configure({ asyncUtilTimeout: 20000 });
 
 const send = vi.fn();
 
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
-
 function show(hash: string, response: Response) {
-  location.hash = hash;
-  route.value = parse(hash);
+  at(hash);
   send.mockImplementation(() => Promise.resolve(response));
   render(<AuditRecord />);
 }
@@ -134,8 +129,7 @@ test('asksAgainEveryTwoSecondsForAnUnsealedRecordUpToFiveTimesThenOffersToCheckA
     send.mockImplementation(() =>
       Promise.resolve(answer(200, { intent: unsealed, outcome: null })),
     );
-    location.hash = '#/audit/records/request-5';
-    route.value = parse('#/audit/records/request-5');
+    at('#/audit/records/request-5');
     render(<AuditRecord />);
     await screen.findByText('Not sealed yet. Batches close within a second');
     for (let i = 0; i < 5; i += 1) {
@@ -162,8 +156,7 @@ test('showsTheProofOnceTheRecordIsSealed', async () => {
   });
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   try {
-    location.hash = '#/audit/records/request-5';
-    route.value = parse('#/audit/records/request-5');
+    at('#/audit/records/request-5');
     render(<AuditRecord />);
     await screen.findByText('Not sealed yet. Batches close within a second');
     await vi.advanceTimersByTimeAsync(2000);

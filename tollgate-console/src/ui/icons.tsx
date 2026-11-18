@@ -111,13 +111,7 @@ export const ChevronsUpDown = icon(
   2,
 );
 
-export const ChevronDown = icon(<path d="M6 9l6 6 6-6" />, 2);
-
-export const ChevronRight = icon(<path d="M9 6l6 6-6 6" />, 2);
-
 export const Cross = icon(<path d="M6 6l12 12M18 6L6 18" />, 2);
-
-export const Fit = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />, 2);
 
 export const Copy = icon(
   <>

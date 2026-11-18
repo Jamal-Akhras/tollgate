@@ -5,16 +5,12 @@ import type { BatchDetail } from '../../api/types';
 import { levels } from '../../merkle/tree';
 import { parse, route } from '../../router';
 import { Batch } from './Batch';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
 
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
-
 function show(hash: string, response: Response) {
-  location.hash = hash;
-  route.value = parse(hash);
+  at(hash);
   send.mockImplementation(() => Promise.resolve(response));
   render(<Batch />);
 }
@@ -40,6 +36,18 @@ test('showsTheSealAndTheServersVerdictsAndRecomputesTheRootInTheBrowser', async 
   expect(screen.getAllByRole('button', { name: /^(intent|outcome) / })).toHaveLength(
     batchFixture.leaves.length,
   );
+});
+
+test('selectsNoLeafWhenTheUrlNamesNone', async () => {
+  show('#/audit/batches/4', answer(200, batchFixture));
+  await screen.findByText('Recomputed in your browser');
+  expect(document.querySelectorAll('[class*="_onPath_"]')).toHaveLength(0);
+});
+
+test('selectsTheLeafTheUrlNames', async () => {
+  show('#/audit/batches/4?leaf=0', answer(200, batchFixture));
+  await screen.findByText('Recomputed in your browser');
+  expect(document.querySelectorAll('[role="button"][class*="_onPath_"]')).toHaveLength(1);
 });
 
 test('saysRootDoesNotMatchWhenTheLeavesGiveAnotherRoot', async () => {
@@ -126,8 +134,7 @@ test('saysItIsBusyAndTriesAgain', async () => {
           : answer(200, batchFixture),
       );
     });
-    location.hash = '#/audit/batches/4';
-    route.value = parse('#/audit/batches/4');
+    at('#/audit/batches/4');
     render(<Batch />);
     await screen.findByText(
       'Another long read of the audit trail is running. Trying again in a moment.',

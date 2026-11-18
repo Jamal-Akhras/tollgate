@@ -3,22 +3,24 @@ import { ApiError, get } from '../../api/client';
 import type { ProvedRecord, RecordProofs } from '../../api/types';
 import { href, route } from '../../router';
 import { Banner } from '../../ui/Banner';
+import buttons from '../../ui/button.module.css';
 import { Card } from '../../ui/Card';
 import { CodeBlock } from '../../ui/CodeBlock';
 import { EmptyState } from '../../ui/EmptyState';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Segmented } from '../../ui/Segmented';
-import { Skeleton } from '../../ui/Skeleton';
 import { auditOffText, isAuditOff } from '../auditOff';
 import { noRecordText } from './FindRecord';
 import { ProofSteps } from './ProofSteps';
 import styles from './Record.module.css';
 import { useLoaded } from './useLoaded';
+import { BackToAudit, Waiting } from './Waiting';
 
 const unsealedRetryMillis = 2000;
 const unsealedRetries = 5;
 
-export const notSealedText = 'Not sealed yet. Batches close within a second';
+const notSealedText = 'Not sealed yet. Batches close within a second';
 
 function Proved({ proved }: { proved: ProvedRecord }) {
   const { proof, seal } = proved;
@@ -77,36 +79,14 @@ function RecordPage({ id }: { id: string }) {
 
   return (
     <div class={styles.page}>
-      <a class={styles.back} href={href('audit')}>
-        ← Audit
-      </a>
+      <BackToAudit />
       <PageHeader title="Audit record" note={id} />
       {off && <Banner kind="info">{auditOffText}</Banner>}
       {missing && (
         <EmptyState title={noRecordText} text={`The audit trail has nothing under ${id}.`} />
       )}
-      {failed && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={retry}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
-      )}
-      {!data && !error && (
-        <div aria-busy="true">
-          <Skeleton height="200px" />
-          {busy && (
-            <p class={styles.source}>
-              Another long read of the audit trail is running. Trying again in a moment.
-            </p>
-          )}
-        </div>
-      )}
+      {failed && <RetryBanner error={error} onRetry={retry} />}
+      {!data && !error && <Waiting height="200px" busy={busy} />}
       {data && both && (
         <Segmented
           label="Record"
@@ -124,7 +104,7 @@ function RecordPage({ id }: { id: string }) {
           kind="info"
           action={
             tries.current >= unsealedRetries ? (
-              <button type="button" class={styles.button} onClick={checkAgain}>
+              <button type="button" class={buttons.button} onClick={checkAgain}>
                 Check again
               </button>
             ) : undefined

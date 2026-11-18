@@ -19,16 +19,16 @@ const margin = 24;
 const spacingFull = 28;
 const spacingCollapsed = 76;
 
-const leafKinds = new Map([
-  ['intent', styles.intent],
-  ['outcome', styles.outcome],
-]);
+const leafKinds: Record<string, string | undefined> = {
+  intent: styles.intent,
+  outcome: styles.outcome,
+};
 
 export function leafLabel(leaf: LeafView): string {
   return `${leaf.type} ${leaf.leafHash.slice(0, 4)}…`;
 }
 
-function visibleNodes(nodes: TreeNode[], size: number, selected: number | undefined): Set<number> {
+function visibleNodes(nodes: TreeNode[], size: number, path: number[]): Set<number> {
   const all = new Set<number>(nodes.keys());
   if (size <= fullLimit) {
     return all;
@@ -40,7 +40,7 @@ function visibleNodes(nodes: TreeNode[], size: number, selected: number | undefi
       shown.add(index);
     }
   });
-  for (const index of selected === undefined ? [] : pathNodes(size, selected)) {
+  for (const index of path) {
     shown.add(index);
     const inner = nodes[index];
     if (inner && inner.left >= 0) {
@@ -80,10 +80,11 @@ function place(nodes: TreeNode[], shown: Set<number>, spacing: number) {
 export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProps) {
   const [shown, setShown] = useState<string | null>(null);
   const collapsed = leaves.length > fullLimit;
-  const visible = visibleNodes(nodes, leaves.length, selected);
+  const path = selected === undefined ? [] : pathNodes(leaves.length, selected);
+  const visible = visibleNodes(nodes, leaves.length, path);
   const spacing = collapsed ? spacingCollapsed : spacingFull;
   const { placed, count, height } = place(nodes, visible, spacing);
-  const chain = new Set(selected === undefined ? [] : pathNodes(leaves.length, selected));
+  const chain = new Set(path);
   const width = margin * 2 + Math.max(0, count - 1) * spacing;
   const root = nodes.length - 1;
 
@@ -139,14 +140,14 @@ export function MerkleTree({ leaves, nodes, selected, onChoose }: MerkleTreeProp
       if (!leaf) {
         return null;
       }
-      const known = leafKinds.has(leaf.type);
-      const kind = leafKinds.get(leaf.type) ?? styles.other;
+      const kind = leafKinds[leaf.type];
+      const known = kind !== undefined;
       const label = leafLabel(leaf);
       const pick = () => onChoose(leaf);
       return (
         <g
           key={spot.index}
-          class={`${styles.leaf} ${kind} ${onPath ? styles.onPath : ''}`}
+          class={`${styles.leaf} ${kind ?? styles.other} ${onPath ? styles.onPath : ''}`}
           role={known ? 'button' : 'img'}
           aria-label={label}
           tabIndex={0}

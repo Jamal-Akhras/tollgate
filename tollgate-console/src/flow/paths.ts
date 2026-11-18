@@ -70,6 +70,10 @@ function refusingPill(checks: Check[], guards: GuardCount[]): number {
   );
 }
 
+function line(id: string, kind: LineKind, from: Point, to: Point): Line {
+  return { id, kind, moving: kind !== 'idle', d: curve(from, to), from, end: null, pill: null };
+}
+
 export function linesFor(layout: Layout, input: LineInput, now: number): Line[] {
   const tenant = layout.tenants[0];
   if (!tenant) {
@@ -84,15 +88,7 @@ export function linesFor(layout: Layout, input: LineInput, now: number): Line[] 
       const card = layout.providers[index];
       if (card) {
         const to = left(card, stub);
-        lines.push({
-          id: `direct-${name}`,
-          kind: 'idle',
-          moving: false,
-          d: curve(origin, to),
-          from: origin,
-          end: null,
-          pill: null,
-        });
+        lines.push(line(`direct-${name}`, 'idle', origin, to));
       }
     });
     return lines;
@@ -103,15 +99,7 @@ export function linesFor(layout: Layout, input: LineInput, now: number): Line[] 
       recent(flow.lastSent, now) || recent(flow.lastFallback, now) || recent(flow.lastRefused, now),
   );
   const intake = { from: right(tenant, stub), to: left(layout.policy) };
-  lines.push({
-    id: 'tenant',
-    kind: active ? 'sent' : 'idle',
-    moving: active,
-    d: curve(intake.from, intake.to),
-    from: intake.from,
-    end: null,
-    pill: null,
-  });
+  lines.push(line('tenant', active ? 'sent' : 'idle', intake.from, intake.to));
 
   const exit = right(layout.policy);
   providers.forEach((name, index) => {
@@ -123,15 +111,7 @@ export function linesFor(layout: Layout, input: LineInput, now: number): Line[] 
     const fallback = own.some((flow) => recent(flow.lastFallback, now));
     const sent = own.some((flow) => recent(flow.lastSent, now));
     const to = left(card, stub);
-    lines.push({
-      id: `provider-${name}`,
-      kind: fallback ? 'fallback' : sent ? 'sent' : 'idle',
-      moving: fallback || sent,
-      d: curve(exit, to),
-      from: exit,
-      end: null,
-      pill: null,
-    });
+    lines.push(line(`provider-${name}`, fallback ? 'fallback' : sent ? 'sent' : 'idle', exit, to));
   });
 
   const refusedAt = latest([

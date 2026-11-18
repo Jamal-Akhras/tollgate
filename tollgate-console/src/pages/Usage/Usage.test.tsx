@@ -2,14 +2,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { usageBusyFixture } from '../../api/fixtures';
 import type { Row, UsageReport } from '../../api/types';
-import { parse, route } from '../../router';
 import { Usage } from './Usage';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function grouped(by: string, keys: string[]): UsageReport {
   const rows: Row[] = keys.map((key, index) => {
@@ -20,8 +16,7 @@ function grouped(by: string, keys: string[]): UsageReport {
 }
 
 async function show(hash: string, response: Response) {
-  location.hash = hash;
-  route.value = parse(hash);
+  at(hash);
   send.mockImplementation(() => Promise.resolve(response));
   render(<Usage />);
   await act(async () => {

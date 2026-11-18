@@ -2,14 +2,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { activityBusyFixture, activityFixture, configFixture } from '../../api/fixtures';
 import type { CallView } from '../../api/types';
-import { parse, route } from '../../router';
 import { Activity } from './Activity';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function serve(calls: () => Response) {
   send.mockImplementation((path: string) =>
@@ -35,8 +31,7 @@ function rowOf(id: string): HTMLElement {
 beforeEach(() => {
   send.mockReset();
   vi.useFakeTimers();
-  location.hash = '#/activity';
-  route.value = parse('#/activity');
+  at('#/activity');
   vi.stubGlobal('fetch', send);
 });
 
@@ -94,8 +89,7 @@ test('aWaitingAndADryRunCallHaveTheirBadges', async () => {
 });
 
 test('readsTheFiltersFromTheUrl', async () => {
-  location.hash = '#/activity?tenant=research';
-  route.value = parse(location.hash);
+  at('#/activity?tenant=research');
   serve(() => answer(200, activityBusyFixture));
   render(<Activity />);
   await tick(0);
@@ -113,8 +107,7 @@ test('changingAFilterWritesItToTheUrl', async () => {
 });
 
 test('saysSoWhenNothingMatches', async () => {
-  location.hash = '#/activity?tenant=nobody';
-  route.value = parse(location.hash);
+  at('#/activity?tenant=nobody');
   serve(() => answer(200, activityBusyFixture));
   render(<Activity />);
   await tick(0);

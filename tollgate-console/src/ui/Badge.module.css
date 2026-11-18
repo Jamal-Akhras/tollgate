@@ -8,7 +8,8 @@
   line-height: 1.5;
 }
 
-.enforce {
+.enforce,
+.sent {
   color: var(--ok);
 }
 
@@ -16,7 +17,8 @@
   color: var(--info);
 }
 
-.refused {
+.refused,
+.failed {
   color: var(--danger-text);
 }
 
@@ -24,18 +26,7 @@
   color: var(--accent);
 }
 
-.dry {
-  color: var(--text-muted);
-}
-
-.sent {
-  color: var(--ok);
-}
-
+.dry,
 .waiting {
   color: var(--text-muted);
-}
-
-.failed {
-  color: var(--danger-text);
 }

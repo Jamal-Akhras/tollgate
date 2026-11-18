@@ -12,6 +12,7 @@ import {
 import { parse, route } from '../../router';
 import { tollgateOn } from '../../state/preview';
 import { Flow } from './Flow';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
 let width = 1200;
@@ -32,10 +33,6 @@ class Observer {
   disconnect() {}
 }
 
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
-
 function serve(config: unknown, live: () => Response, budgets: unknown = []) {
   send.mockImplementation((path: string) => {
     if (path.includes('/live')) {
@@ -48,8 +45,7 @@ function serve(config: unknown, live: () => Response, budgets: unknown = []) {
 beforeEach(() => {
   send.mockReset();
   width = 1200;
-  location.hash = '#/flow';
-  route.value = parse('#/flow');
+  at('#/flow');
   vi.stubGlobal('fetch', send);
   vi.stubGlobal('ResizeObserver', Observer);
   tollgateOn.value = true;
@@ -272,8 +268,7 @@ test('theCardClosesWhenAnotherTenantIsChosen', async () => {
 
 test('withThePreviewOffEveryProviderGetsAGreyLineAndTheNoteAppears', async () => {
   tollgateOn.value = false;
-  location.hash = '#/flow?tenant=research';
-  route.value = parse(location.hash);
+  at('#/flow?tenant=research');
   serve(configBusyFixture, () => answer(200, liveBusyFixture));
   const { container, unmount } = render(<Flow />);
   await screen.findByRole('region', { name: 'Policy strict' });

@@ -1,16 +1,19 @@
 import { useRef } from 'preact/hooks';
 import styles from './Segmented.module.css';
 
-type Option = { value: string; label: string };
-
-type SegmentedProps = {
+type SegmentedProps<T extends string> = {
   label: string;
-  options: Option[];
-  value: string;
-  onChange: (value: string) => void;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
 };
 
-export function Segmented({ label, options, value, onChange }: SegmentedProps) {
+export function Segmented<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: SegmentedProps<T>) {
   const list = useRef<HTMLDivElement>(null);
 
   function move(from: number, step: number) {

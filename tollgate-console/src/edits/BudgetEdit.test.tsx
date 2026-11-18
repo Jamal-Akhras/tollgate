@@ -4,6 +4,7 @@ import { budgetsBusyFixture, changeFixture, configManagedFixture } from '../api/
 import type { BudgetState, ConfigView } from '../api/types';
 import { Toasts } from '../ui/Toast';
 import { BudgetEdit } from './BudgetEdit';
+import { answer } from '../testing';
 
 const send = vi.fn();
 
@@ -17,10 +18,6 @@ const config: ConfigView = {
 };
 
 const state: BudgetState = { ...budgetsBusyFixture[0]!, tenant: 'research' };
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function open(tenant: string, budget: BudgetState | null, view: ConfigView = config) {
   const onChanged = vi.fn();

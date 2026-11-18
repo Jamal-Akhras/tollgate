@@ -4,12 +4,9 @@ import { changeFixture, configFixture, configManagedFixture } from '../api/fixtu
 import type { ConfigView } from '../api/types';
 import { Toasts } from '../ui/Toast';
 import { GuardSwitch } from './GuardSwitch';
+import { answer } from '../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function open(config: ConfigView, policy: string, index: number, onChanged = vi.fn()) {
   render(

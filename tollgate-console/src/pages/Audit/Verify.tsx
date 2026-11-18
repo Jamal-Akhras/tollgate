@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ApiError, get } from '../../api/client';
+import { busyRetryMillis } from '../../api/poll';
 import type { ProblemView, Verification } from '../../api/types';
 import { Banner } from '../../ui/Banner';
 import { Card } from '../../ui/Card';
 import styles from './Verify.module.css';
-
-const busyRetryMillis = 2000;
 
 export const warningsText =
   'A running server always has a few of these: the batch that is still open, and calls still in flight.';

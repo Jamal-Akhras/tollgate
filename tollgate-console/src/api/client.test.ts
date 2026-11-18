@@ -1,12 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ApiError, del, get, post, put, segment, signedIn, signInWith, signOut } from './client';
 import { infoFixture } from './fixtures';
+import { answer } from '../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
-}
 
 beforeEach(async () => {
   send.mockReset();

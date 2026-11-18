@@ -6,8 +6,10 @@ import type {
   BudgetView,
   ConfigView,
   GuardView,
+  KeyView,
   LimitsView,
   PolicyView,
+  TenantView,
 } from '../../api/types';
 import { BudgetEdit } from '../../edits/BudgetEdit';
 import { CreateKey } from '../../edits/CreateKey';
@@ -29,6 +31,7 @@ import { DataTable, type Column } from '../../ui/DataTable';
 import { Hash } from '../../ui/Hash';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
+import { RetryBanner } from '../../ui/RetryBanner';
 import { Skeleton } from '../../ui/Skeleton';
 import { useConfig } from '../useConfig';
 import styles from './Config.module.css';
@@ -118,7 +121,7 @@ function limitsText(limits: LimitsView): string {
 
 function Tenants({ config, change, budgets, onChanged }: SectionProps & Budgets) {
   const [changing, setChanging] = useState<string | null>(null);
-  const columns: Column<ConfigView['tenants'][number]>[] = [
+  const columns: Column<TenantView>[] = [
     {
       key: 'name',
       header: 'Tenant',
@@ -192,8 +195,8 @@ function Tenants({ config, change, budgets, onChanged }: SectionProps & Budgets)
 
 function Keys({ config, change, onChanged }: SectionProps & { onChanged: () => void }) {
   const [creating, setCreating] = useState(false);
-  const [revoking, setRevoking] = useState<ConfigView['keys'][number] | null>(null);
-  const columns: Column<ConfigView['keys'][number]>[] = [
+  const [revoking, setRevoking] = useState<KeyView | null>(null);
+  const columns: Column<KeyView>[] = [
     { key: 'id', header: 'Key ID', cell: (key) => <Hash value={key.id} /> },
     { key: 'tenant', header: 'Tenant', cell: (key) => <Jump kind="tenant" name={key.tenant} /> },
     {
@@ -421,7 +424,7 @@ function Loading() {
 }
 
 export function Config() {
-  const { config, error, round, retry } = useConfig();
+  const { config, error, retry } = useConfig();
   const [snippet, setSnippet] = useState<Snippet | null>(null);
   const [budgets, setBudgets] = useState<BudgetState[]>([]);
   const reloading = useReload(retry);
@@ -443,7 +446,7 @@ export function Config() {
     return () => {
       stopped = true;
     };
-  }, [managed, round]);
+  }, [managed, config]);
 
   return (
     <div class={styles.page}>
@@ -465,18 +468,7 @@ export function Config() {
         </p>
       )}
       {reloading.problem && <Banner kind="error">{reloading.problem}</Banner>}
-      {error && !config && (
-        <Banner
-          kind="error"
-          action={
-            <button type="button" class={styles.button} onClick={retry}>
-              Retry
-            </button>
-          }
-        >
-          {error.message}
-        </Banner>
-      )}
+      {error && !config && <RetryBanner error={error} onRetry={retry} />}
       {!config && !error && <Loading />}
       {config && (
         <>

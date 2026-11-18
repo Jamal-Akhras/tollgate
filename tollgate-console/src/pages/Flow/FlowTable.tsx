@@ -1,5 +1,5 @@
 import type { Flow, GuardCount, LiveSnapshot } from '../../api/types';
-import { callsOf, type Check, type ProviderNode } from '../../flow/describe';
+import { callsOf, refusals, type Check, type ProviderNode } from '../../flow/describe';
 import { DataTable, type Column } from '../../ui/DataTable';
 import { formatCount } from '../../ui/format';
 import { moneyText } from '../../ui/Money';
@@ -14,10 +14,6 @@ type FlowTableProps = {
   onSelect: (tenant: string) => void;
 };
 
-function refused(flow: Flow): number {
-  return Object.values(flow.refused).reduce((sum, count) => sum + count, 0);
-}
-
 function spend(flow: Flow): string {
   const parts = Object.entries(flow.cost).map(([currency, amount]) =>
     moneyText({ amount, currency, free: true }),
@@ -30,7 +26,12 @@ const flowColumns: Column<Flow>[] = [
   { key: 'model', header: 'Model', cell: (flow) => flow.model },
   { key: 'provider', header: 'Provider', cell: (flow) => flow.provider },
   { key: 'calls', header: 'Calls', align: 'right', cell: (flow) => formatCount(callsOf([flow])) },
-  { key: 'refused', header: 'Refused', align: 'right', cell: (flow) => formatCount(refused(flow)) },
+  {
+    key: 'refused',
+    header: 'Refused',
+    align: 'right',
+    cell: (flow) => formatCount(refusals(flow)),
+  },
   {
     key: 'fallbacks',
     header: 'Fallbacks',

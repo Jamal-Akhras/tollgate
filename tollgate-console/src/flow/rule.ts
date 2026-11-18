@@ -1,7 +1,7 @@
 import type { BudgetState, ConfigView, GuardView, LiveSnapshot, TenantView } from '../api/types';
 import { formatBytes, formatCount } from '../ui/format';
 import { moneyText } from '../ui/Money';
-import { tenantCalls, type Check } from './describe';
+import { detectorsFor, list, tenantCalls, type Check } from './describe';
 
 export type Fact = { label: string; value: string };
 
@@ -19,18 +19,16 @@ export type Rule = {
   budget: { state: BudgetState | null; tenant: TenantView } | null;
 };
 
-function list(items: string[] | null | undefined, none: string): string {
-  return items && items.length > 0 ? items.join(', ') : none;
-}
-
 function refusedFor(live: LiveSnapshot | null, tenant: string, code: string): number {
   return (live?.flows ?? [])
     .filter((flow) => flow.tenant === tenant)
     .reduce((sum, flow) => sum + (flow.refused[code] ?? 0), 0);
 }
 
-function refusedFact(live: LiveSnapshot, tenant: string, code: string): Fact {
-  return { label: `Refused, ${code}`, value: String(refusedFor(live, tenant, code)) };
+function refusedFacts(live: LiveSnapshot | null, tenant: string, code: string): Fact[] {
+  return live
+    ? [{ label: `Refused, ${code}`, value: String(refusedFor(live, tenant, code)) }]
+    : [];
 }
 
 function guardFacts(guard: GuardView, tenant: TenantView): { what: string; facts: Fact[] } {
@@ -71,12 +69,6 @@ function guardFacts(guard: GuardView, tenant: TenantView): { what: string; facts
     };
   }
   return { what: `Runs the ${guard.type} guard on every request.`, facts: [] };
-}
-
-function detectorsFor(map: Record<string, string[]>, dataClass: string | null): string[] {
-  return Object.entries(map)
-    .filter(([, classes]) => dataClass !== null && classes.includes(dataClass))
-    .map(([detector]) => detector);
 }
 
 export function describeRule(
@@ -169,9 +161,7 @@ export function describeRule(
               { label: 'Available', value: money(state.available) },
             ]
           : []),
-        ...(live
-          ? [refusedFact(live, tenantName, 'budget_exceeded')]
-          : []),
+        ...refusedFacts(live, tenantName, 'budget_exceeded'),
       ],
       budget: { state, tenant },
     };
@@ -192,9 +182,7 @@ export function describeRule(
       what: "Refuses calls that go over the tenant's limits.",
       facts: [
         ...limits,
-        ...(live
-          ? [refusedFact(live, tenantName, 'rate_limited')]
-          : []),
+        ...refusedFacts(live, tenantName, 'rate_limited'),
       ],
     };
   }

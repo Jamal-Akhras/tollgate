@@ -3,12 +3,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { infoFixture } from '../../api/fixtures';
 import { signedIn, signOut } from '../../api/client';
 import { SignIn } from './SignIn';
+import { answer } from '../../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function setRoute(hash: string) {
   location.hash = hash;

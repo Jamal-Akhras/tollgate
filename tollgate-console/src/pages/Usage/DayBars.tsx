@@ -20,7 +20,7 @@ export function DayBars({ rows }: { rows: Row[] }) {
     <div class={styles.wrap}>
       <svg
         class={styles.chart}
-        viewBox={`0 0 ${Math.max(1, rows.length) * slot} ${height}`}
+        viewBox={`0 0 ${rows.length * slot} ${height}`}
         preserveAspectRatio="none"
         role="img"
         aria-label="Calls per day"

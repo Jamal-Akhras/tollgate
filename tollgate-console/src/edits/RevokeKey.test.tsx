@@ -3,12 +3,9 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { changeFixture, configManagedFixture } from '../api/fixtures';
 import { Toasts } from '../ui/Toast';
 import { RevokeKey } from './RevokeKey';
+import { answer } from '../testing';
 
 const send = vi.fn();
-
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
 
 function open(id: string) {
   const keyView = configManagedFixture.keys.find((item) => item.id === id)!;

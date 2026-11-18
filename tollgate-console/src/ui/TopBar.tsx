@@ -78,12 +78,7 @@ function InstanceMenu({ version }: { version: string | null }) {
             label="Theme"
             options={themes}
             value={theme.value}
-            onChange={(value) => {
-              const next = themes.find((option) => option.value === value);
-              if (next) {
-                setTheme(next.value);
-              }
-            }}
+            onChange={setTheme}
           />
           <button type="button" class={styles.signOut} onClick={signOut}>
             Sign out

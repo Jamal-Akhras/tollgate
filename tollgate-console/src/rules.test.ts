@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { join, sep } from 'node:path';
 import { expect, test } from 'vitest';
 
 type Rule = { name: string; pattern: RegExp; allowedIn?: string };
@@ -42,21 +42,11 @@ function violations(path: string, text: string): string[] {
   return found;
 }
 
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      return sourceFiles(full);
-    }
-    return /\.(ts|tsx|css)$/.test(entry.name) ? [full] : [];
-  });
-}
-
 test('sourceFollowsTheRules', () => {
-  const found = sourceFiles('src')
-    .map((full) => ({ path: relative('src', full).split(sep).join('/'), full }))
-    .filter((file) => file.path !== 'rules.test.ts')
-    .flatMap((file) => violations(file.path, readFileSync(file.full, 'utf8')));
+  const found = readdirSync('src', { recursive: true, encoding: 'utf8' })
+    .map((name) => name.split(sep).join('/'))
+    .filter((path) => /\.(ts|tsx|css)$/.test(path) && path !== 'rules.test.ts')
+    .flatMap((path) => violations(path, readFileSync(join('src', path), 'utf8')));
   expect(found).toEqual([]);
 });
 

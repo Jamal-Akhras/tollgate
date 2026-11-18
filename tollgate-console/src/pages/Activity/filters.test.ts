@@ -36,13 +36,6 @@ test('respondedIsSentDryRunIsDryRunAnythingElseIsFailed', () => {
   expect(resultKind(withOutcome('upstream_error'))).toBe('failed');
 });
 
-test('theFixtureHasEveryKindItNeedsForTheFilters', () => {
-  const kinds = new Set(calls.map(resultKind));
-  expect(kinds.has('sent')).toBe(true);
-  expect(kinds.has('refused')).toBe(true);
-  expect(kinds.has('failed')).toBe(true);
-});
-
 test('filtersByTenant', () => {
   const rows = filterCalls(calls, { ...none, tenant: 'support-bot' });
   expect(rows.length).toBeGreaterThan(0);

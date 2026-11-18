@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { budgetsBusyFixture, liveBusyFixture } from '../../api/fixtures';
-import { parse, route } from '../../router';
 import { Metrics } from './Metrics';
+import { answer, at } from '../../testing';
 
 const send = vi.fn();
 const draw = vi.hoisted(() => vi.fn());
@@ -14,10 +14,6 @@ class Observer {
   disconnect() {}
 }
 
-function answer(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status });
-}
-
 function serve(live: () => Response) {
   send.mockImplementation((path: string) =>
     Promise.resolve(path.includes('/live') ? live() : answer(200, budgetsBusyFixture)),
@@ -25,8 +21,7 @@ function serve(live: () => Response) {
 }
 
 async function show(hash: string, live: () => Response) {
-  location.hash = hash;
-  route.value = parse(hash);
+  at(hash);
   serve(live);
   render(<Metrics />);
   await act(async () => {

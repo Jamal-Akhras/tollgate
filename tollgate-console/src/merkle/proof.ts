@@ -32,9 +32,7 @@ async function digest(prefix: number, ...parts: Uint8Array[]): Promise<string> {
 }
 
 export function leafHash(encodingBase64: string): Promise<string> {
-  const text = atob(encodingBase64);
-  const bytes = Uint8Array.from(text, (char) => char.charCodeAt(0));
-  return digest(0, bytes);
+  return digest(0, Uint8Array.from(atob(encodingBase64), (char) => char.charCodeAt(0)));
 }
 
 export function node(left: string, right: string): Promise<string> {

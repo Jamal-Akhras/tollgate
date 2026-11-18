@@ -1,11 +1,11 @@
 import type { LiveSnapshot } from '../../api/types';
 import { sumDecimals } from '../../flow/describe';
 
-export type Line = { name: string; token: string; values: (number | null)[] };
+type Line = { name: string; token: string; values: (number | null)[] };
 
-export type Chart = { x: number[]; lines: Line[] };
+type Chart = { x: number[]; lines: Line[] };
 
-export type Charts = { calls: Chart; tokens: Chart; spend: Chart; latency: Chart };
+type Charts = { calls: Chart; tokens: Chart; spend: Chart; latency: Chart };
 
 function rates(live: LiveSnapshot, pick: (bucket: LiveSnapshot['buckets'][number]) => number) {
   const seconds = live.bucketSeconds > 0 ? live.bucketSeconds : 5;

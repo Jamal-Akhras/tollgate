@@ -51,7 +51,7 @@ function flowsOf(live: LiveSnapshot | null, tenant: string): Flow[] {
   return live ? live.flows.filter((flow) => flow.tenant === tenant) : [];
 }
 
-function refusals(flow: Flow): number {
+export function refusals(flow: Flow): number {
   return Object.values(flow.refused).reduce((sum, count) => sum + count, 0);
 }
 
@@ -77,8 +77,7 @@ function guardDetail(guard: GuardView, tenant: TenantView): string {
   }
   if (guard.regions !== null) {
     const regions = tenant.dataClass === null ? undefined : guard.regions[tenant.dataClass];
-    const reach = regions && regions.length > 0 ? regions.join(', ') : 'none';
-    return `${tenant.dataClass ?? 'no class'} → ${reach}`;
+    return `${tenant.dataClass ?? 'no class'} → ${list(regions, 'none')}`;
   }
   if (guard.refuse && guard.refuse.length > 0) {
     return `${guard.refuse.length} refused`;
@@ -89,18 +88,22 @@ function guardDetail(guard: GuardView, tenant: TenantView): string {
   return 'any tool';
 }
 
-function detectors(map: Record<string, string[]>, dataClass: string | null): number {
-  return dataClass === null
-    ? 0
-    : Object.values(map).filter((classes) => classes.includes(dataClass)).length;
+export function list(items: string[] | null | undefined, none: string): string {
+  return items && items.length > 0 ? items.join(', ') : none;
+}
+
+export function detectorsFor(map: Record<string, string[]>, dataClass: string | null): string[] {
+  return Object.entries(map)
+    .filter(([, classes]) => dataClass !== null && classes.includes(dataClass))
+    .map(([detector]) => detector);
 }
 
 function personalData(policy: PolicyView | undefined, tenant: TenantView): string | null {
   if (!policy) {
     return null;
   }
-  const redacted = detectors(policy.redact, tenant.dataClass);
-  const refused = detectors(policy.refuse, tenant.dataClass);
+  const redacted = detectorsFor(policy.redact, tenant.dataClass).length;
+  const refused = detectorsFor(policy.refuse, tenant.dataClass).length;
   const parts = [
     ...(redacted > 0 ? [`${redacted} redacted`] : []),
     ...(refused > 0 ? [`${refused} refused`] : []),
@@ -130,6 +133,16 @@ function budgetDetail(tenant: TenantView, budgets: BudgetState[]): string | null
     : `${moneyText({ amount: limit, currency })} ${period}`;
 }
 
+function check(
+  id: string,
+  label: string,
+  detail: string,
+  state: PillState = 'ok',
+  guard: string | null = null,
+): Check {
+  return { id, label, detail, state, guard };
+}
+
 export function checksFor(
   config: ConfigView,
   tenantName: string,
@@ -141,56 +154,26 @@ export function checksFor(
     return [];
   }
   const policy = config.policies.find((item) => item.name === tenant.policy);
-  const checks: Check[] = [
-    {
-      id: 'request-features',
-      label: 'Request review',
-      detail: 'built in',
-      state: 'ok',
-      guard: 'request-features',
-    },
-  ];
+  const checks = [check('request-features', 'Request review', 'built in', 'ok', 'request-features')];
   (policy?.guards ?? []).forEach((guard, index) => {
-    checks.push({
-      id: `guard-${index}`,
-      label: guard.type,
-      detail: guardDetail(guard, tenant),
-      state: guard.mode === 'monitor' ? 'monitor' : 'ok',
-      guard: guard.type,
-    });
+    const state = guard.mode === 'monitor' ? 'monitor' : 'ok';
+    checks.push(check(`guard-${index}`, guard.type, guardDetail(guard, tenant), state, guard.type));
   });
   const personal = personalData(policy, tenant);
   if (personal !== null) {
-    checks.push({
-      id: 'personal-data',
-      label: 'Personal data',
-      detail: personal,
-      state: 'ok',
-      guard: 'personal-data',
-    });
+    checks.push(check('personal-data', 'Personal data', personal, 'ok', 'personal-data'));
   }
   const budget = budgetDetail(tenant, budgets);
   if (budget !== null) {
-    checks.push({ id: 'budget', label: 'Budget', detail: budget, state: 'ok', guard: null });
+    checks.push(check('budget', 'Budget', budget));
   }
   const limits = limitDetail(tenant);
   if (limits !== null) {
-    checks.push({
-      id: 'rate-limits',
-      label: 'Rate limits',
-      detail: limits,
-      state: 'ok',
-      guard: null,
-    });
+    checks.push(check('rate-limits', 'Rate limits', limits));
   }
   const off = config.audit.mode === 'off';
-  checks.push({
-    id: 'audit',
-    label: 'Signed audit trail',
-    detail: off ? 'off' : live?.lastSeal ? `batch ${live.lastSeal.batch}` : config.audit.mode,
-    state: off ? 'off' : 'ok',
-    guard: null,
-  });
+  const sealed = live?.lastSeal ? `batch ${live.lastSeal.batch}` : config.audit.mode;
+  checks.push(check('audit', 'Signed audit trail', off ? 'off' : sealed, off ? 'off' : 'ok'));
   return checks;
 }
 
