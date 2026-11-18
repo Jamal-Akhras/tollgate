@@ -23,6 +23,15 @@ what was sent, who sent it, what it cost, and why it was allowed.
   URL. Requests are forwarded in their own format, so structured output, tool
   use and prompt caching keep working
   ([ADR 0005](docs/adr/0005-forward-requests-in-their-own-format.md)).
+- **Client libraries.** `tollgate-client` gives you the official OpenAI or
+  Anthropic client already pointed at Tollgate, with the headers, the receipt
+  of a call and the reason for a refusal as small functions. There is one
+  for Python (`pip install "tollgate-client[openai]"`), TypeScript
+  (`npm install tollgate-client openai`) and Java
+  (`io.github.jamal-akhras:tollgate-client`). You don't need them: the
+  base URL above works on its own
+  ([ADR 0031](docs/adr/0031-client-libraries-wrap-the-official-sdks.md),
+  [ADR 0033](docs/adr/0033-publish-the-client-libraries.md)).
 - **Inside your Spring Boot application.** The same gateway runs inside a
   Spring Boot 4.1 application through `tollgate-spring-boot-starter`, with one
   dependency and a config file ([embedding](#inside-a-spring-boot-application)).
@@ -35,7 +44,8 @@ what was sent, who sent it, what it cost, and why it was allowed.
   ([setup](docs/clients/open-webui.md)).
 - **Calls per person.** A tenant with `userHeader: X-OpenWebUI-User-Id` has
   that header's value recorded in the audit trail as an HMAC, so usage can
-  be summed by user without storing who they are
+  be summed by user without storing who they are. `tollgate init` sets
+  `userHeader: X-Tollgate-User` on its tenant
   ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)).
 - **Tenants and keys.** Each application gets a tenant with its own API keys,
   which are stored only as SHA-256 hashes, and its own list of models.
@@ -51,6 +61,13 @@ what was sent, who sent it, what it cost, and why it was allowed.
   real traffic and records what it would have refused, in the audit trail and
   the `tollgate.guards.monitored` metric, without refusing anything
   ([ADR 0022](docs/adr/0022-shadow-mode.md)).
+- **Errors you can act on.** Every error Tollgate writes carries an
+  `X-Tollgate-Error` header with its code, such as `policy_denied`,
+  `budget_exceeded` or `rate_limited`, on both endpoints, so a program
+  doesn't have to read the message. A spent budget also says
+  `x-should-retry: false`, so the SDKs don't send the call again.
+  `GET /anthropic/v1/models` lists a tenant's Anthropic models
+  ([ADR 0032](docs/adr/0032-say-the-error-code-in-a-header.md)).
 - **Streaming.** Streamed answers are relayed event by event as they arrive,
   with the same policies, budgets and audit as other calls
   ([ADR 0010](docs/adr/0010-streaming.md)).
@@ -189,6 +206,7 @@ tenants:
   my-app:
     models: [qwen3]
     dataClass: internal
+    userHeader: X-Tollgate-User
     # budget: { limit: 5.00, period: monthly }  for a priced model
     # limits: { requestsPerMinute: 60, concurrent: 4 }
 
@@ -246,6 +264,21 @@ reply = client.chat.completions.create(
 )
 print(reply.choices[0].message.content)
 ```
+
+With the Python library, the same call is shorter. It reads
+`TOLLGATE_BASE_URL` and `TOLLGATE_API_KEY`, and `pip install
+"tollgate-client[openai]"` installs it:
+
+```python
+import tollgate
+
+reply = tollgate.openai().chat.completions.create(
+    model="qwen3", messages=[{"role": "user", "content": "Say hello"}]
+)
+```
+
+The TypeScript and Java libraries work the same way
+([the libraries](#the-client-libraries)).
 
 A request that breaks a rule is refused in the SDK's own error format, with
 the reason, and each response carries an `X-Tollgate-Trace-Id` header that
@@ -374,7 +407,7 @@ Create the config, the audit keys and a tenant key with the server jar's
 `init`, or with `audit keys create` and `keys create` for an existing config.
 Set `tollgate.config` to the `tollgate.yaml` and give the application the
 audit secrets as environment variables, as for the server. It then serves
-`/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` with the
+`/v1/chat/completions`, `/v1/models`, `/anthropic/v1/messages` and `/anthropic/v1/models` with the
 same guards, budgets, redaction, audit, metrics and traces.
 
 - **It listens where your application does.** The server binds to
@@ -392,6 +425,59 @@ same guards, budgets, redaction, audit, metrics and traces.
   sets `management.metrics.use-global-registry=false` gets none of the
   gateway's metrics.
 - **Not supported:** WebFlux applications.
+
+## The client libraries
+
+The libraries build the official OpenAI or Anthropic client for you, with the
+base URL, the tenant key and Tollgate's headers set. You then call the vendor's
+client as you always did. Each has the same four things:
+
+| | Python | TypeScript | Java |
+|---|---|---|---|
+| Install | `pip install "tollgate-client[openai]"` or `[anthropic]` | `npm install tollgate-client openai` or `@anthropic-ai/sdk` | `io.github.jamal-akhras:tollgate-client` |
+| A client | `tollgate.openai()`, `tollgate.anthropic()` | `openai()` from `tollgate-client/openai`, `anthropic()` from `tollgate-client/anthropic` | `TollgateOpenAI.builder()`, `TollgateAnthropic.builder()` |
+| Headers for one call | `tollgate.headers(data_class=, user=, dry_run=)` | `headers({ dataClass, user, dryRun })` | `Tollgate.DATA_CLASS`, `Tollgate.USER`, `Tollgate.DRY_RUN` |
+| What Tollgate said | `tollgate.receipt(raw)` | `receipt(response)` | `TollgateOpenAI.receipt(response)` |
+| Why it refused | `tollgate.refusal(error)` | `refusal(error)` | `TollgateOpenAI.refusal(e)` |
+
+- **The address** is the argument, then `TOLLGATE_BASE_URL`, then
+  `http://localhost:8080`. **The key** is the argument, then
+  `TOLLGATE_API_KEY`. The libraries never read `OPENAI_API_KEY` or
+  `ANTHROPIC_API_KEY`, so a vendor key can't reach Tollgate by mistake.
+- **A receipt** has the trace ID, the cost, the most the call could have cost
+  and the output cap if the budget lowered it. **A refusal** has the code, the
+  message, the status, the trace ID and `Retry-After`, and is empty for an
+  error that didn't come from Tollgate.
+- **A library decides nothing.** It doesn't retry, log or cache, and a call
+  made without it gets the same guards, budget and audit.
+- **Python** needs 3.10 or later and has `async_openai` and `async_anthropic`
+  too. **TypeScript** needs Node 22 or later. **Java** needs 17 or later,
+  and `builder()` gives you the vendor's own builder.
+- **Each package is built from this repo** by the release workflow, and
+  PyPI and npm show where each one was built
+  ([the security policy](SECURITY.md)).
+- Streams are the vendor's own. A stream's charged cost is a comment line the
+  SDKs drop, so a client reads it from the audit trail or the usage report.
+
+```ts
+import { openai } from 'tollgate-client/openai';
+import { receipt, refusal } from 'tollgate-client';
+
+const client = openai();
+const { data, response } = await client.chat.completions
+  .create({ model: 'qwen3', messages })
+  .withResponse();
+console.log(receipt(response).traceId);
+```
+
+```java
+OpenAIClient client = TollgateOpenAI.builder().build();
+try {
+    client.chat().completions().create(params);
+} catch (OpenAIServiceException e) {
+    TollgateOpenAI.refusal(e).ifPresent(why -> log.warn("{} {}", why.code(), why.traceId()));
+}
+```
 
 ## The console
 
@@ -477,7 +563,7 @@ hold no data, and it loads nothing from other hosts.
 
 | Port | Serves |
 |---|---|
-| 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models` and `/anthropic/v1/messages` |
+| 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models`, `/anthropic/v1/messages` and `/anthropic/v1/models` |
 | 8081 | The admin API, its [OpenAPI contract](docs/api/admin-openapi.json) and the [console](#the-console), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every API call needs the admin token |
 | 9090 | Health probes and Prometheus metrics at `/actuator/prometheus`. Readiness reports down if the audit trail cannot be written |
 
@@ -550,7 +636,7 @@ hold no data, and it loads nothing from other hosts.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | Everything under "What works today", with the core, provider and starter libraries on Maven Central |
+| **0.1.0** | Everything under "What works today", with the core, provider, starter and client libraries on Maven Central, and the `tollgate-client` packages on PyPI and npm |
 | **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
 | **0.2.0** | The [console](#the-console) with four edits |
 | **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
@@ -589,6 +675,7 @@ mutation tested. The checks the build enforces are listed under the
 
 - [Design](docs/DESIGN.md): architecture, request lifecycle, configuration and roadmap
 - [Architecture decision records](docs/adr/)
+- [The client libraries](#the-client-libraries)
 - [Claude Code through Tollgate](docs/clients/claude-code.md)
 - [Open WebUI through Tollgate](docs/clients/open-webui.md)
 - [The console](#the-console)

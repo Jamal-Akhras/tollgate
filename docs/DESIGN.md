@@ -47,6 +47,7 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 | `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
 | `tollgate-providers` | Provider wire formats on the JDK HTTP client: OpenAI (also used by any OpenAI-compatible server, such as Ollama, vLLM, LM Studio or Gemini's compatible endpoint) and Anthropic. |
 | `tollgate-spring-boot-starter` | The gateway as Spring Boot 4.1 auto-configuration on Spring MVC, Java 21: the endpoints, the request pipeline, budgets, the audit sink and the metrics ([ADR 0021](adr/0021-spring-boot-starter.md)). |
+| `tollgate-client` | Java 17 library that builds the official OpenAI and Anthropic Java clients for a gateway, and reads receipts and refusals ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md)). The vendor SDKs are optional dependencies. The Python and TypeScript libraries are in `clients/python` and `clients/typescript`, outside Maven ([ADR 0033](adr/0033-publish-the-client-libraries.md)). |
 | `tollgate-console` | The console: a TypeScript and Preact app built by Vite into static files in a jar, with its own unit tests ([ADR 0025](adr/0025-console-as-a-static-app.md)). Only the server depends on it. |
 | `tollgate-server` | Standalone server on the starter: the admin API on its own port, the console, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
 
@@ -286,15 +287,71 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
   prompt caching keep working. A model is served on the endpoint of its
   provider's format; Tollgate does not translate between formats
   ([ADR 0005](adr/0005-forward-requests-in-their-own-format.md)).
-- `GET /v1/models` lists the models the calling tenant may use.
+- `GET /v1/models` lists the models the calling tenant may use on OpenAI-format
+  providers, and `GET /anthropic/v1/models` lists the ones on Anthropic-format
+  providers, in Anthropic's list shape.
 - A blocked request returns a `403` with code `policy_denied` and a reason, in
   the error format of the endpoint that was called, so existing error handling
   works unchanged. The `X-Tollgate-Trace-Id` header carries the decision trace
   ID.
+- Every error the gateway writes also carries `X-Tollgate-Error: <code>`, the
+  same code as the OpenAI body's `code` field, so a program can tell a refused
+  tool from a spent budget on either endpoint. A spent budget adds
+  `x-should-retry: false`, so the SDKs don't send the call again. A stream's
+  errors stay events ([ADR 0032](adr/0032-say-the-error-code-in-a-header.md)).
 - Coding agents work too: Claude Code is recorded and replayed in the build
   ([setup](clients/claude-code.md),
   [ADR 0020](adr/0020-agent-clients-and-skills.md)). Open WebUI works the
   same way ([setup](clients/open-webui.md)).
+- **Client libraries** build the official client, already pointed at Tollgate
+  ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md)). They are
+  optional: the base URL above does the same. Each of the three has four
+  things:
+  - **A client** for each format: `tollgate.openai()` and
+    `tollgate.anthropic()` in Python, `openai()` and `anthropic()` from
+    `tollgate-client/openai` and `tollgate-client/anthropic` in TypeScript,
+    `TollgateOpenAI.builder()` and `TollgateAnthropic.builder()` in Java. The
+    address is the argument, then `TOLLGATE_BASE_URL`, then
+    `http://localhost:8080`; the key is the argument, then `TOLLGATE_API_KEY`.
+  - **Headers** for one call: the data class, the user and a dry run.
+  - **A receipt**: the trace ID, the cost, the most it could cost and the
+    output cap, read from a response.
+  - **A refusal**: the code, message, status, trace ID and `Retry-After`,
+    read from the SDK's own error, and nothing for an error that isn't
+    Tollgate's.
+
+  ```python
+  import tollgate
+
+  client = tollgate.openai()
+  claude = tollgate.anthropic(data_class="confidential", user="u-17")
+  raw = claude.messages.with_raw_response.create(model="claude-sonnet", max_tokens=1024, messages=[...])
+  print(tollgate.receipt(raw).cost)
+  ```
+
+  ```ts
+  import { openai } from 'tollgate-client/openai';
+  import { receipt } from 'tollgate-client';
+
+  const { response } = await openai().chat.completions
+    .create({ model: 'qwen3', messages })
+    .withResponse();
+  console.log(receipt(response).traceId);
+  ```
+
+  ```java
+  OpenAIClient client = TollgateOpenAI.builder().build();
+  try {
+      client.chat().completions().create(params);
+  } catch (OpenAIServiceException e) {
+      TollgateOpenAI.refusal(e).ifPresent(why -> log.warn("{}", why.code()));
+  }
+  ```
+
+  Install with `pip install "tollgate-client[openai]"` or `[anthropic]`,
+  `npm install tollgate-client openai`, or the Maven artifact
+  `io.github.jamal-akhras:tollgate-client`. The libraries never retry or log, and
+  never read a vendor's credentials from the environment.
 - Deployed on the same host or as a sidecar, the extra hop is small. The first
   performance report, in 0.1.1, publishes the measured figure.
 
@@ -470,11 +527,11 @@ with hardware details for every audit mode.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code and Open WebUI through the review; a Docker image; `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on Maven Central |
+| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code and Open WebUI through the review; a Docker image; the `X-Tollgate-Error` header and `GET /anthropic/v1/models` ([ADR 0032](adr/0032-say-the-error-code-in-a-header.md)); client libraries for Python, TypeScript and Java ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md), [ADR 0033](adr/0033-publish-the-client-libraries.md)); `tollgate-core`, `tollgate-providers`, `tollgate-spring-boot-starter` and `tollgate-client` on Maven Central, and `tollgate-client` on PyPI and npm |
 | **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
 | **0.2.0** | The console at `/console/` on the admin port ([ADR 0025](adr/0025-console-as-a-static-app.md), [ADR 0026](adr/0026-console-sign-in.md)): flow, activity, metrics, usage, audit and config pages; live numbers read from the audit trail ([ADR 0027](adr/0027-live-data-for-the-console.md)); the audit trail's batches, trees and a request's proof checked in the browser ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)); four edits when `TOLLGATE_ADMIN_EDITS=file`: a guard's mode, a tenant's budget, create a key and revoke a key, with the config's versions kept ([ADR 0029](adr/0029-config-in-the-console.md)); a budget's spend counted again when its period changes |
 | **Next** | The Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
-| **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; the console's viewer token ([ADR 0026](adr/0026-console-sign-in.md)), pausing a tenant ([ADR 0030](adr/0030-pause-a-tenant.md)), more edits and managed mode with approvals and rollback, and TLS on the admin port; cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; a Python helper package |
+| **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; the console's viewer token ([ADR 0026](adr/0026-console-sign-in.md)), pausing a tenant ([ADR 0030](adr/0030-pause-a-tenant.md)), more edits and managed mode with approvals and rollback, and TLS on the admin port; cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; an in-process Java mode ([ADR 0034](adr/0034-in-process-java-mode.md)) |
 
 ## 14. Risks
 

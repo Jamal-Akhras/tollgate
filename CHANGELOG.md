@@ -17,6 +17,13 @@ traffic.
 - OpenAI chat completions and Anthropic messages endpoints that forward each
   request in its own format, plus `/v1/models` for each tenant. Errors come
   back in the format of the endpoint that was called.
+- `GET /anthropic/v1/models`, which lists a tenant's models on Anthropic-format
+  providers in Anthropic's list shape, so the Anthropic SDKs' `models.list()`
+  works ([ADR 0032](docs/adr/0032-say-the-error-code-in-a-header.md)).
+- Every error Tollgate writes carries `X-Tollgate-Error` with its code, such
+  as `policy_denied`, `budget_exceeded` or `rate_limited`, on both endpoints.
+  A `budget_exceeded` answer also carries `x-should-retry: false`, so the SDKs
+  don't send the call again. The error bodies don't change.
 - Providers in the `openai` format (OpenAI and any OpenAI-compatible server,
   such as Ollama or vLLM) and the `anthropic` format. A provider can list
   `extraFields`, its own request settings such as Ollama's `top_k` or
@@ -199,6 +206,25 @@ traffic.
 - `scripts/record-shapes.py`, which relays a client's calls and records their
   shape without their content, for reviewing new clients.
 
+#### Client libraries
+
+- `tollgate-client` for Python, TypeScript and Java. Each gives you the
+  official OpenAI or Anthropic client already pointed at Tollgate, with the
+  tenant key and headers set, and reads a call's receipt and a refusal's code
+  ([ADR 0031](docs/adr/0031-client-libraries-wrap-the-official-sdks.md)).
+  - **Python:** `pip install "tollgate-client[openai]"` or `[anthropic]`, then
+    `import tollgate`. Python 3.10 or later, with async clients too.
+  - **TypeScript:** `npm install tollgate-client openai` or
+    `@anthropic-ai/sdk`, then import from `tollgate-client/openai` or
+    `tollgate-client/anthropic`. Node 22 or later.
+  - **Java:** `io.github.jamal-akhras:tollgate-client` on Maven Central, with
+    `TollgateOpenAI` and `TollgateAnthropic`. Java 17 or later.
+- The libraries read `TOLLGATE_BASE_URL` and `TOLLGATE_API_KEY` and nothing
+  else, and never use a vendor's key variable.
+- The PyPI and npm packages are published by the release workflow, with
+  attestations and provenance that point at this repository
+  ([ADR 0033](docs/adr/0033-publish-the-client-libraries.md)).
+
 #### The console
 
 - A console at `/console/` on the admin port
@@ -257,6 +283,8 @@ traffic.
 
 ### Changed
 
+- `tollgate init` writes `userHeader: X-Tollgate-User` on the tenant it
+  creates, so a user sent in that header is recorded.
 - `tollgate init` writes `TOLLGATE_ADMIN_EDITS=file` into `tollgate.env`, so
   the console's edits work in the quickstart. Remove the line to keep the file
   read-only.

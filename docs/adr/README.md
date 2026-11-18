@@ -37,3 +37,7 @@ means in 0.1.0, and "For 0.2.0" means built on the way to 0.2.0.
 | [0028](0028-audit-trail-through-the-admin-api.md) | Read and prove the audit trail through the admin API | Accepted | For 0.2.0: the audit routes and inclusion proofs. `audit prove` comes after |
 | [0029](0029-config-in-the-console.md) | The console shows the config, and changes it only by rewriting the file | Accepted, amended | For 0.2.0: the config view and four edits (a guard's mode, a tenant's budget, create a key, revoke a key) when `TOLLGATE_ADMIN_EDITS=file` |
 | [0030](0030-pause-a-tenant.md) | Pause a tenant | Accepted | No; it is built after 0.2.0 |
+| [0031](0031-client-libraries-wrap-the-official-sdks.md) | Client libraries that wrap the official SDKs | Accepted | Yes |
+| [0032](0032-say-the-error-code-in-a-header.md) | Say the error code in a header, and list Anthropic models | Accepted, amends [ADR 0005](0005-forward-requests-in-their-own-format.md) | Yes |
+| [0033](0033-publish-the-client-libraries.md) | Build, test and publish the client libraries from this repo | Accepted, amends [ADR 0001](0001-runtime-and-build.md) | Yes |
+| [0034](0034-in-process-java-mode.md) | An in-process mode for Java, after 0.1.0 | Accepted | No; decided after the 0.1.1 performance report |

@@ -59,6 +59,40 @@ npm --prefix tollgate-console run build   # the files, and the first-load size l
   the shape of the admin API's answers. A route change updates the contract
   and the fixtures together.
 
+## The client libraries
+
+The Python library is in `clients/python` and the TypeScript one in
+`clients/typescript`. The Java one is `tollgate-client`, built by
+`./mvnw verify`. `./mvnw verify` doesn't build the other two, so run their
+checks yourself ([ADR 0033](docs/adr/0033-publish-the-client-libraries.md)).
+
+For Python you need 3.10 or later. From `clients/python`, in a virtual
+environment:
+
+```bash
+pip install --require-hashes -r requirements-dev.txt
+pip install --no-deps --no-build-isolation -e .
+ruff check . && ruff format --check . && mypy && python -m unittest discover -s tests
+```
+
+For TypeScript you need Node 22 or later:
+
+```bash
+npm --prefix clients/typescript ci --ignore-scripts
+npm --prefix clients/typescript run check   # tsc, then the unit tests
+```
+
+- **No new dependency** without a reason in the issue. The libraries depend
+  only on the vendor SDKs, which are optional.
+- **A library decides nothing.** It doesn't retry, log, cache or read a file,
+  and reads no environment variable except `TOLLGATE_BASE_URL` and
+  `TOLLGATE_API_KEY`. The key never appears in an error, a `repr` or a
+  `toString`.
+- **Python is typed** (`mypy --strict`), **TypeScript is strict**, and neither
+  package has an install script.
+- **A dependency change** needs the lockfile or the hashed requirements file
+  updated in the same commit.
+
 ## Code guidelines
 
 - `tollgate-core` depends only on the JDK and JSpecify; an architecture test
