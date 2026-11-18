@@ -1,6 +1,5 @@
 package io.github.jamalakhras.tollgate.providers;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -26,13 +25,11 @@ public final class ProviderStream implements AutoCloseable {
     }
 
     public ProviderResponse whole() throws InterruptedException {
-        ByteArrayOutputStream body = new ByteArrayOutputStream();
-        String line = lines.next(gap);
-        while (line != null) {
-            body.writeBytes((line + "\n").getBytes(StandardCharsets.UTF_8));
-            line = lines.next(gap);
+        StringBuilder body = new StringBuilder();
+        for (String line = lines.next(gap); line != null; line = lines.next(gap)) {
+            body.append(line).append('\n');
         }
-        return new ProviderResponse(status, body.toByteArray(), null, retryAfter);
+        return new ProviderResponse(status, body.toString().getBytes(StandardCharsets.UTF_8), null, retryAfter);
     }
 
     public @Nullable List<String> nextEvent(Duration remaining) throws InterruptedException {

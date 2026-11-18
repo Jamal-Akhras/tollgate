@@ -58,10 +58,6 @@ final class Section {
         return values.get(key) instanceof String;
     }
 
-    String path(String key) {
-        return pathOf(key);
-    }
-
     String text(String key) {
         String text = optionalText(key);
         if (text == null) {
@@ -158,16 +154,7 @@ final class Section {
     }
 
     <T> Map<String, T> sections(String key, Function<Section, T> reader) {
-        Object value = values.get(key);
-        if (value == null) {
-            return Map.of();
-        }
-        Map<String, T> sections = new LinkedHashMap<>();
-        for (Map.Entry<String, ?> entry : asMap(pathOf(key), value).entrySet()) {
-            String childPath = pathOf(key) + "." + entry.getKey();
-            sections.put(entry.getKey(), reader.apply(new Section(childPath, asMap(childPath, entry.getValue()))));
-        }
-        return sections;
+        return namedSections(key, (name, section) -> reader.apply(section));
     }
 
     <T> Map<String, T> namedSections(String key, BiFunction<String, Section, T> reader) {
@@ -177,10 +164,9 @@ final class Section {
         }
         Map<String, T> sections = new LinkedHashMap<>();
         for (Map.Entry<String, ?> entry : asMap(pathOf(key), value).entrySet()) {
-            String childPath = pathOf(key) + "." + entry.getKey();
             sections.put(
                     entry.getKey(),
-                    reader.apply(entry.getKey(), new Section(childPath, asMap(childPath, entry.getValue()))));
+                    reader.apply(entry.getKey(), at(pathOf(key) + "." + entry.getKey(), entry.getValue())));
         }
         return sections;
     }
@@ -195,7 +181,7 @@ final class Section {
 
     <T> @Nullable T optionalChild(String key, Function<Section, T> reader) {
         Object value = values.get(key);
-        return value == null ? null : reader.apply(new Section(pathOf(key), asMap(pathOf(key), value)));
+        return value == null ? null : reader.apply(at(pathOf(key), value));
     }
 
     @Nullable
@@ -234,10 +220,9 @@ final class Section {
 
     <T> List<T> sectionList(String key, Function<Section, T> reader) {
         List<T> sections = new ArrayList<>();
-        List<?> items = list(key);
+        List<?> items = listAt(pathOf(key), values.get(key));
         for (int i = 0; i < items.size(); i++) {
-            String childPath = pathOf(key) + "[" + i + "]";
-            sections.add(reader.apply(new Section(childPath, asMap(childPath, items.get(i)))));
+            sections.add(reader.apply(at(pathOf(key) + "[" + i + "]", items.get(i))));
         }
         return sections;
     }
@@ -251,8 +236,8 @@ final class Section {
         }
     }
 
-    private List<?> list(String key) {
-        return listAt(pathOf(key), values.get(key));
+    private static Section at(String path, @Nullable Object value) {
+        return new Section(path, asMap(path, value));
     }
 
     private static List<?> listAt(String path, @Nullable Object value) {
@@ -291,7 +276,7 @@ final class Section {
         return entries;
     }
 
-    private String pathOf(String key) {
+    String pathOf(String key) {
         return path.isEmpty() ? key : path + "." + key;
     }
 }

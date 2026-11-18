@@ -2,48 +2,18 @@ package io.github.jamalakhras.tollgate.server.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalServerPort;
 
 class LiveApiTest extends ServerTestSupport {
 
-    @LocalServerPort
-    private int gatewayPort;
-
-    private static HttpResponse<String> get(int port, String path, String... headers)
-            throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path));
-            if (headers.length > 0) {
-                request.headers(headers);
-            }
-            return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
-        }
-    }
-
-    private static HttpResponse<String> admin(String path) throws IOException, InterruptedException {
-        return get(ADMIN_PORT, "/admin/v1" + path, "Authorization", "Bearer " + ADMIN_TOKEN);
-    }
-
-    private static HttpResponse<String> awaiting(String path, String text) throws Exception {
-        HttpResponse<String> response = admin(path);
-        for (int i = 0; i < 50 && !response.body().contains(text); i++) {
-            Thread.sleep(100);
-            response = admin(path);
-        }
-        return response;
+    private static HttpResponse<String> awaiting(String path, String text) throws Throwable {
+        return poll(() -> admin(path), response -> response.body().contains(text));
     }
 
     @Test
-    void showsACallInTheLiveSnapshotAndTheActivityList() throws Exception {
-        PROVIDER.respond(200, "{\"id\":\"c\",\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3}}");
-        HttpResponse<String> chat =
-                post(CHAT, "{\"model\":\"qwen3\",\"messages\":[]}", "Authorization", "Bearer " + KEY.value());
+    void showsACallInTheLiveSnapshotAndTheActivityList() throws Throwable {
+        HttpResponse<String> chat = answeredCall();
         assertThat(chat.statusCode()).isEqualTo(200);
         String traceId = chat.headers().firstValue("X-Tollgate-Trace-Id").orElseThrow();
 
@@ -64,7 +34,7 @@ class LiveApiTest extends ServerTestSupport {
     }
 
     @Test
-    void refusesRangesItCannotServe() throws Exception {
+    void refusesRangesItCannotServe() throws Throwable {
         HttpResponse<String> minutes = admin("/live?minutes=0");
         assertThat(minutes.statusCode()).isEqualTo(400);
         assertThat(minutes.body())
@@ -79,14 +49,14 @@ class LiveApiTest extends ServerTestSupport {
     }
 
     @Test
-    void needsTheAdminToken() throws Exception {
-        assertThat(get(ADMIN_PORT, "/admin/v1/live").statusCode()).isEqualTo(401);
-        assertThat(get(ADMIN_PORT, "/admin/v1/activity").statusCode()).isEqualTo(401);
+    void needsTheAdminToken() throws Throwable {
+        assertThat(TestHttp.get(ADMIN_PORT, "/admin/v1/live").statusCode()).isEqualTo(401);
+        assertThat(TestHttp.get(ADMIN_PORT, "/admin/v1/activity").statusCode()).isEqualTo(401);
     }
 
     @Test
-    void answersOnlyOnTheAdminPort() throws Exception {
-        assertThat(get(gatewayPort, "/admin/v1/live").statusCode()).isEqualTo(404);
-        assertThat(get(gatewayPort, "/admin/v1/activity").statusCode()).isEqualTo(404);
+    void answersOnlyOnTheAdminPort() throws Throwable {
+        assertThat(TestHttp.get(gatewayPort, "/admin/v1/live").statusCode()).isEqualTo(404);
+        assertThat(TestHttp.get(gatewayPort, "/admin/v1/activity").statusCode()).isEqualTo(404);
     }
 }

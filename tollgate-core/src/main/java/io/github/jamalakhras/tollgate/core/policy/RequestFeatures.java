@@ -7,11 +7,7 @@ import java.util.Set;
 
 public record RequestFeatures(List<String> refused, List<String> unreviewed, Set<Feature> used, List<String> tools) {
 
-    public static final RequestFeatures NONE = new RequestFeatures(List.of(), List.of(), Set.of());
-
-    public RequestFeatures(List<String> refused, List<String> unreviewed, Set<Feature> used) {
-        this(refused, unreviewed, used, List.of());
-    }
+    public static final RequestFeatures NONE = new RequestFeatures(List.of(), List.of(), Set.of(), List.of());
 
     public RequestFeatures {
         refused = List.copyOf(refused);

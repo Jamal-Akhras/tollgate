@@ -3,7 +3,6 @@ package io.github.jamalakhras.tollgate.gateway;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
@@ -13,38 +12,19 @@ import org.junit.jupiter.api.Test;
 
 class AttributionTest extends GatewayTestSupport {
 
-    private static final String ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
-            + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
     private static final String BODY = "{\"model\":\"qwen3\",\"messages\":[]}";
     private static final String USER_HEADER = "X-OpenWebUI-User-Id";
     private static final String USER = "6f1c-user";
 
-    private HttpResponse<String> chat(String body, String key, String... headers) throws Exception {
-        String[] all = new String[headers.length + 2];
-        all[0] = "Authorization";
-        all[1] = "Bearer " + key;
-        System.arraycopy(headers, 0, all, 2, headers.length);
-        return post(Endpoints.OPENAI_CHAT, body, all);
-    }
-
-    private static Intent intentOf(HttpResponse<String> response) throws Exception {
-        return auditRecordsOf(response).stream()
-                .filter(Intent.class::isInstance)
-                .map(Intent.class::cast)
-                .findFirst()
-                .orElseThrow();
-    }
-
     private static String hmacOf(String value) {
-        return AuditKeys.of(AUDIT_KEYS.publicKey(), AUDIT_KEYS.signingKey(), AUDIT_KEYS.hmacKey())
-                .hmac(value.getBytes(UTF_8));
+        return SIGNING_KEYS.hmac(value.getBytes(UTF_8));
     }
 
     @Test
     void recordsTheHmacOfTheUserHeaderForATenantThatNamesIt() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        HttpResponse<String> response = chat(BODY, CHAT_KEY.value(), USER_HEADER, USER);
+        HttpResponse<String> response = chat(CHAT_KEY, BODY, USER_HEADER, USER);
 
         assertThat(response.statusCode()).isEqualTo(200);
         Intent intent = intentOf(response);
@@ -54,9 +34,9 @@ class AttributionTest extends GatewayTestSupport {
 
     @Test
     void ignoresTheHeaderForATenantThatDoesNotNameIt() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        HttpResponse<String> response = chat(BODY, KEY.value(), USER_HEADER, USER);
+        HttpResponse<String> response = chat(KEY, BODY, USER_HEADER, USER);
 
         assertThat(response.statusCode()).isEqualTo(200);
         Intent intent = intentOf(response);
@@ -66,10 +46,10 @@ class AttributionTest extends GatewayTestSupport {
 
     @Test
     void leavesARequestWithoutTheHeaderUnattributed() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        HttpResponse<String> missing = chat(BODY, CHAT_KEY.value());
-        HttpResponse<String> blank = chat(BODY, CHAT_KEY.value(), USER_HEADER, " ");
+        HttpResponse<String> missing = chat(CHAT_KEY, BODY);
+        HttpResponse<String> blank = chat(CHAT_KEY, BODY, USER_HEADER, " ");
 
         assertThat(missing.statusCode()).isEqualTo(200);
         assertThat(intentOf(missing).user()).isNull();
@@ -79,9 +59,9 @@ class AttributionTest extends GatewayTestSupport {
 
     @Test
     void doesNotSendTheHeaderToTheProvider() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        chat(BODY, CHAT_KEY.value(), USER_HEADER, USER);
+        chat(CHAT_KEY, BODY, USER_HEADER, USER);
 
         assertThat(PROVIDER.received().getFirst().headers().keySet())
                 .noneMatch(name -> name.equalsIgnoreCase("x-openwebui-user-id"));
@@ -92,7 +72,7 @@ class AttributionTest extends GatewayTestSupport {
         String body = "{\"model\":\"qwen3\",\"messages\":[],"
                 + "\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"run_command\",\"parameters\":{}}}]}";
 
-        HttpResponse<String> response = chat(body, CHAT_KEY.value(), USER_HEADER, USER);
+        HttpResponse<String> response = chat(CHAT_KEY, body, USER_HEADER, USER);
 
         assertThat(response.statusCode()).isEqualTo(403);
         Intent intent = intentOf(response);
@@ -102,9 +82,9 @@ class AttributionTest extends GatewayTestSupport {
 
     @Test
     void keepsTheUserOutOfTheMetrics() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        chat(BODY, CHAT_KEY.value(), USER_HEADER, USER);
+        chat(CHAT_KEY, BODY, USER_HEADER, USER);
 
         assertThat(Metrics.globalRegistry.getMeters())
                 .flatExtracting(meter -> meter.getId().getTags())

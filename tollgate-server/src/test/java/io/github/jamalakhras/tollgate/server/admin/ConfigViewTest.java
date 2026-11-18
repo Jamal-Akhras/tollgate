@@ -16,44 +16,24 @@ import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.TokenPrice;
+import io.github.jamalakhras.tollgate.core.money.TokenRates;
 import io.github.jamalakhras.tollgate.core.policy.MonitoredGuard;
 import io.github.jamalakhras.tollgate.core.policy.Policy;
 import io.github.jamalakhras.tollgate.core.policy.ToolNamesGuard;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Currency;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalServerPort;
 
 class ConfigViewTest extends ServerTestSupport {
 
-    @LocalServerPort
-    private int gatewayPort;
-
-    private static HttpResponse<String> get(String url, String... headers) throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url));
-            if (headers.length > 0) {
-                request.headers(headers);
-            }
-            return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
-        }
-    }
-
-    private static HttpResponse<String> admin(String path) throws IOException, InterruptedException {
-        return get("http://127.0.0.1:" + ADMIN_PORT + path, "Authorization", "Bearer " + ADMIN_TOKEN);
-    }
-
     @Test
     void showsTheRunningConfig() throws Exception {
-        HttpResponse<String> response = admin("/admin/v1/config");
+        HttpResponse<String> response = admin("/config");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body())
@@ -71,44 +51,27 @@ class ConfigViewTest extends ServerTestSupport {
 
     @Test
     void showsTheVersionAReloadReports() throws Exception {
-        String reloaded;
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            reloaded = client.send(
-                            HttpRequest.newBuilder(
-                                            URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1/config/reload"))
-                                    .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                                    .POST(HttpRequest.BodyPublishers.noBody())
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString())
-                    .body();
-        }
-        String marker = "\"version\":\"";
-        int start = reloaded.indexOf(marker) + marker.length();
-        String version = reloaded.substring(start, reloaded.indexOf('"', start));
+        String version = versionIn(reload());
 
-        assertThat(admin("/admin/v1/config").body()).contains(marker + version + "\"");
+        assertThat(admin("/config").body()).contains("\"version\":\"" + version + "\"");
     }
 
     @Test
     void needsTheAdminToken() throws Exception {
-        assertThat(get("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1/config").statusCode())
-                .isEqualTo(401);
+        assertThat(TestHttp.get(ADMIN_PORT, "/admin/v1/config").statusCode()).isEqualTo(401);
     }
 
     @Test
     void answersOnlyOnTheAdminPort() throws Exception {
-        assertThat(get("http://127.0.0.1:" + gatewayPort + "/admin/v1/config").statusCode())
-                .isEqualTo(404);
+        assertThat(TestHttp.get(gatewayPort, "/admin/v1/config").statusCode()).isEqualTo(404);
     }
 
     @Test
     void mapsGuardsBudgetsLimitsAndSecrets() {
         Currency usd = Currency.getInstance("USD");
-        ModelPrice price = new ModelPrice(
-                new TokenPrice(new Money(1, usd)),
-                new TokenPrice(new Money(2, usd)),
-                new TokenPrice(new Money(1, usd)),
-                new TokenPrice(new Money(1, usd)));
+        TokenPrice cheap = new TokenPrice(new Money(1, usd));
+        TokenPrice dear = new TokenPrice(new Money(2, usd));
+        ModelPrice price = new ModelPrice(new TokenRates(cheap, dear, dear, cheap, cheap), List.of(), null);
         var provider = new Provider(
                 WireFormat.OPENAI,
                 URI.create("https://api.example.com:8443/v1"),

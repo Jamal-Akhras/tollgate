@@ -52,40 +52,17 @@ class RequestRedactionTest {
 
         JsonNode messages = sent.path("messages");
         assertThat(messages.path(0).path("content").stringValue()).isEqualTo("Support for [EMAIL_1]");
-        assertThat(messages.path(1).path("content").path(0).path("text").stringValue())
-                .isEqualTo("My card is [CARD_1]");
-        assertThat(messages.path(1)
-                        .path("content")
-                        .path(1)
-                        .path("image_url")
-                        .path("url")
-                        .stringValue())
+        assertThat(messages.at("/1/content/0/text").stringValue()).isEqualTo("My card is [CARD_1]");
+        assertThat(messages.at("/1/content/1/image_url/url").stringValue())
                 .isEqualTo("https://example.com/jane@example.com.png");
         assertThat(messages.path(2).path("refusal").stringValue()).isEqualTo("Not for [EMAIL_2]");
         assertThat(messages.path(2).path("reasoning_content").stringValue()).isEqualTo("[EMAIL_1] wants");
-        assertThat(messages.path(2)
-                        .path("tool_calls")
-                        .path(0)
-                        .path("function")
-                        .path("arguments")
-                        .stringValue())
+        assertThat(messages.at("/2/tool_calls/0/function/arguments").stringValue())
                 .isEqualTo("{\"to\":\"[EMAIL_1]\",\"cc\":[\"[EMAIL_2]\"],\"n\":1.50}");
-        assertThat(messages.path(2)
-                        .path("tool_calls")
-                        .path(1)
-                        .path("custom")
-                        .path("input")
-                        .stringValue())
-                .isEqualTo("call [PHONE_1]");
+        assertThat(messages.at("/2/tool_calls/1/custom/input").stringValue()).isEqualTo("call [PHONE_1]");
         assertThat(messages.path(3).path("content").stringValue()).isEqualTo("Sent to [EMAIL_1]");
-        assertThat(messages.path(4).path("content").path(0).path("refusal").stringValue())
-                .isEqualTo("[EMAIL_1]");
-        assertThat(sent.path("tools")
-                        .path(0)
-                        .path("function")
-                        .path("description")
-                        .stringValue())
-                .isEqualTo("e.g. jane@example.com");
+        assertThat(messages.at("/4/content/0/refusal").stringValue()).isEqualTo("[EMAIL_1]");
+        assertThat(sent.at("/tools/0/function/description").stringValue()).isEqualTo("e.g. jane@example.com");
         assertThat(sent.path("temperature").decimalValue()).isEqualByComparingTo("0.7");
     }
 
@@ -97,13 +74,7 @@ class RequestRedactionTest {
 
         JsonNode sent = tree(sent(json, WireFormat.OPENAI, redactor()));
 
-        assertThat(sent.path("messages")
-                        .path(0)
-                        .path("tool_calls")
-                        .path(0)
-                        .path("function")
-                        .path("arguments")
-                        .stringValue())
+        assertThat(sent.at("/messages/0/tool_calls/0/function/arguments").stringValue())
                 .isEqualTo("{\"city\":  \"Paris\" }");
     }
 
@@ -113,15 +84,10 @@ class RequestRedactionTest {
                 + "\"function\":{\"name\":\"f\",\"arguments\":\"{\\\"to\\\": \\\"jane@example.com\"}},"
                 + "{\"type\":\"function\",\"function\":{\"name\":\"g\",\"arguments\":\"\\\"bob@example.org\\\"\"}}]}]}";
 
-        JsonNode calls = tree(sent(json, WireFormat.OPENAI, redactor()))
-                .path("messages")
-                .path(0)
-                .path("tool_calls");
+        JsonNode calls = tree(sent(json, WireFormat.OPENAI, redactor())).at("/messages/0/tool_calls");
 
-        assertThat(calls.path(0).path("function").path("arguments").stringValue())
-                .isEqualTo("{\"to\": \"[EMAIL_1]");
-        assertThat(calls.path(1).path("function").path("arguments").stringValue())
-                .isEqualTo("\"[EMAIL_2]\"");
+        assertThat(calls.at("/0/function/arguments").stringValue()).isEqualTo("{\"to\": \"[EMAIL_1]");
+        assertThat(calls.at("/1/function/arguments").stringValue()).isEqualTo("\"[EMAIL_2]\"");
     }
 
     @Test
@@ -146,13 +112,8 @@ class RequestRedactionTest {
 
         JsonNode sent = tree(sent(json, WireFormat.ANTHROPIC, redactor()));
 
-        assertThat(sent.path("system").path(0).path("text").stringValue()).isEqualTo("Agent for [EMAIL_1]");
-        assertThat(sent.path("system")
-                        .path(0)
-                        .path("cache_control")
-                        .path("type")
-                        .stringValue())
-                .isEqualTo("ephemeral");
+        assertThat(sent.at("/system/0/text").stringValue()).isEqualTo("Agent for [EMAIL_1]");
+        assertThat(sent.at("/system/0/cache_control/type").stringValue()).isEqualTo("ephemeral");
         JsonNode messages = sent.path("messages");
         assertThat(messages.path(0).path("content").stringValue()).isEqualTo("Card [CARD_1]");
         JsonNode answer = messages.path(1).path("content");
@@ -160,25 +121,15 @@ class RequestRedactionTest {
         assertThat(answer.path(0).path("signature").stringValue()).isEqualTo("c2ln");
         assertThat(answer.path(1).path("data").stringValue()).isEqualTo("ZW5j");
         assertThat(answer.path(2).path("text").stringValue()).isEqualTo("Writing to [EMAIL_1]");
-        assertThat(answer.path(3).path("input").path("to").path(0).stringValue())
-                .isEqualTo("[EMAIL_1]");
-        assertThat(answer.path(3).path("input").path("meta").path("cc").stringValue())
-                .isEqualTo("[EMAIL_2]");
-        assertThat(answer.path(3).path("input").path("meta").path("n").intValue())
-                .isEqualTo(2);
+        assertThat(answer.at("/3/input/to/0").stringValue()).isEqualTo("[EMAIL_1]");
+        assertThat(answer.at("/3/input/meta/cc").stringValue()).isEqualTo("[EMAIL_2]");
+        assertThat(answer.at("/3/input/meta/n").intValue()).isEqualTo(2);
         JsonNode results = messages.path(2).path("content");
         assertThat(results.path(0).path("content").stringValue()).isEqualTo("Sent to [EMAIL_2]");
-        assertThat(results.path(1).path("content").path(0).path("text").stringValue())
-                .isEqualTo("[EMAIL_1]");
-        assertThat(results.path(2).path("source").path("data").stringValue()).isEqualTo("Invoice for [EMAIL_1]");
-        assertThat(results.path(3)
-                        .path("source")
-                        .path("content")
-                        .path(0)
-                        .path("text")
-                        .stringValue())
-                .isEqualTo("[EMAIL_2]");
-        assertThat(results.path(4).path("source").path("data").stringValue()).isEqualTo("amFuZUBleGFtcGxlLmNvbQ==");
+        assertThat(results.at("/1/content/0/text").stringValue()).isEqualTo("[EMAIL_1]");
+        assertThat(results.at("/2/source/data").stringValue()).isEqualTo("Invoice for [EMAIL_1]");
+        assertThat(results.at("/3/source/content/0/text").stringValue()).isEqualTo("[EMAIL_2]");
+        assertThat(results.at("/4/source/data").stringValue()).isEqualTo("amFuZUBleGFtcGxlLmNvbQ==");
     }
 
     @Test
@@ -197,10 +148,7 @@ class RequestRedactionTest {
                 + "\"classifier_context\":{\"user_identity\":\"jane@example.com\",\"rules\":{\"deny\":[]}}}]}";
 
         assertThat(tree(sent(json, WireFormat.ANTHROPIC, redactor()))
-                        .path("safeguards")
-                        .path(0)
-                        .path("classifier_context")
-                        .path("user_identity")
+                        .at("/safeguards/0/classifier_context/user_identity")
                         .stringValue())
                 .isEqualTo("[EMAIL_1]");
     }

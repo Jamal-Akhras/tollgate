@@ -21,7 +21,6 @@ import java.io.Serial;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Currency;
 import java.util.HashMap;
@@ -29,11 +28,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import org.jspecify.annotations.Nullable;
 
 final class LiveWindow {
 
-    private static final long BUCKET_SECONDS = 5;
+    static final int BUCKET_SECONDS = 5;
     private static final int BUCKETS = 720;
     private static final int MINUTES = 15;
     private static final int KEYS = 2000;
@@ -42,14 +43,10 @@ final class LiveWindow {
     private static final int WAITING = 10_000;
     private static final int STEPS = 40;
     private static final String OTHER = "other";
-    private static final long[] BOUNDS = new long[STEPS];
+    private static final long[] BOUNDS = IntStream.range(0, STEPS)
+            .mapToLong(i -> Math.round(16 * Math.pow(2, i / 2.0)))
+            .toArray();
     private static final BucketData EMPTY_BUCKET = new BucketData();
-
-    static {
-        for (int i = 0; i < STEPS; i++) {
-            BOUNDS[i] = Math.round(16 * Math.pow(2, i / 2.0));
-        }
-    }
 
     private final Instant started;
     private Instant latest;
@@ -59,7 +56,7 @@ final class LiveWindow {
     private final TreeMap<Long, Map<FlowKey, FlowData>> flows = new TreeMap<>();
     private final TreeMap<Long, Map<GuardKey, GuardData>> guards = new TreeMap<>();
     private final Map<String, FlowKey> waiting = new Bounded<>(WAITING);
-    private final Map<String, Call> calls = new Bounded<>(CALLS);
+    private final Bounded<String, Call> calls = new Bounded<>(CALLS);
 
     LiveWindow(Instant started) {
         this.started = started;
@@ -104,9 +101,8 @@ final class LiveWindow {
                 .values()
                 .forEach(map ->
                         map.forEach((key, data) -> data.addTo(guardTotals.computeIfAbsent(key, k -> new GuardData()))));
-        List<CallView> callViews = new ArrayList<>();
-        calls.values().forEach(call -> callViews.add(call.view()));
-        Collections.reverse(callViews);
+        List<CallView> callViews =
+                calls.sequencedValues().reversed().stream().map(Call::view).toList();
         Instant skip = skippedAt;
         boolean wasSkipped = skip != null && !skip.isAfter(now) && now.isBefore(skip.plus(SKIPPED_FOR));
         Seal seal = lastSeal;
@@ -124,7 +120,7 @@ final class LiveWindow {
                 guardTotals.entrySet().stream()
                         .map(entry -> entry.getValue().view(entry.getKey()))
                         .toList(),
-                List.copyOf(callViews),
+                callViews,
                 seal == null ? null : LiveViews.sealView(seal));
     }
 
@@ -265,10 +261,7 @@ final class LiveWindow {
     }
 
     private static @Nullable Long percentile(long[] latency, int percent) {
-        long total = 0;
-        for (long count : latency) {
-            total += count;
-        }
+        long total = LongStream.of(latency).sum();
         if (total == 0) {
             return null;
         }
@@ -291,9 +284,7 @@ final class LiveWindow {
     }
 
     private static Amount amount(Money money) {
-        return new Amount(
-                money.toBigDecimal().stripTrailingZeros().toPlainString(),
-                money.currency().getCurrencyCode());
+        return new Amount(LiveViews.plain(money), money.currency().getCurrencyCode());
     }
 
     private static Map<String, String> amounts(Map<Currency, Long> cost) {

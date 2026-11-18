@@ -106,23 +106,7 @@ class AuditJsonTest {
     @Test
     void readsAVersion4IntentWithMonitoredStepsAndRedactions() {
         Intent monitored = Samples.monitored("a");
-        Intent attributed = new Intent(
-                monitored.id(),
-                monitored.time(),
-                monitored.tenant(),
-                monitored.key(),
-                monitored.endpoint(),
-                monitored.model(),
-                monitored.provider(),
-                monitored.upstream(),
-                monitored.dataClass(),
-                monitored.configVersion(),
-                monitored.requestHmac(),
-                monitored.steps(),
-                monitored.decision(),
-                monitored.reservation(),
-                monitored.redactions(),
-                Samples.USER);
+        Intent attributed = Samples.intent("a", monitored.steps(), monitored.redactions(), Samples.USER);
 
         String line = AuditJson.write(attributed);
 

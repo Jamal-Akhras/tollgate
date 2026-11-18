@@ -5,8 +5,6 @@ import java.util.List;
 
 public record InclusionProof(int index, int size, String encoding, String leafHash, List<String> path, String root) {
 
-    private static final byte[] NODE = {1};
-
     public InclusionProof {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
@@ -49,7 +47,7 @@ public record InclusionProof(int index, int size, String encoding, String leafHa
     }
 
     public boolean verifies() {
-        byte[] hash = Digests.sha256(new byte[] {0}, Base64.getDecoder().decode(encoding));
+        byte[] hash = MerkleTree.leafHash(Base64.getDecoder().decode(encoding));
         if (!Digests.HEX.formatHex(hash).equals(leafHash)) {
             return false;
         }
@@ -62,13 +60,13 @@ public record InclusionProof(int index, int size, String encoding, String leafHa
             }
             byte[] sibling = Digests.HEX.parseHex(step);
             if ((fn & 1) == 1 || fn == sn) {
-                reached = Digests.sha256(NODE, sibling, reached);
+                reached = MerkleTree.node(sibling, reached);
                 while ((fn & 1) == 0 && fn != 0) {
                     fn >>= 1;
                     sn >>= 1;
                 }
             } else {
-                reached = Digests.sha256(NODE, reached, sibling);
+                reached = MerkleTree.node(reached, sibling);
             }
             fn >>= 1;
             sn >>= 1;

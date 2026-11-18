@@ -116,7 +116,10 @@ public final class AuditDirectory {
             AtomicReference<@Nullable Seal> last = new AtomicReference<>();
             read(file, (number, text, torn) -> {
                 if (!torn) {
-                    sealIn(text).ifPresent(last::set);
+                    entry(text)
+                            .filter(Seal.class::isInstance)
+                            .map(Seal.class::cast)
+                            .ifPresent(last::set);
                 }
             });
             Seal seal = last.get();
@@ -197,10 +200,6 @@ public final class AuditDirectory {
                 return read;
             }
         };
-    }
-
-    private static Optional<Seal> sealIn(String text) {
-        return entry(text).filter(Seal.class::isInstance).map(Seal.class::cast);
     }
 
     private static Optional<AuditEntry> entry(String text) {

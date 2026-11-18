@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.jamalakhras.tollgate.gateway.ConfigOperation;
 import io.github.jamalakhras.tollgate.gateway.StartupException;
 import java.io.File;
 import java.nio.file.FileSystems;
@@ -61,16 +62,16 @@ class ConfigEditorTest {
 
     @Test
     void describesAManagedWriteInOneLine() {
-        var write = new ConfigEditor.ManagedWrite(
+        String line = ConfigEditor.line(
                 "5d9c1b52-0f0e-4a1b-9d55-6f5c3d1c2b7a",
                 AdminCaller.ADMIN,
                 "aaa",
                 "bbb",
                 List.of(
-                        new ConfigEditor.Operation("set-budget", "tenants.metered.budget"),
-                        new ConfigEditor.Operation("create-key", "keys")));
+                        new ConfigOperation("set-budget", "tenants.metered.budget", document -> document),
+                        new ConfigOperation("create-key", "keys", document -> document)));
 
-        assertThat(write.line())
+        assertThat(line)
                 .isEqualTo("Config change 5d9c1b52-0f0e-4a1b-9d55-6f5c3d1c2b7a by ADMIN: version bbb replaces aaa;"
                         + " set-budget tenants.metered.budget, create-key keys");
     }

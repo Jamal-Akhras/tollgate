@@ -12,6 +12,8 @@ import io.github.jamalakhras.tollgate.gateway.Gateway;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditBatches;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
+import io.github.jamalakhras.tollgate.server.admin.AdminResponses.AuditBusy;
+import io.github.jamalakhras.tollgate.server.admin.AdminResponses.AuditOff;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.SealView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,10 +28,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -60,10 +59,7 @@ class AuditController {
             description = "The audit mode, the public key the server verifies with and its ID, the number of trail"
                     + " files and the last sealed batch.")
     @ApiResponse(responseCode = "200", description = "The state of the trail")
-    @ApiResponse(
-            responseCode = "409",
-            description = "The audit trail is off",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @AuditOff
     AuditStatus status() throws IOException {
         AuditSettings.Enabled settings = settings();
         Path directory = directory();
@@ -84,18 +80,15 @@ class AuditController {
     @ApiResponse(
             responseCode = "400",
             description = "limit is not between 1 and 200",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "The audit trail is off",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @AuditOff
     List<BatchView> batches(
             @Parameter(description = "How many batches to return, from 1 to 200") @RequestParam(defaultValue = "50")
                     int limit)
             throws IOException {
         Path directory = directory();
         if (limit < 1 || limit > 200) {
-            throw new BadQuery("limit must be between 1 and 200, was " + limit);
+            throw AdminException.badQuery("limit must be between 1 and 200, was " + limit);
         }
         return AuditBatches.recent(directory, limit).stream()
                 .map(batch -> new BatchView(LiveViews.sealView(batch.seal()), batch.file()))
@@ -112,21 +105,15 @@ class AuditController {
     @ApiResponse(
             responseCode = "404",
             description = "No such batch in the trail",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "The audit trail is off",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "429",
-            description = "Another long read of the trail is running; retry after the Retry-After seconds",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @AuditOff
+    @AuditBusy
     BatchDetail batch(@Parameter(description = "The batch number") @PathVariable long batch) throws Exception {
-        PublicKey publicKey = AuditKeys.publicKey(settings().publicKey());
+        PublicKey publicKey = publicKey();
         Path directory = directory();
         AuditBatches.Batch found = longReads
                 .run(() -> AuditBatches.batch(directory, batch))
-                .orElseThrow(() -> new NotFound("No batch " + batch + " in the audit trail"));
+                .orElseThrow(() -> AdminException.notFound("No batch " + batch + " in the audit trail"));
         Seal seal = found.seal();
         List<String> hashes = InclusionProof.leafHashes(found.records());
         List<LeafView> leaves = new ArrayList<>();
@@ -153,30 +140,24 @@ class AuditController {
     @ApiResponse(
             responseCode = "400",
             description = "The ID is longer than 64 characters",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
     @ApiResponse(
             responseCode = "404",
             description = "No audit record for the request",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "The audit trail is off",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "429",
-            description = "Another long read of the trail is running; retry after the Retry-After seconds",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @AuditOff
+    @AuditBusy
     RecordProofs record(
             @Parameter(description = "The request ID, with its attempt suffix for a fallback") @PathVariable String id)
             throws Exception {
-        PublicKey publicKey = AuditKeys.publicKey(settings().publicKey());
+        PublicKey publicKey = publicKey();
         Path directory = directory();
         if (id.length() > MAX_ID) {
-            throw new BadQuery("id must be at most " + MAX_ID + " characters");
+            throw AdminException.badQuery("id must be at most " + MAX_ID + " characters");
         }
         AuditBatches.Found found = longReads.run(() -> AuditBatches.find(directory, id));
         if (found.intent() == null && found.outcome() == null) {
-            throw new NotFound("No audit record for request " + id);
+            throw AdminException.notFound("No audit record for request " + id);
         }
         return new RecordProofs(proved(found.intent(), publicKey), proved(found.outcome(), publicKey));
     }
@@ -187,16 +168,10 @@ class AuditController {
             description = "Reads every file and checks every seal with the configured public key. One such read at a"
                     + " time.")
     @ApiResponse(responseCode = "200", description = "The result, intact or not")
-    @ApiResponse(
-            responseCode = "409",
-            description = "The audit trail is off",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
-    @ApiResponse(
-            responseCode = "429",
-            description = "Another long read of the trail is running; retry after the Retry-After seconds",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+    @AuditOff
+    @AuditBusy
     Verification verification() throws Exception {
-        PublicKey publicKey = AuditKeys.publicKey(settings().publicKey());
+        PublicKey publicKey = publicKey();
         Path directory = directory();
         long start = System.nanoTime();
         TrailVerifier.Report report = longReads.run(() -> AuditDirectory.verify(directory, publicKey));
@@ -239,11 +214,19 @@ class AuditController {
         if (gateway.config().audit() instanceof AuditSettings.Enabled enabled) {
             return enabled;
         }
-        throw new AuditOff();
+        throw auditOff();
+    }
+
+    private PublicKey publicKey() {
+        return AuditKeys.publicKey(settings().publicKey());
+    }
+
+    private static AdminException auditOff() {
+        return AdminException.auditOff("The audit trail is off: audit.mode is off");
     }
 
     private Path directory() {
-        return gateway.auditDirectory().orElseThrow(AuditOff::new);
+        return gateway.auditDirectory().orElseThrow(AuditController::auditOff);
     }
 
     private static String type(AuditRecord record) {
@@ -252,31 +235,6 @@ class AuditController {
 
     private static Instant time(AuditRecord record) {
         return record instanceof Intent intent ? intent.time() : ((Outcome) record).time();
-    }
-
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> badQuery(BadQuery e) {
-        return ResponseEntity.badRequest()
-                .body(new ConfigController.AdminError("invalid_request", String.valueOf(e.getMessage())));
-    }
-
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> auditOff(AuditOff e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ConfigController.AdminError("audit_off", String.valueOf(e.getMessage())));
-    }
-
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> notFound(NotFound e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ConfigController.AdminError("not_found", String.valueOf(e.getMessage())));
-    }
-
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> busy(OneAtATime.Busy e) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", "2")
-                .body(new ConfigController.AdminError("audit_busy", String.valueOf(e.getMessage())));
     }
 
     record AuditStatus(
@@ -320,31 +278,4 @@ class AuditController {
             long millis) {}
 
     record ProblemView(String file, long line, String message) {}
-
-    static final class BadQuery extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        BadQuery(String message) {
-            super(message);
-        }
-    }
-
-    static final class NotFound extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        NotFound(String message) {
-            super(message);
-        }
-    }
-
-    static final class AuditOff extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        AuditOff() {
-            super("The audit trail is off: audit.mode is off");
-        }
-    }
 }

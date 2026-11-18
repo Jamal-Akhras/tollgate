@@ -27,13 +27,9 @@ public record ModelPrice(
         }
     }
 
-    public ModelPrice(TokenPrice input, TokenPrice output, TokenPrice cacheRead, TokenPrice cacheWrite) {
-        this(new TokenRates(input, output, cacheRead, cacheWrite), List.of(), null);
-    }
-
     public static ModelPrice free(Currency currency) {
         TokenPrice nothing = new TokenPrice(new Money(0, currency));
-        return new ModelPrice(nothing, nothing, nothing, nothing);
+        return new ModelPrice(new TokenRates(nothing, nothing, nothing, nothing, nothing), List.of(), null);
     }
 
     public Currency currency() {
@@ -51,11 +47,7 @@ public record ModelPrice(
     }
 
     public Money costOf(Usage usage) {
-        return costOf(usage, 0, 0);
-    }
-
-    public Money costOf(Usage usage, long reasoningTokens, long webSearches) {
-        return costOf(usage, reasoningTokens, webSearches, 0);
+        return costOf(usage, 0, 0, 0);
     }
 
     public Money costOf(Usage usage, long reasoningTokens, long webSearches, long cacheWrite1hTokens) {
@@ -71,10 +63,6 @@ public record ModelPrice(
                 .map(tier -> new ContextTier(tier.fromTokens(), tier.rates().withCacheWrite1hAtTwiceInput()))
                 .toList();
         return new ModelPrice(rates.withCacheWrite1hAtTwiceInput(), tiers, webSearch);
-    }
-
-    public Money mostFor(long inputTokens, long outputTokens) {
-        return mostFor(inputTokens, outputTokens, 0);
     }
 
     public Money mostFor(long inputTokens, long outputTokens, long webSearches) {

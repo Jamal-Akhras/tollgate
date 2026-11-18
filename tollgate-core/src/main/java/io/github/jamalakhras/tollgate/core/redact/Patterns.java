@@ -92,9 +92,6 @@ final class Patterns {
         Matcher run = DIGIT_RUN.matcher(text);
         while (run.find()) {
             List<Span> groups = digitGroups(text, run.start(), run.end());
-            if (continues(text, run.end())) {
-                groups.removeLast();
-            }
             for (int first = 0; first < groups.size(); first++) {
                 int last = longestCard(text, groups, first);
                 if (last >= 0) {
@@ -112,7 +109,7 @@ final class Patterns {
             if (length == null) {
                 continue;
             }
-            StringBuilder iban = new StringBuilder(text.substring(start.start(), start.end()));
+            StringBuilder iban = new StringBuilder(start.group());
             int at = start.end();
             while (iban.length() < length && at < text.length()) {
                 char c = text.charAt(at);
@@ -141,9 +138,6 @@ final class Patterns {
         Matcher international = INTERNATIONAL_PHONE.matcher(text);
         while (international.find()) {
             List<Span> groups = digitGroups(text, international.start(), international.end());
-            if (continues(text, international.end())) {
-                groups.removeLast();
-            }
             int digits = 0;
             int end = international.start();
             for (Span group : groups) {
@@ -211,6 +205,9 @@ final class Patterns {
             } else {
                 at++;
             }
+        }
+        if (continues(text, end)) {
+            groups.removeLast();
         }
         return groups;
     }

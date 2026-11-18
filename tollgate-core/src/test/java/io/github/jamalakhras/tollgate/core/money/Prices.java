@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.List;
 
 public final class Prices {
 
@@ -25,11 +26,17 @@ public final class Prices {
         }
     }
 
-    public static ModelPrice perMillion(String input, String output, String cacheRead, String cacheWrite) {
-        return new ModelPrice(
+    public static TokenRates rates(String input, String output, String cacheRead, String cacheWrite) {
+        TokenPrice outputPrice = new TokenPrice(usd(output));
+        return new TokenRates(
                 new TokenPrice(usd(input)),
-                new TokenPrice(usd(output)),
+                outputPrice,
+                outputPrice,
                 new TokenPrice(usd(cacheRead)),
                 new TokenPrice(usd(cacheWrite)));
+    }
+
+    public static ModelPrice perMillion(String input, String output, String cacheRead, String cacheWrite) {
+        return new ModelPrice(rates(input, output, cacheRead, cacheWrite), List.of(), null);
     }
 }

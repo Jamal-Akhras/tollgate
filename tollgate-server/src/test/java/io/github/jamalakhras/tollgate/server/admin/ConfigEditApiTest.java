@@ -3,12 +3,9 @@ package io.github.jamalakhras.tollgate.server.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.github.jamalakhras.tollgate.server.TestPorts;
+import io.github.jamalakhras.tollgate.providers.TestPorts;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,10 +36,10 @@ class ConfigEditApiTest {
     private static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0004";
     private static final Path FOLDER = temporaryFolder();
     private static final Path CONFIG = FOLDER.resolve("tollgate.yaml");
+    private static final Path ORIGINAL = Path.of(CONFIG + ".original");
     private static final ApiKey STARTING_KEY = ApiKey.generate(new SecureRandom());
     private static final String TEXT = handWritten();
     private static final Pattern VERSION = Pattern.compile("\"version\":\"([0-9a-f]{64})\"");
-    private static final String BUDGET_20_DAILY = "{\"limit\":\"20\",\"period\":\"daily\"}";
     private static final String GUARD_1 = "/admin/v1/policies/default/guards/1";
 
     @DynamicPropertySource
@@ -110,7 +107,7 @@ class ConfigEditApiTest {
     @AfterEach
     void putTheHandWrittenFileBack() throws Exception {
         Files.writeString(CONFIG, TEXT);
-        Files.deleteIfExists(Path.of(CONFIG + ".original"));
+        Files.deleteIfExists(ORIGINAL);
         send("POST", "/admin/v1/config/reload");
     }
 
@@ -120,14 +117,7 @@ class ConfigEditApiTest {
 
     private static HttpResponse<String> call(int port, String method, String path, String body, String... headers)
             throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
-                    .method(method, HttpRequest.BodyPublishers.ofString(body));
-            if (headers.length > 0) {
-                request.headers(headers);
-            }
-            return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
-        }
+        return TestHttp.send(method, port, path, body, headers);
     }
 
     private static String version() throws IOException, InterruptedException {
@@ -149,6 +139,14 @@ class ConfigEditApiTest {
                 "application/json",
                 "If-Match",
                 ifMatch);
+    }
+
+    private static HttpResponse<String> putBudget(String tenant, String limit, String period)
+            throws IOException, InterruptedException {
+        return put(
+                "/admin/v1/tenants/" + tenant + "/budget",
+                "{\"limit\":\"" + limit + "\",\"period\":\"" + period + "\"}",
+                version());
     }
 
     private static HttpResponse<String> putMode(String mode) throws IOException, InterruptedException {
@@ -184,7 +182,7 @@ class ConfigEditApiTest {
         assertThat(view.body()).contains("\"mode\":\"monitor\"").contains("\"rewritten\":true");
         assertThat(view.body()).contains("\"version\":\"" + version() + "\"");
         assertThat(Files.readString(CONFIG)).contains("mode: \"monitor\"");
-        assertThat(Files.readString(Path.of(CONFIG + ".original"))).contains("# Written by hand");
+        assertThat(Files.readString(ORIGINAL)).contains("# Written by hand");
 
         HttpResponse<String> enforced = putMode("enforce");
 
@@ -201,7 +199,7 @@ class ConfigEditApiTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"version\":\"" + started + "\"").contains("\"changed\":false");
-        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+        assertThat(Files.exists(ORIGINAL)).isFalse();
     }
 
     @Test
@@ -226,7 +224,7 @@ class ConfigEditApiTest {
 
         assertThat(response.statusCode()).isEqualTo(412);
         assertThat(response.body()).contains("\"code\":\"config_changed\"");
-        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+        assertThat(Files.exists(ORIGINAL)).isFalse();
     }
 
     @Test
@@ -237,7 +235,7 @@ class ConfigEditApiTest {
             assertThat(response.statusCode()).as(sent).isEqualTo(412);
             assertThat(response.body()).contains("\"code\":\"config_changed\"");
         }
-        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+        assertThat(Files.exists(ORIGINAL)).isFalse();
     }
 
     @Test
@@ -282,7 +280,7 @@ class ConfigEditApiTest {
 
     @Test
     void setsABudgetOnATenantThatHadNone() throws Exception {
-        HttpResponse<String> response = put("/admin/v1/tenants/unbudgeted/budget", BUDGET_20_DAILY, version());
+        HttpResponse<String> response = putBudget("unbudgeted", "20", "daily");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"changed\":true");
@@ -294,17 +292,16 @@ class ConfigEditApiTest {
 
     @Test
     void explainsWhyATenantOfFreeModelsCannotHaveABudget() throws Exception {
-        HttpResponse<String> response = put("/admin/v1/tenants/support-bot/budget", BUDGET_20_DAILY, version());
+        HttpResponse<String> response = putBudget("support-bot", "20", "daily");
 
         assertThat(response.statusCode()).isEqualTo(422);
         assertThat(response.body()).contains("\"code\":\"invalid_config\"").contains("tenants.support-bot.budget");
-        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+        assertThat(Files.exists(ORIGINAL)).isFalse();
     }
 
     @Test
     void changesTheLimitOfAnExistingBudget() throws Exception {
-        HttpResponse<String> response =
-                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"20\",\"period\":\"monthly\"}", version());
+        HttpResponse<String> response = putBudget("metered", "20", "monthly");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(send("GET", "/admin/v1/budgets").body())
@@ -314,25 +311,17 @@ class ConfigEditApiTest {
 
     @Test
     void rejectsABudgetItCannotSet() throws Exception {
-        assertThat(put("/admin/v1/tenants/nobody/budget", BUDGET_20_DAILY, version())
-                        .statusCode())
-                .isEqualTo(404);
-        assertThat(put("/admin/v1/tenants/metered/budget", "{\"limit\":\"abc\",\"period\":\"daily\"}", version())
-                        .statusCode())
-                .isEqualTo(400);
-        assertThat(put("/admin/v1/tenants/metered/budget", "{\"limit\":\"-1\",\"period\":\"daily\"}", version())
-                        .statusCode())
-                .isEqualTo(400);
-        HttpResponse<String> period =
-                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"1\",\"period\":\"weekly\"}", version());
+        assertThat(putBudget("nobody", "20", "daily").statusCode()).isEqualTo(404);
+        assertThat(putBudget("metered", "abc", "daily").statusCode()).isEqualTo(400);
+        assertThat(putBudget("metered", "-1", "daily").statusCode()).isEqualTo(400);
+        HttpResponse<String> period = putBudget("metered", "1", "weekly");
         assertThat(period.statusCode()).isEqualTo(400);
         assertThat(period.body()).contains("period must be one of daily, monthly, total, was weekly");
     }
 
     @Test
     void refusesALimitWithTooManyDecimalPlaces() throws Exception {
-        HttpResponse<String> response =
-                put("/admin/v1/tenants/metered/budget", "{\"limit\":\"0.0000000001\",\"period\":\"daily\"}", version());
+        HttpResponse<String> response = putBudget("metered", "0.0000000001", "daily");
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("has more than 9 decimal places");
@@ -341,34 +330,20 @@ class ConfigEditApiTest {
     @Test
     void refusesALimitThatCannotBeCounted() throws Exception {
         for (String limit : List.of("1e999999999", "1e-999999999", "9223372037", "99999999999")) {
-            HttpResponse<String> response = put(
-                    "/admin/v1/tenants/metered/budget",
-                    "{\"limit\":\"" + limit + "\",\"period\":\"daily\"}",
-                    version());
+            HttpResponse<String> response = putBudget("metered", limit, "daily");
 
             assertThat(response.statusCode()).as(limit).isEqualTo(400);
         }
-        assertThat(Files.exists(Path.of(CONFIG + ".original"))).isFalse();
+        assertThat(Files.exists(ORIGINAL)).isFalse();
     }
 
     private static final Pattern KEY = Pattern.compile("\"key\":\"(tg_[^\"]+)\"");
 
-    private HttpResponse<String> post(String path, String ifMatch) throws IOException, InterruptedException {
+    private HttpResponse<String> change(String method, String path, String ifMatch)
+            throws IOException, InterruptedException {
         return call(
                 ADMIN_PORT,
-                "POST",
-                path,
-                "",
-                "Authorization",
-                "Bearer " + ADMIN_TOKEN,
-                "If-Match",
-                "\"" + ifMatch + "\"");
-    }
-
-    private HttpResponse<String> delete(String path, String ifMatch) throws IOException, InterruptedException {
-        return call(
-                ADMIN_PORT,
-                "DELETE",
+                method,
                 path,
                 "",
                 "Authorization",
@@ -402,7 +377,7 @@ class ConfigEditApiTest {
     void createsAKeyThatWorksAndIsShownOnce(CapturedOutput output) throws Exception {
         String started = version();
 
-        HttpResponse<String> created = post("/admin/v1/tenants/support-bot/keys", started);
+        HttpResponse<String> created = change("POST", "/admin/v1/tenants/support-bot/keys", started);
 
         assertThat(created.statusCode()).isEqualTo(201);
         assertThat(created.headers().firstValue("Cache-Control"))
@@ -425,8 +400,8 @@ class ConfigEditApiTest {
 
     @Test
     void createsADifferentKeyEachTime() throws Exception {
-        HttpResponse<String> first = post("/admin/v1/tenants/support-bot/keys", version());
-        HttpResponse<String> second = post("/admin/v1/tenants/support-bot/keys", version());
+        HttpResponse<String> first = change("POST", "/admin/v1/tenants/support-bot/keys", version());
+        HttpResponse<String> second = change("POST", "/admin/v1/tenants/support-bot/keys", version());
 
         String one = keyOf(first);
         String two = keyOf(second);
@@ -440,7 +415,7 @@ class ConfigEditApiTest {
     void doesNotCreateAKeyForAnUnknownTenant() throws Exception {
         String before = Files.readString(CONFIG);
 
-        HttpResponse<String> response = post("/admin/v1/tenants/nobody/keys", version());
+        HttpResponse<String> response = change("POST", "/admin/v1/tenants/nobody/keys", version());
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).contains("No tenant named 'nobody'").doesNotContain("tg_");
@@ -449,7 +424,7 @@ class ConfigEditApiTest {
 
     @Test
     void doesNotShowAKeyWhenTheVersionIsStale() throws Exception {
-        HttpResponse<String> response = post("/admin/v1/tenants/support-bot/keys", "0".repeat(64));
+        HttpResponse<String> response = change("POST", "/admin/v1/tenants/support-bot/keys", "0".repeat(64));
 
         assertThat(response.statusCode()).isEqualTo(412);
         assertThat(response.body()).doesNotContain("tg_");
@@ -457,12 +432,12 @@ class ConfigEditApiTest {
 
     @Test
     void revokesAKeyAndTheGatewayRefusesItAtOnce() throws Exception {
-        String key = keyOf(post("/admin/v1/tenants/support-bot/keys", version()));
-        String other = keyOf(post("/admin/v1/tenants/support-bot/keys", version()));
+        String key = keyOf(change("POST", "/admin/v1/tenants/support-bot/keys", version()));
+        String other = keyOf(change("POST", "/admin/v1/tenants/support-bot/keys", version()));
         String id = ApiKey.parse(key).orElseThrow().id();
         assertThat(models(key)).isEqualTo(200);
 
-        HttpResponse<String> revoked = delete("/admin/v1/keys/" + id, version());
+        HttpResponse<String> revoked = change("DELETE", "/admin/v1/keys/" + id, version());
 
         assertThat(revoked.statusCode()).isEqualTo(200);
         assertThat(revoked.body()).contains("\"changed\":true");
@@ -475,7 +450,7 @@ class ConfigEditApiTest {
     void revokesATenantsLastKeyAndKeepsTheTenant() throws Exception {
         assertThat(models(STARTING_KEY.value())).isEqualTo(200);
 
-        HttpResponse<String> revoked = delete("/admin/v1/keys/" + STARTING_KEY.id(), version());
+        HttpResponse<String> revoked = change("DELETE", "/admin/v1/keys/" + STARTING_KEY.id(), version());
 
         assertThat(revoked.statusCode()).isEqualTo(200);
         String view = send("GET", "/admin/v1/config").body();
@@ -485,11 +460,11 @@ class ConfigEditApiTest {
 
     @Test
     void doesNotRevokeAnUnknownKeyAndChecksTheVersion() throws Exception {
-        HttpResponse<String> missing = delete("/admin/v1/keys/nope", version());
+        HttpResponse<String> missing = change("DELETE", "/admin/v1/keys/nope", version());
         assertThat(missing.statusCode()).isEqualTo(404);
         assertThat(missing.body()).contains("No key with the ID nope");
 
-        HttpResponse<String> stale = delete("/admin/v1/keys/nope", "0".repeat(64));
+        HttpResponse<String> stale = change("DELETE", "/admin/v1/keys/nope", "0".repeat(64));
         assertThat(stale.statusCode()).isEqualTo(412);
     }
 

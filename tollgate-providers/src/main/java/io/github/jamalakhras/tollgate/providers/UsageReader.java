@@ -6,18 +6,14 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.MissingNode;
 
 public final class UsageReader {
 
     private UsageReader() {}
 
     public static Optional<Usage> read(WireFormat format, byte[] responseBody) {
-        JsonNode usage;
-        try {
-            usage = ChatRequest.JSON.readTree(responseBody).path("usage");
-        } catch (JacksonException e) {
-            return Optional.empty();
-        }
+        JsonNode usage = usage(responseBody);
         return switch (format) {
             case OPENAI -> openAi(usage);
             case ANTHROPIC -> anthropic(usage);
@@ -28,37 +24,23 @@ public final class UsageReader {
         if (format != WireFormat.ANTHROPIC) {
             return 0;
         }
-        try {
-            JsonNode count = ChatRequest.JSON
-                    .readTree(responseBody)
-                    .path("usage")
-                    .path("server_tool_use")
-                    .path("web_search_requests");
-            return countOrZero(count).orElse(0);
-        } catch (JacksonException e) {
-            return 0;
-        }
+        return countOrZero(usage(responseBody).path("server_tool_use").path("web_search_requests"))
+                .orElse(0);
     }
 
     public static long reasoningTokens(WireFormat format, byte[] responseBody) {
-        if (format != WireFormat.OPENAI) {
-            return 0;
-        }
-        try {
-            return reasoningTokens(ChatRequest.JSON.readTree(responseBody).path("usage"));
-        } catch (JacksonException e) {
-            return 0;
-        }
+        return format == WireFormat.OPENAI ? reasoningTokens(usage(responseBody)) : 0;
     }
 
     public static long cacheWrite1hTokens(WireFormat format, byte[] responseBody) {
-        if (format != WireFormat.ANTHROPIC) {
-            return 0;
-        }
+        return format == WireFormat.ANTHROPIC ? cacheWrite1hTokens(usage(responseBody)) : 0;
+    }
+
+    private static JsonNode usage(byte[] responseBody) {
         try {
-            return cacheWrite1hTokens(ChatRequest.JSON.readTree(responseBody).path("usage"));
+            return ChatRequest.JSON.readTree(responseBody).path("usage");
         } catch (JacksonException e) {
-            return 0;
+            return MissingNode.getInstance();
         }
     }
 
@@ -76,10 +58,7 @@ public final class UsageReader {
         OptionalLong prompt = count(usage.path("prompt_tokens"));
         OptionalLong completion = count(usage.path("completion_tokens"));
         OptionalLong cached = countOrZero(usage.path("prompt_tokens_details").path("cached_tokens"));
-        if (prompt.isEmpty() || completion.isEmpty() || cached.isEmpty()) {
-            return Optional.empty();
-        }
-        if (cached.getAsLong() > prompt.getAsLong()) {
+        if (prompt.isEmpty() || completion.isEmpty() || cached.isEmpty() || cached.getAsLong() > prompt.getAsLong()) {
             return Optional.empty();
         }
         return Optional.of(
@@ -99,10 +78,8 @@ public final class UsageReader {
     }
 
     private static OptionalLong count(JsonNode value) {
-        if (!value.isIntegralNumber() || !value.canConvertToLong() || value.longValue() < 0) {
-            return OptionalLong.empty();
-        }
-        return OptionalLong.of(value.longValue());
+        long number = ChatRequest.wholeNumber(value);
+        return number < 0 ? OptionalLong.empty() : OptionalLong.of(number);
     }
 
     private static OptionalLong countOrZero(JsonNode value) {

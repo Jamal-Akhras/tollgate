@@ -37,8 +37,8 @@ public final class Redactor {
     }
 
     private Redactor(Set<Detector> refuse, Set<Detector> redact, ScanBudget budget) {
-        this.refuse = Collections.unmodifiableSortedSet(new TreeSet<>(refuse));
-        this.redact = Collections.unmodifiableSortedSet(new TreeSet<>(redact));
+        this.refuse = new TreeSet<>(refuse);
+        this.redact = new TreeSet<>(redact);
         this.budget = budget;
     }
 

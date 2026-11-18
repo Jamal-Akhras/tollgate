@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -34,19 +35,15 @@ class AdminTokenFilterTest {
     }
 
     @ParameterizedTest
+    @NullSource
     @ValueSource(strings = {"Bearer wrong", "Basic abc", "Bearer ", TOKEN})
-    void refusesAnyOtherCredential(String authorization) throws Exception {
+    void refusesAnyOtherCredential(@Nullable String authorization) throws Exception {
         MockHttpServletResponse response = run(TOKEN, authorization);
 
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(response.getHeader("WWW-Authenticate")).isEqualTo("Bearer");
         assertThat(response.getContentAsString())
                 .isEqualTo("{\"code\":\"admin_unauthorized\",\"message\":\"The admin token is missing or not valid\"}");
-    }
-
-    @Test
-    void refusesARequestWithNoCredential() throws Exception {
-        assertThat(run(TOKEN, null).getStatus()).isEqualTo(401);
     }
 
     @Test

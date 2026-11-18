@@ -3,7 +3,6 @@ package io.github.jamalakhras.tollgate.server.cli;
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,7 +91,7 @@ final class Init {
                   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
                 """.formatted(TENANT, key.id(), key.sha256(), auditKeys.publicKey()),
                 StandardOpenOption.CREATE_NEW);
-        return new Created(config, secrets, key, auditKeys.publicKey());
+        return new Created(config, secrets, key);
     }
 
     private static void writePrivately(Path file, String content) throws IOException {
@@ -109,8 +108,8 @@ final class Init {
                         .build()));
             }
         }
-        Files.writeString(file, content, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.writeString(file, content, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    record Created(Path config, Path secrets, ApiKey key, String publicKey) {}
+    record Created(Path config, Path secrets, ApiKey key) {}
 }

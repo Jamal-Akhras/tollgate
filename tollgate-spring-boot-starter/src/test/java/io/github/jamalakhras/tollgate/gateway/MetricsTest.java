@@ -2,25 +2,13 @@ package io.github.jamalakhras.tollgate.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalManagementPort;
 
 class MetricsTest extends GatewayTestSupport {
 
-    @LocalManagementPort
-    private int managementPort;
-
     private String scrape() throws Exception {
-        HttpResponse<String> response = HttpClient.newHttpClient()
-                .send(
-                        HttpRequest.newBuilder(
-                                        URI.create("http://127.0.0.1:" + managementPort + "/actuator/prometheus"))
-                                .build(),
-                        HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = management("/actuator/prometheus");
         assertThat(response.statusCode()).isEqualTo(200);
         return response.body();
     }
@@ -31,19 +19,10 @@ class MetricsTest extends GatewayTestSupport {
                 200,
                 "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[],"
                         + "\"usage\":{\"prompt_tokens\":40,\"completion_tokens\":2}}");
-        HttpResponse<String> answered = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + KEY.value());
+        HttpResponse<String> answered = chat(KEY, "{\"model\":\"qwen3\",\"messages\":[]}");
         assertThat(answered.statusCode()).isEqualTo(200);
-        HttpResponse<String> refused = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + KEY.value(),
-                Gateway.DATA_CLASS_HEADER,
-                "public");
+        HttpResponse<String> refused =
+                chat(KEY, "{\"model\":\"qwen3\",\"messages\":[]}", Gateway.DATA_CLASS_HEADER, "public");
         assertThat(refused.statusCode()).isEqualTo(403);
 
         String metrics = scrape();

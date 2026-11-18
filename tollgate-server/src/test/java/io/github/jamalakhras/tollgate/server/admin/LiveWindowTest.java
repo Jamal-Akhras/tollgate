@@ -6,9 +6,7 @@ import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.audit.Redactions;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
-import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
-import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
@@ -28,26 +26,11 @@ class LiveWindowTest {
 
     private static final Instant T = Instant.parse("2026-11-16T10:00:00Z");
     private static final Currency USD = Currency.getInstance("USD");
-    private static final String HASH = "a".repeat(64);
 
     private final LiveWindow window = new LiveWindow(T.minus(Duration.ofHours(3)));
 
     private static Intent intent(String id, Instant time, String tenant, List<GuardStep> steps, Decision decision) {
-        return new Intent(
-                id,
-                time,
-                tenant,
-                "key1",
-                WireFormat.OPENAI,
-                "qwen3",
-                "ollama",
-                "qwen3:8b",
-                null,
-                HASH,
-                HASH,
-                steps,
-                decision,
-                null);
+        return LiveRecords.intent(id, time, tenant, steps, decision, null);
     }
 
     private static Intent allowed(String id, Instant time) {
@@ -55,15 +38,7 @@ class LiveWindowTest {
     }
 
     private static Outcome outcome(String id, Instant time, Outcome.Result result, long millis) {
-        return new Outcome(
-                id,
-                time,
-                result,
-                200,
-                new Usage(10, 5, 0, 0),
-                new Money(500_000_000, USD),
-                Duration.ofMillis(millis),
-                null);
+        return LiveRecords.outcome(id, time, result, millis, new Money(500_000_000, USD));
     }
 
     private static GuardStep step(String guard, Decision decision, boolean monitored) {
@@ -194,23 +169,8 @@ class LiveWindowTest {
 
     @Test
     void redactionsAreSummedIntoTheFlow() {
-        Redactions redactions = new Redactions(Map.of("email", 2, "phone", 1), HASH);
-        window.add(new Intent(
-                "c1",
-                T,
-                "app",
-                "key1",
-                WireFormat.OPENAI,
-                "qwen3",
-                "ollama",
-                "qwen3:8b",
-                null,
-                HASH,
-                HASH,
-                List.of(),
-                Decision.ALLOW,
-                null,
-                redactions));
+        Redactions redactions = new Redactions(Map.of("email", 2, "phone", 1), LiveRecords.HASH);
+        window.add(LiveRecords.intent("c1", T, "app", List.of(), Decision.ALLOW, redactions));
 
         Live live = window.snapshot(T);
 
@@ -407,7 +367,8 @@ class LiveWindowTest {
 
     @Test
     void aSealBecomesTheLastSeal() {
-        window.add(new Seal(3, 7, T, HASH, HASH, "0123456789abcdef", "fedcba9876543210", "sig"));
+        window.add(
+                new Seal(3, 7, T, LiveRecords.HASH, LiveRecords.HASH, "0123456789abcdef", "fedcba9876543210", "sig"));
 
         LiveViews.SealView view = Objects.requireNonNull(window.snapshot(T).lastSeal());
 

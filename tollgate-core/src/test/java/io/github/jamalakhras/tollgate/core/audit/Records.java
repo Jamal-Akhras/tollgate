@@ -1,6 +1,7 @@
 package io.github.jamalakhras.tollgate.core.audit;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.money.Prices;
 import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
@@ -10,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 final class Records {
@@ -40,48 +42,23 @@ final class Records {
                         new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
                         new GuardStep("data-class", Decision.ALLOW, Duration.ofNanos(3_400))),
                 Decision.ALLOW,
-                Prices.usd("0.1523"));
+                Prices.usd("0.1523"),
+                null,
+                null);
+    }
+
+    static Intent edit(Intent intent, Consumer<Draft> change) {
+        Draft draft = new Draft(intent);
+        change.accept(draft);
+        return draft.build();
     }
 
     static Intent attributed(String id) {
-        Intent intent = intent(id);
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                intent.steps(),
-                intent.decision(),
-                intent.reservation(),
-                intent.redactions(),
-                USER_HMAC);
+        return edit(intent(id), draft -> draft.user = USER_HMAC);
     }
 
     static Intent redacted(String id) {
-        Intent intent = intent(id);
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                intent.steps(),
-                intent.decision(),
-                intent.reservation(),
-                new Redactions(Map.of("card", 1, "email", 2), SENT_HMAC));
+        return edit(intent(id), draft -> draft.redactions = new Redactions(Map.of("card", 1, "email", 2), SENT_HMAC));
     }
 
     static Intent monitored(String id) {
@@ -94,43 +71,94 @@ final class Records {
 
     private static Intent withSteps(Intent intent, @Nullable Redactions redactions) {
         Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                List.of(
-                        new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
-                        new GuardStep("data-class", denial, Duration.ofNanos(3_400), true)),
-                Decision.ALLOW,
-                intent.reservation(),
-                redactions);
+        return edit(intent, draft -> {
+            draft.steps = List.of(
+                    new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                    new GuardStep("data-class", denial, Duration.ofNanos(3_400), true));
+            draft.redactions = redactions;
+        });
     }
 
     static Intent refused(String id) {
         Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
-        return new Intent(
-                id,
-                TIME,
-                "support-bot",
-                "k7Qm2xPa4bZr",
-                WireFormat.OPENAI,
-                "gpt",
-                "openai",
-                "gpt-5",
-                null,
-                CONFIG_VERSION,
-                REQUEST_HMAC,
-                List.of(new GuardStep("data-class", denial, Duration.ofNanos(1_800))),
-                denial,
-                null);
+        return edit(intent(id), draft -> {
+            draft.endpoint = WireFormat.OPENAI;
+            draft.model = "gpt";
+            draft.provider = "openai";
+            draft.upstream = "gpt-5";
+            draft.dataClass = null;
+            draft.steps = List.of(new GuardStep("data-class", denial, Duration.ofNanos(1_800)));
+            draft.decision = denial;
+            draft.reservation = null;
+        });
+    }
+
+    static final class Draft {
+
+        String id;
+        Instant time;
+        String tenant;
+        String key;
+        WireFormat endpoint;
+        String model;
+        String provider;
+        String upstream;
+
+        @Nullable
+        String dataClass;
+
+        String configVersion;
+        String requestHmac;
+        List<GuardStep> steps;
+        Decision decision;
+
+        @Nullable
+        Money reservation;
+
+        @Nullable
+        Redactions redactions;
+
+        @Nullable
+        String user;
+
+        private Draft(Intent from) {
+            id = from.id();
+            time = from.time();
+            tenant = from.tenant();
+            key = from.key();
+            endpoint = from.endpoint();
+            model = from.model();
+            provider = from.provider();
+            upstream = from.upstream();
+            dataClass = from.dataClass();
+            configVersion = from.configVersion();
+            requestHmac = from.requestHmac();
+            steps = from.steps();
+            decision = from.decision();
+            reservation = from.reservation();
+            redactions = from.redactions();
+            user = from.user();
+        }
+
+        private Intent build() {
+            return new Intent(
+                    id,
+                    time,
+                    tenant,
+                    key,
+                    endpoint,
+                    model,
+                    provider,
+                    upstream,
+                    dataClass,
+                    configVersion,
+                    requestHmac,
+                    steps,
+                    decision,
+                    reservation,
+                    redactions,
+                    user);
+        }
     }
 
     static Outcome outcome(String id) {

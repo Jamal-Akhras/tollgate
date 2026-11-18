@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 
 public record GatewayConfig(
@@ -192,9 +193,9 @@ public record GatewayConfig(
         if (policy != null && !policies.containsKey(policy)) {
             throw new IllegalArgumentException("tenants." + name + ".policy: no policy named '" + policy + "'");
         }
+        String applied = policy == null ? DEFAULT_POLICY : policy;
+        Policy enforcing = policies.get(applied);
         if (dataClass != null) {
-            String applied = policy == null ? DEFAULT_POLICY : policy;
-            Policy enforcing = policies.get(applied);
             if (enforcing == null) {
                 throw new IllegalArgumentException(
                         "tenants." + name + " has no policy to enforce its data class; set tenants." + name
@@ -225,9 +226,9 @@ public record GatewayConfig(
                 }
             }
         }
-        Policy applied = policies.get(policy == null ? DEFAULT_POLICY : policy);
-        if (applied != null
-                && !applied.features()
+        if (enforcing != null
+                && !enforcing
+                        .features()
                         .getOrDefault(Feature.WEB_SEARCH, List.of())
                         .isEmpty()) {
             for (String model : served) {
@@ -280,18 +281,21 @@ public record GatewayConfig(
         });
     }
 
-    private static void checkDetectors(String name, Policy policy, List<String> dataClasses) {
-        for (var setting :
-                Map.of("redact", policy.redact(), "refuse", policy.refuse()).entrySet()) {
-            setting.getValue().forEach((detector, chosen) -> {
-                for (String dataClass : chosen) {
-                    if (!dataClasses.contains(dataClass)) {
-                        throw new IllegalArgumentException("policies." + name + "." + setting.getKey() + "."
-                                + detector.configName() + ": no data class named '" + dataClass + "'");
-                    }
+    private static void checkDetectors(
+            String name, String setting, Map<Detector, List<String>> chosenByDetector, List<String> dataClasses) {
+        new TreeMap<>(chosenByDetector).forEach((detector, chosen) -> {
+            for (String dataClass : chosen) {
+                if (!dataClasses.contains(dataClass)) {
+                    throw new IllegalArgumentException("policies." + name + "." + setting + "." + detector.configName()
+                            + ": no data class named '" + dataClass + "'");
                 }
-            });
-        }
+            }
+        });
+    }
+
+    private static void checkDetectors(String name, Policy policy, List<String> dataClasses) {
+        checkDetectors(name, "redact", policy.redact(), dataClasses);
+        checkDetectors(name, "refuse", policy.refuse(), dataClasses);
         for (String dataClass : dataClasses) {
             for (Detector detector : policy.redacts(dataClass)) {
                 if (policy.refuses(dataClass).contains(detector)) {

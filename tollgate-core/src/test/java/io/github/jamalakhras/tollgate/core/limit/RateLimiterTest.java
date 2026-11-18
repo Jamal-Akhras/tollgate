@@ -7,13 +7,7 @@ import io.github.jamalakhras.tollgate.core.limit.RateLimiter.Limit;
 import io.github.jamalakhras.tollgate.core.limit.RateLimiter.Limited;
 import io.github.jamalakhras.tollgate.core.limit.RateLimiter.Permit;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.OptionalLong;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
@@ -171,33 +165,15 @@ class RateLimiterTest {
         Limits limits = new Limits(null, null, 4L);
         AtomicInteger inFlight = new AtomicInteger();
         AtomicInteger most = new AtomicInteger();
-        CountDownLatch start = new CountDownLatch(1);
-        List<Runnable> tasks = new ArrayList<>();
-        for (int i = 0; i < 64; i++) {
-            tasks.add(() -> {
-                try {
-                    start.await();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
+        Contention.run(64, () -> {
+            for (int call = 0; call < 200; call++) {
+                if (limiter.admit("support-bot", limits) instanceof Permit permit) {
+                    most.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+                    inFlight.decrementAndGet();
+                    permit.close();
                 }
-                for (int call = 0; call < 200; call++) {
-                    if (limiter.admit("support-bot", limits) instanceof Permit permit) {
-                        most.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
-                        inFlight.decrementAndGet();
-                        permit.close();
-                    }
-                }
-            });
-        }
-        try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<?>> running =
-                    tasks.stream().<Future<?>>map(threads::submit).toList();
-            start.countDown();
-            for (Future<?> task : running) {
-                task.get();
             }
-        }
+        });
 
         assertThat(most.get()).isBetween(1, 4);
         for (int i = 0; i < 4; i++) {

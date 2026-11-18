@@ -5,10 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.jamalakhras.tollgate.core.limit.Concurrency.Slot;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -84,33 +80,15 @@ class ConcurrencyTest {
     void holdsTheLimitUnderContention() throws Exception {
         AtomicInteger inFlight = new AtomicInteger();
         AtomicInteger most = new AtomicInteger();
-        CountDownLatch start = new CountDownLatch(1);
-        List<Runnable> tasks = new ArrayList<>();
-        for (int i = 0; i < 64; i++) {
-            tasks.add(() -> {
-                try {
-                    start.await();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                for (int call = 0; call < 200; call++) {
-                    concurrency.take("ollama", 4L).ifPresent(slot -> {
-                        most.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
-                        inFlight.decrementAndGet();
-                        slot.close();
-                    });
-                }
-            });
-        }
-        try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<?>> running =
-                    tasks.stream().<Future<?>>map(threads::submit).toList();
-            start.countDown();
-            for (Future<?> task : running) {
-                task.get();
+        Contention.run(64, () -> {
+            for (int call = 0; call < 200; call++) {
+                concurrency.take("ollama", 4L).ifPresent(slot -> {
+                    most.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+                    inFlight.decrementAndGet();
+                    slot.close();
+                });
             }
-        }
+        });
 
         assertThat(most.get()).isBetween(1, 4);
         for (int i = 0; i < 4; i++) {

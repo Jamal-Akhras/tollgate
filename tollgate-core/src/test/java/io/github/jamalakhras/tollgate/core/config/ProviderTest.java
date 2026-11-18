@@ -20,18 +20,15 @@ class ProviderTest {
         return new Provider(WireFormat.OPENAI, URI.create(baseUrl), apiKey, null, Duration.ofSeconds(5));
     }
 
+    private static Provider provider(String baseUrl, List<String> extraFields, @Nullable String catalog) {
+        return new Provider(
+                WireFormat.OPENAI, URI.create(baseUrl), null, null, Duration.ofSeconds(5), extraFields, catalog, null);
+    }
+
     @Test
     void acceptsExtraFieldsThatNeitherSendDataElsewhereNorChangeThePrice() {
         List<String> fields = new ArrayList<>(List.of("top_k", "min_p"));
-        var provider = new Provider(
-                WireFormat.OPENAI,
-                URI.create("http://gpu-box:11434/v1"),
-                null,
-                null,
-                Duration.ofSeconds(5),
-                fields,
-                null,
-                null);
+        var provider = provider("http://gpu-box:11434/v1", fields, null);
         fields.add("num_ctx");
 
         assertThat(provider.extraFields()).containsExactly("top_k", "min_p").isUnmodifiable();
@@ -45,15 +42,7 @@ class ProviderTest {
                         .priceCatalog())
                 .contains("alibaba-cn");
         assertThat(provider("http://localhost:11434/v1", null).priceCatalog()).isEmpty();
-        assertThat(new Provider(
-                                WireFormat.OPENAI,
-                                URI.create("https://llm-proxy.example.com/v1"),
-                                null,
-                                null,
-                                Duration.ofSeconds(5),
-                                List.of(),
-                                "openrouter",
-                                null)
+        assertThat(provider("https://llm-proxy.example.com/v1", List.of(), "openrouter")
                         .priceCatalog())
                 .contains("openrouter");
     }
@@ -61,15 +50,7 @@ class ProviderTest {
     @ParameterizedTest
     @ValueSource(strings = {"mcp_servers", "store", "service_tier", "speed", "web_search_options"})
     void refusesExtraFieldsThatTollgateRefusesInRequests(String field) {
-        assertThatThrownBy(() -> new Provider(
-                        WireFormat.OPENAI,
-                        URI.create("http://gpu-box:11434/v1"),
-                        null,
-                        null,
-                        Duration.ofSeconds(5),
-                        List.of("top_k", field),
-                        null,
-                        null))
+        assertThatThrownBy(() -> provider("http://gpu-box:11434/v1", List.of("top_k", field), null))
                 .hasMessageStartingWith("extraFields must not include '" + field + "': ");
     }
 

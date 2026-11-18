@@ -3,10 +3,7 @@ package io.github.jamalakhras.tollgate.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
-import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
-import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,8 +12,6 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,8 +22,6 @@ import org.springframework.context.annotation.Configuration;
 
 class EmbeddedGatewayTest {
 
-    private static final String ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
-            + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
     private static final HttpClient HOST_CLIENT = HttpClient.newHttpClient();
 
     @TempDir
@@ -51,7 +44,8 @@ class EmbeddedGatewayTest {
             assertThat(answer.statusCode()).isEqualTo(200);
             assertThat(answer.body()).contains("\"model\":\"qwen3\"");
             String trace = answer.headers().firstValue(TraceIdFilter.HEADER).orElseThrow();
-            assertThat(recordsOf(directory.resolve("audit"), trace)).hasSize(2);
+            assertThat(GatewayTestSupport.auditRecordsIn(directory.resolve("audit"), trace))
+                    .hasSize(2);
         }
     }
 
@@ -82,7 +76,7 @@ class EmbeddedGatewayTest {
                   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
                 """.formatted(
                         provider.baseUrl(), key.id(), key.sha256(), directory.resolve("audit"), keys.publicKey()));
-        provider.respond(200, ANSWER);
+        provider.respond(200, GatewayTestSupport.QWEN_ANSWER);
         return new SpringApplicationBuilder(sources)
                 .run(
                         "--spring.config.location=optional:classpath:/no-application-config/",
@@ -104,19 +98,6 @@ class EmbeddedGatewayTest {
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
         }
-    }
-
-    private static List<AuditRecord> recordsOf(Path audit, String trace) throws Exception {
-        List<AuditRecord> records = new ArrayList<>();
-        for (Path file : AuditDirectory.files(audit)) {
-            for (String line : Files.readAllLines(file)) {
-                if (AuditJson.read(line) instanceof AuditRecord record
-                        && record.id().equals(trace)) {
-                    records.add(record);
-                }
-            }
-        }
-        return records;
     }
 
     @Configuration(proxyBeanMethods = false)

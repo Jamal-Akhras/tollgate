@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.jamalakhras.tollgate.core.audit.AuditEntry;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
-import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Money;
-import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Flow;
@@ -16,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -31,7 +28,6 @@ import org.junit.jupiter.api.io.TempDir;
 class LiveTailTest {
 
     private static final Instant T = Instant.parse("2026-11-16T10:00:00Z");
-    private static final String HASH = "a".repeat(64);
     private static final Clock CLOCK = Clock.fixed(T, ZoneOffset.UTC);
     private final AtomicReference<Instant> now = new AtomicReference<>(T);
     private final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
@@ -65,33 +61,11 @@ class LiveTailTest {
     private final LiveTail tail = new LiveTail(() -> Optional.of(directory), moving, 2_000);
 
     private static Intent intent(String id) {
-        return new Intent(
-                id,
-                T,
-                "app",
-                "key1",
-                WireFormat.OPENAI,
-                "qwen3",
-                "ollama",
-                "qwen3:8b",
-                null,
-                HASH,
-                HASH,
-                List.of(),
-                Decision.ALLOW,
-                null);
+        return LiveRecords.intent(id, T, "app", List.of(), Decision.ALLOW, null);
     }
 
     private static Outcome outcome(String id) {
-        return new Outcome(
-                id,
-                T,
-                Outcome.Result.RESPONDED,
-                200,
-                new Usage(10, 5, 0, 0),
-                new Money(0, Currency.getInstance("USD")),
-                Duration.ofMillis(100),
-                null);
+        return LiveRecords.outcome(id, T, Outcome.Result.RESPONDED, 100, new Money(0, Currency.getInstance("USD")));
     }
 
     private Path file(String day) {

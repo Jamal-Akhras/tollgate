@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import io.github.jamalakhras.tollgate.server.TestPorts;
+import io.github.jamalakhras.tollgate.providers.TestPorts;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
@@ -14,12 +14,8 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Optional;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -33,7 +29,6 @@ import org.springframework.test.context.DynamicPropertySource;
 class ServerPortsTest {
 
     private static final int ADMIN_PORT = TestPorts.free();
-    private static final HttpClient CLIENT = HttpClient.newHttpClient();
     private static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0002";
 
     @LocalServerPort
@@ -43,11 +38,6 @@ class ServerPortsTest {
     static void adminPort(DynamicPropertyRegistry registry) {
         registry.add("tollgate.admin.port", () -> ADMIN_PORT);
         registry.add("tollgate.admin.token", () -> ADMIN_TOKEN);
-    }
-
-    @AfterAll
-    static void closeClient() {
-        CLIENT.close();
     }
 
     @Test
@@ -154,11 +144,6 @@ class ServerPortsTest {
 
     private static HttpResponse<String> get(int port, String path, String... headers)
             throws IOException, InterruptedException {
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
-                .GET();
-        if (headers.length > 0) {
-            request.headers(headers);
-        }
-        return CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+        return TestHttp.get(port, path, headers);
     }
 }

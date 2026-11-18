@@ -54,18 +54,26 @@ class CommandsTest {
             new SecureRandom(),
             Map.of("SIGNING", AUDIT_KEYS.signingKey(), "HMAC", AUDIT_KEYS.hmacKey())::get);
 
+    private String out() {
+        return out.toString(StandardCharsets.UTF_8);
+    }
+
+    private String err() {
+        return err.toString(StandardCharsets.UTF_8);
+    }
+
     @Test
     void createsAKeyAndTheConfigEntryThatMatchesIt() {
         int status = commands.run(List.of("keys", "create", "--tenant", "support-bot"));
 
         assertThat(status).isZero();
-        String printed = out.toString(StandardCharsets.UTF_8);
+        String printed = out();
         Matcher key = Pattern.compile("tg_\\w+").matcher(printed);
         assertThat(key.find()).isTrue();
         ApiKey created = ApiKey.parse(key.group()).orElseThrow();
         assertThat(printed)
                 .contains("- { id: " + created.id() + ", tenant: support-bot, sha256: " + created.sha256() + " }");
-        assertThat(err.toString(StandardCharsets.UTF_8)).isEmpty();
+        assertThat(err()).isEmpty();
     }
 
     @Test
@@ -73,8 +81,8 @@ class CommandsTest {
         int status = commands.run(List.of("keys", "create", "--tenant", "x, sha256: forged"));
 
         assertThat(status).isEqualTo(Commands.USAGE_ERROR);
-        assertThat(out.toString(StandardCharsets.UTF_8)).isEmpty();
-        assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("tenant 'x, sha256: forged' must start with");
+        assertThat(out()).isEmpty();
+        assertThat(err()).startsWith("tenant 'x, sha256: forged' must start with");
     }
 
     @Test
@@ -82,7 +90,7 @@ class CommandsTest {
         int status = commands.run(List.of("audit", "keys", "create"));
 
         assertThat(status).isZero();
-        String printed = out.toString(StandardCharsets.UTF_8);
+        String printed = out();
         String signingKey = valueAfter(printed, "TOLLGATE_AUDIT_SIGNING_KEY=");
         String hmacKey = valueAfter(printed, "TOLLGATE_AUDIT_HMAC_KEY=");
         String publicKey = valueAfter(printed, "publicKey: ");
@@ -98,7 +106,7 @@ class CommandsTest {
         int status = commands.run(List.of("init", directory.toString()));
 
         assertThat(status).isZero();
-        String printed = out.toString(StandardCharsets.UTF_8);
+        String printed = out();
         Matcher shown = Pattern.compile("tg_\\w+").matcher(printed);
         assertThat(shown.find()).isTrue();
         ApiKey key = ApiKey.parse(shown.group()).orElseThrow();
@@ -135,7 +143,7 @@ class CommandsTest {
     void initSaysTheConsoleMayChangeTheConfig() {
         commands.run(List.of("init", trail.resolve("new").toString()));
 
-        assertThat(out.toString(StandardCharsets.UTF_8)).contains("TOLLGATE_ADMIN_EDITS=file");
+        assertThat(out()).contains("TOLLGATE_ADMIN_EDITS=file");
     }
 
     @Test
@@ -159,7 +167,7 @@ class CommandsTest {
         int status = commands.run(List.of("init", trail.toString()));
 
         assertThat(status).isEqualTo(Commands.FAILED);
-        assertThat(err.toString(StandardCharsets.UTF_8)).contains("never overwrites");
+        assertThat(err()).contains("never overwrites");
         assertThat(trail.resolve(Init.CONFIG)).doesNotExist();
         assertThat(trail.resolve(Init.SECRETS)).hasContent("TOLLGATE_ADMIN_TOKEN=keep-me");
     }
@@ -171,7 +179,7 @@ class CommandsTest {
         int status = commands.run(List.of("audit", "verify", "--public-key", AUDIT_KEYS.publicKey(), trail.toString()));
 
         assertThat(status).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8))
+        assertThat(out())
                 .contains("Checked 2 records in 1 sealed batch.")
                 .contains("The last batch is 1, sealed at")
                 .endsWith("The audit trail is intact." + System.lineSeparator());
@@ -186,7 +194,7 @@ class CommandsTest {
         int status = commands.run(List.of("audit", "verify", "--public-key", AUDIT_KEYS.publicKey(), trail.toString()));
 
         assertThat(status).isEqualTo(Commands.FAILED);
-        assertThat(out.toString(StandardCharsets.UTF_8))
+        assertThat(out())
                 .contains("Failed: tollgate-audit-00000001.jsonl:3: Batch 1 does not match the records it seals")
                 .contains("The audit trail FAILED verification with 1 problem.");
     }
@@ -202,9 +210,7 @@ class CommandsTest {
                 .isEqualTo(Commands.FAILED);
         assertThat(commands.run(List.of("audit", "verify", "--public-key", "%%%", trail.toString())))
                 .isEqualTo(Commands.USAGE_ERROR);
-        assertThat(err.toString(StandardCharsets.UTF_8))
-                .contains("No audit trail at")
-                .contains("publicKey is not valid base64");
+        assertThat(err()).contains("No audit trail at").contains("publicKey is not valid base64");
     }
 
     private Path usageConfig(String audit) throws IOException {
@@ -221,7 +227,7 @@ class CommandsTest {
                 List.of("usage", config.toString(), "--from", "1970-01-01", "--to", "1970-01-02", "--by", "tenant"));
 
         assertThat(status).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8))
+        assertThat(out())
                 .contains("Usage from 1970-01-01 up to 1970-01-02, by tenant:")
                 .containsPattern("support-bot +0 +2 +0 +0 +0 +0 +0 +-");
     }
@@ -236,7 +242,7 @@ class CommandsTest {
                 List.of("usage", config.toString(), "--from", "1970-01-01", "--to", "1970-01-02", "--by", "user"));
 
         assertThat(status).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8)).containsPattern("unattributed +0 +2 +0 +0 +0 +0 +0 +-");
+        assertThat(out()).containsPattern("unattributed +0 +2 +0 +0 +0 +0 +0 +-");
     }
 
     @Test
@@ -249,7 +255,7 @@ class CommandsTest {
         int status = commands.run(List.of("audit", "user", config.toString(), "  alice "));
 
         assertThat(status).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8)).isEqualTo(expected + System.lineSeparator());
+        assertThat(out()).isEqualTo(expected + System.lineSeparator());
     }
 
     @Test
@@ -258,8 +264,8 @@ class CommandsTest {
                 List.of("audit", "user", usageConfig("{ mode: off }").toString(), "alice"));
 
         assertThat(status).isEqualTo(Commands.FAILED);
-        assertThat(out.toString(StandardCharsets.UTF_8)).isEmpty();
-        assertThat(err.toString(StandardCharsets.UTF_8)).contains("Users are recorded in the audit trail");
+        assertThat(out()).isEmpty();
+        assertThat(err()).contains("Users are recorded in the audit trail");
     }
 
     @Test
@@ -274,7 +280,7 @@ class CommandsTest {
         assertThat(commands.run(List.of("usage", config.toString(), "--by", "week")))
                 .isEqualTo(Commands.USAGE_ERROR);
         assertThat(commands.run(List.of("usage", config.toString()))).isEqualTo(Commands.FAILED);
-        assertThat(err.toString(StandardCharsets.UTF_8))
+        assertThat(err())
                 .contains("audit.mode is off")
                 .contains("by must be one of tenant, model, key, user, day, was week")
                 .contains("Could not read the audit trail");
@@ -299,6 +305,8 @@ class CommandsTest {
                         "0".repeat(64),
                         List.of(),
                         denial,
+                        null,
+                        null,
                         null));
             }
         }
@@ -315,7 +323,7 @@ class CommandsTest {
         int status = commands.run(List.of("prices", "show", "alibaba", "qwen-plus"));
 
         assertThat(status).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8))
+        assertThat(out())
                 .startsWith("qwen-plus on alibaba, in USD per million tokens, from models.dev ")
                 .contains("    price:", "      reasoning: ", "      longContext:", "        - { fromTokens: ");
     }
@@ -326,7 +334,7 @@ class CommandsTest {
                 .isEqualTo(Commands.FAILED);
         assertThat(commands.run(List.of("prices", "show", "alibaba", "qwen-next")))
                 .isEqualTo(Commands.FAILED);
-        assertThat(err.toString(StandardCharsets.UTF_8).lines())
+        assertThat(err().lines())
                 .containsExactly(
                         "The price catalog has no provider nowhere",
                         "The alibaba price catalog has no model qwen-next");
@@ -349,7 +357,7 @@ class CommandsTest {
         int status = commands.run(List.of("prices", "pin", config.toString()));
 
         assertThat(status).isZero();
-        String printed = out.toString(StandardCharsets.UTF_8);
+        String printed = out();
         assertThat(printed).contains("      qwen:").doesNotContain("local:");
         String pinned = printed.substring(printed.indexOf("    models:"))
                 .stripTrailing()
@@ -374,19 +382,18 @@ class CommandsTest {
                 """);
 
         assertThat(commands.run(List.of("prices", "pin", config.toString()))).isZero();
-        assertThat(out.toString(StandardCharsets.UTF_8).lines())
-                .containsExactly("No model in " + config + " takes its price from the catalog.");
+        assertThat(out().lines()).containsExactly("No model in " + config + " takes its price from the catalog.");
         assertThat(commands.run(
                         List.of("prices", "pin", trail.resolve("missing.yaml").toString())))
                 .isEqualTo(Commands.FAILED);
-        assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("No Tollgate configuration at");
+        assertThat(err()).startsWith("No Tollgate configuration at");
     }
 
     @Test
     void printsUsageForAnythingElse() {
         assertThat(commands.run(List.of("keys", "delete", "--tenant", "support-bot")))
                 .isEqualTo(Commands.USAGE_ERROR);
-        assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("Usage:");
+        assertThat(err()).startsWith("Usage:");
     }
 
     @ParameterizedTest

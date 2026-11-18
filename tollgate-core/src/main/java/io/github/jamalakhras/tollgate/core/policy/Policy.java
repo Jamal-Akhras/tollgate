@@ -26,12 +26,8 @@ public record Policy(
         refuse = copy(refuse);
     }
 
-    public Policy(List<Guard> guards, Map<Feature, List<String>> features) {
-        this(guards, features, Map.of(), Map.of());
-    }
-
     public Policy(List<Guard> guards) {
-        this(guards, Map.of());
+        this(guards, Map.of(), Map.of(), Map.of());
     }
 
     public boolean allows(Feature feature, @Nullable String dataClass) {

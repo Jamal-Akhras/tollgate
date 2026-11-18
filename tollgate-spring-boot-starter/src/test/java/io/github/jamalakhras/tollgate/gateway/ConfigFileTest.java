@@ -11,9 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -270,23 +269,15 @@ class ConfigFileTest {
                 "@h"
             })
     void textThatLooksLikeSomethingElseStaysText(String term) {
-        var detector = new LinkedHashMap<String, Object>();
-        detector.put("terms", new ArrayList<>(List.of(term)));
-        var detectors = new LinkedHashMap<String, Object>();
-        detectors.put("d", detector);
-        var document = new LinkedHashMap<String, Object>();
-        document.put("detectors", detectors);
+        Map<String, Object> document = Map.of("detectors", Map.of("d", Map.of("terms", List.of(term))));
 
         assertThat(ConfigFile.document(ConfigFile.write(document))).isEqualTo(document);
     }
 
     @Test
     void numbersKeepTheirValueAndScale() {
-        var document = new LinkedHashMap<String, Object>();
-        document.put("a", new BigDecimal("5.00"));
-        document.put("b", new BigDecimal("0.000001"));
-        document.put("c", 1048576);
-        document.put("d", 9007199254740993L);
+        Map<String, Object> document = Map.of(
+                "a", new BigDecimal("5.00"), "b", new BigDecimal("0.000001"), "c", 1048576, "d", 9007199254740993L);
 
         assertThat(ConfigFile.document(ConfigFile.write(document))).isEqualTo(document);
     }
@@ -310,7 +301,7 @@ class ConfigFileTest {
 
     @Test
     void theRewrittenFileStartsWithTheNote() {
-        String text = new String(ConfigFile.write(new LinkedHashMap<>()), StandardCharsets.UTF_8);
+        String text = new String(ConfigFile.write(Map.of()), StandardCharsets.UTF_8);
 
         assertThat(text)
                 .startsWith("# Rewritten by Tollgate's admin API. Comments are not kept. "

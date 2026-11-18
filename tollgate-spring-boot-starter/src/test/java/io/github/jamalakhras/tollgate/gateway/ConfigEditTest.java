@@ -6,14 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
-import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,15 +66,7 @@ class ConfigEditTest {
     }
 
     private Gateway start() {
-        return GatewayConfiguration.start(
-                ConfigFile.read(config),
-                name -> null,
-                new ProviderClient(http, 1_024 * 1_024),
-                Clock.systemUTC(),
-                1_000_000,
-                Duration.ofMinutes(1),
-                Duration.ofSeconds(1),
-                Tracer.NOOP);
+        return TestGateway.start(config, name -> null, http, Clock.systemUTC());
     }
 
     @SuppressWarnings("unchecked")
@@ -148,6 +138,11 @@ class ConfigEditTest {
         assertThat(showsCosts(gateway)).isFalse();
     }
 
+    private void assertNothingWritten(Gateway gateway, String version) throws IOException {
+        assertUntouched(gateway, version);
+        assertThat(leftovers()).containsExactly("tollgate.yaml");
+    }
+
     @Test
     void aChangeIsInTheFileAndInTheRunningConfig() throws Exception {
         try (Gateway gateway = start()) {
@@ -217,8 +212,7 @@ class ConfigEditTest {
                                 .contains("Read it again");
                     });
 
-            assertUntouched(gateway, version);
-            assertThat(leftovers()).containsExactly("tollgate.yaml");
+            assertNothingWritten(gateway, version);
         }
     }
 
@@ -250,8 +244,7 @@ class ConfigEditTest {
                     .isInstanceOfSatisfying(
                             ReloadRejected.class, e -> assertThat(e.code()).isEqualTo(ReloadRejected.INVALID_CONFIG));
 
-            assertUntouched(gateway, version);
-            assertThat(leftovers()).containsExactly("tollgate.yaml");
+            assertNothingWritten(gateway, version);
         }
     }
 
@@ -264,8 +257,7 @@ class ConfigEditTest {
                     .isInstanceOfSatisfying(
                             ReloadRejected.class, e -> assertThat(e.code()).isEqualTo(ReloadRejected.RESTART_REQUIRED));
 
-            assertUntouched(gateway, version);
-            assertThat(leftovers()).containsExactly("tollgate.yaml");
+            assertNothingWritten(gateway, version);
         }
     }
 
@@ -278,8 +270,7 @@ class ConfigEditTest {
                     gateway.edit(version, List.of(new ConfigOperation("nothing", "tenants", document -> document)));
 
             assertThat(reload).isEqualTo(new Gateway.Reload(version, false));
-            assertUntouched(gateway, version);
-            assertThat(leftovers()).containsExactly("tollgate.yaml");
+            assertNothingWritten(gateway, version);
         }
     }
 
@@ -295,8 +286,7 @@ class ConfigEditTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("No such tenant");
 
-            assertUntouched(gateway, version);
-            assertThat(leftovers()).containsExactly("tollgate.yaml");
+            assertNothingWritten(gateway, version);
         }
     }
 

@@ -47,23 +47,7 @@ class TrailVerifierTest {
     void detectsAnEditedRecord() {
         List<AuditEntry> trail = trail();
         Intent original = (Intent) trail.getFirst();
-        trail.set(
-                0,
-                new Intent(
-                        original.id(),
-                        original.time(),
-                        "billing",
-                        original.key(),
-                        original.endpoint(),
-                        original.model(),
-                        original.provider(),
-                        original.upstream(),
-                        original.dataClass(),
-                        original.configVersion(),
-                        original.requestHmac(),
-                        original.steps(),
-                        original.decision(),
-                        original.reservation()));
+        trail.set(0, Records.edit(original, draft -> draft.tenant = "billing"));
 
         assertThat(Trails.messages(Trails.verify(trail).failures()))
                 .containsExactly("Batch 1 does not match the records it seals");
@@ -87,26 +71,14 @@ class TrailVerifierTest {
         Intent monitored = (Intent) unmonitored.get(monitoredAt);
         unmonitored.set(
                 monitoredAt,
-                new Intent(
-                        monitored.id(),
-                        monitored.time(),
-                        monitored.tenant(),
-                        monitored.key(),
-                        monitored.endpoint(),
-                        monitored.model(),
-                        monitored.provider(),
-                        monitored.upstream(),
-                        monitored.dataClass(),
-                        monitored.configVersion(),
-                        monitored.requestHmac(),
-                        List.of(
+                Records.edit(
+                        monitored,
+                        draft -> draft.steps = List.of(
                                 monitored.steps().get(0),
                                 new GuardStep(
                                         "data-class",
                                         monitored.steps().get(1).decision(),
-                                        monitored.steps().get(1).duration())),
-                        monitored.decision(),
-                        monitored.reservation()));
+                                        monitored.steps().get(1).duration()))));
 
         assertThat(Trails.verify(unmonitored).intact()).isFalse();
 
@@ -114,22 +86,8 @@ class TrailVerifierTest {
         Intent redacted = (Intent) trail.get(at);
         trail.set(
                 at,
-                new Intent(
-                        redacted.id(),
-                        redacted.time(),
-                        redacted.tenant(),
-                        redacted.key(),
-                        redacted.endpoint(),
-                        redacted.model(),
-                        redacted.provider(),
-                        redacted.upstream(),
-                        redacted.dataClass(),
-                        redacted.configVersion(),
-                        redacted.requestHmac(),
-                        redacted.steps(),
-                        redacted.decision(),
-                        redacted.reservation(),
-                        new Redactions(Map.of("email", 1), Records.SENT_HMAC)));
+                Records.edit(
+                        redacted, draft -> draft.redactions = new Redactions(Map.of("email", 1), Records.SENT_HMAC)));
 
         assertThat(Trails.verify(trail).intact()).isFalse();
     }
@@ -149,25 +107,7 @@ class TrailVerifierTest {
         Intent attributed = (Intent) trail.get(at);
         for (String user : new String[] {"c4d8" + "7".repeat(60), null}) {
             List<AuditEntry> changed = new ArrayList<>(trail);
-            changed.set(
-                    at,
-                    new Intent(
-                            attributed.id(),
-                            attributed.time(),
-                            attributed.tenant(),
-                            attributed.key(),
-                            attributed.endpoint(),
-                            attributed.model(),
-                            attributed.provider(),
-                            attributed.upstream(),
-                            attributed.dataClass(),
-                            attributed.configVersion(),
-                            attributed.requestHmac(),
-                            attributed.steps(),
-                            attributed.decision(),
-                            attributed.reservation(),
-                            attributed.redactions(),
-                            user));
+            changed.set(at, Records.edit(attributed, draft -> draft.user = user));
 
             assertThat(Trails.verify(changed).intact()).isFalse();
         }

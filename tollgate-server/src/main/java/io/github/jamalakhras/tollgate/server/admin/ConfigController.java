@@ -1,17 +1,13 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
 import io.github.jamalakhras.tollgate.gateway.Gateway;
-import io.github.jamalakhras.tollgate.gateway.ReloadRejected;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,14 +43,6 @@ class ConfigController {
         return new ReloadResult(reload.version(), reload.changed());
     }
 
-    @ExceptionHandler
-    ResponseEntity<AdminError> rejected(ReloadRejected e) {
-        HttpStatus status = e.code().equals(ReloadRejected.RESTART_REQUIRED)
-                ? HttpStatus.CONFLICT
-                : HttpStatus.UNPROCESSABLE_CONTENT;
-        return ResponseEntity.status(status).body(new AdminError(e.code(), String.valueOf(e.getMessage())));
-    }
-
     record ReloadResult(
             @Schema(
                     requiredMode = RequiredMode.REQUIRED,
@@ -66,10 +54,4 @@ class ConfigController {
                     requiredMode = RequiredMode.REQUIRED,
                     description = "Whether the file differed from the configuration that was running")
             boolean changed) {}
-
-    record AdminError(
-            @Schema(requiredMode = RequiredMode.REQUIRED, example = "invalid_config")
-            String code,
-
-            @Schema(requiredMode = RequiredMode.REQUIRED) String message) {}
 }

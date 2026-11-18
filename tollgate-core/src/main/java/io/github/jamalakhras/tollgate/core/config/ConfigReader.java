@@ -96,15 +96,14 @@ public final class ConfigReader {
         section.requireOnly("provider", "upstream", "price", "maxOutputTokens", "maxWebSearches", "fallback");
         String provider = section.text("provider");
         String upstream = section.text("upstream");
-        String priceCatalog =
-                section.has("price") ? null : priceCatalog(section, currency, providers.get(provider), provider);
         Provider serving = providers.get(provider);
+        String priceCatalog = section.has("price") ? null : priceCatalog(section, currency, serving, provider);
         boolean anthropic = serving != null && serving.format() == WireFormat.ANTHROPIC;
         ModelPrice price = priceCatalog == null
                 ? writtenPrice(section, currency, anthropic)
                 : catalog.price(priceCatalog, upstream)
                         .map(found -> anthropic ? found.withCacheWrite1hAtTwiceInput() : found)
-                        .orElseThrow(() -> new InvalidConfigException(section.path("price") + " is required: the "
+                        .orElseThrow(() -> new InvalidConfigException(section.pathOf("price") + " is required: the "
                                 + priceCatalog + " price catalog has no model " + upstream));
         OutputTokens maxOutputTokens = section.optionalChild("maxOutputTokens", ConfigReader::outputTokens);
         long maxWebSearches = section.optionalWholeNumber("maxWebSearches", 0);
@@ -116,9 +115,9 @@ public final class ConfigReader {
     private static String priceCatalog(
             Section section, Currency currency, @Nullable Provider provider, String providerName) {
         if (provider == null) {
-            throw new InvalidConfigException(section.path("provider") + ": no provider named '" + providerName + "'");
+            throw new InvalidConfigException(section.pathOf("provider") + ": no provider named '" + providerName + "'");
         }
-        String required = section.path("price") + " is required";
+        String required = section.pathOf("price") + " is required";
         if (!currency.equals(DEFAULT_CURRENCY)) {
             throw new InvalidConfigException(
                     required + ", because the price catalog is in USD and the currency is " + currency);
@@ -221,7 +220,7 @@ public final class ConfigReader {
         detectors.forEach((name, detector) -> {
             String clash = labels.putIfAbsent(detector.label(), name);
             if (clash != null) {
-                throw new InvalidConfigException(root.path("detectors") + "." + name + ": its placeholders, such as ["
+                throw new InvalidConfigException(root.pathOf("detectors") + "." + name + ": its placeholders, such as ["
                         + detector.label() + "_1], would be the same as those of detector '" + clash + "'");
             }
         });

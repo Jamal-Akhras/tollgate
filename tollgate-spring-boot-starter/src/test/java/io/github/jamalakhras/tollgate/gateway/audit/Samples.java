@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 final class Samples {
 
@@ -29,7 +30,34 @@ final class Samples {
 
     private Samples() {}
 
+    private static final List<GuardStep> STEPS =
+            List.of(new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)));
+    private static final Redactions REDACTIONS = new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60));
+
     static Intent intent(String id) {
+        return intent(id, STEPS, null, null);
+    }
+
+    static Intent redacted(String id) {
+        return intent(id, STEPS, REDACTIONS, null);
+    }
+
+    static Intent monitored(String id) {
+        Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
+        return intent(
+                id,
+                List.of(
+                        new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
+                        new GuardStep("data-class", denial, Duration.ofNanos(3_400), true)),
+                REDACTIONS,
+                null);
+    }
+
+    static Intent attributed(String id) {
+        return intent(id, STEPS, null, USER);
+    }
+
+    static Intent intent(String id, List<GuardStep> steps, @Nullable Redactions redactions, @Nullable String user) {
         return new Intent(
                 id,
                 TIME,
@@ -42,73 +70,11 @@ final class Samples {
                 "internal",
                 HASH,
                 HASH,
-                List.of(new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100))),
+                steps,
                 Decision.ALLOW,
-                usd("0.1523"));
-    }
-
-    static Intent redacted(String id) {
-        Intent intent = intent(id);
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                intent.steps(),
-                intent.decision(),
-                intent.reservation(),
-                new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
-    }
-
-    static Intent monitored(String id) {
-        Intent intent = intent(id);
-        Decision denial = Decision.deny(Refusal.POLICY_DENIED, "Confidential data stays on local models");
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                List.of(
-                        new GuardStep("request-size", Decision.ALLOW, Duration.ofNanos(2_100)),
-                        new GuardStep("data-class", denial, Duration.ofNanos(3_400), true)),
-                Decision.ALLOW,
-                intent.reservation(),
-                new Redactions(Map.of("email", 2, "card", 1), "e7a3" + "5".repeat(60)));
-    }
-
-    static Intent attributed(String id) {
-        Intent intent = intent(id);
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                intent.steps(),
-                intent.decision(),
-                intent.reservation(),
-                null,
-                USER);
+                usd("0.1523"),
+                redactions,
+                user);
     }
 
     static Intent refused(String id) {
@@ -127,6 +93,8 @@ final class Samples {
                 HASH,
                 List.of(new GuardStep("data-class", denial, Duration.ofNanos(1_800))),
                 denial,
+                null,
+                null,
                 null);
     }
 

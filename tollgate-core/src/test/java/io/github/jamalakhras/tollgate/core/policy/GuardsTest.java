@@ -27,6 +27,14 @@ class GuardsTest {
         return new GuardRequest("support-bot", "qwen3", "ollama", "local", dataClass, 1, features);
     }
 
+    private static RequestFeatures requestFeatures(List<String> refused, List<String> unreviewed, Set<Feature> used) {
+        return new RequestFeatures(refused, unreviewed, used, List.of());
+    }
+
+    private static Policy allowing(Map<Feature, List<String>> features) {
+        return new Policy(List.of(), features, Map.of(), Map.of());
+    }
+
     @Test
     void namesTheDetectorsAPolicyAppliesToADataClass() {
         Policy policy = new Policy(
@@ -45,7 +53,7 @@ class GuardsTest {
 
     @Test
     void requestFeaturesRefusesWhatIsNeverAllowedFirst() {
-        var features = new RequestFeatures(
+        var features = requestFeatures(
                 List.of("The field 'mcp_servers' is not allowed", "second"),
                 List.of("The field 'x' is not one Tollgate has reviewed"),
                 Set.of(Feature.REMOTE_IMAGES));
@@ -57,7 +65,7 @@ class GuardsTest {
 
     @Test
     void requestFeaturesRefusesUnreviewedFieldsBeforeFeatures() {
-        var features = new RequestFeatures(
+        var features = requestFeatures(
                 List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of(Feature.REMOTE_IMAGES));
 
         assertThat(STRICT.check(using(features, "internal")))
@@ -66,7 +74,7 @@ class GuardsTest {
 
     @Test
     void requestFeaturesNamesTheFirstFeatureAndTheDataClass() {
-        var features = new RequestFeatures(List.of(), List.of(), Set.of(Feature.PROVIDER_FILES, Feature.REMOTE_IMAGES));
+        var features = requestFeatures(List.of(), List.of(), Set.of(Feature.PROVIDER_FILES, Feature.REMOTE_IMAGES));
 
         assertThat(STRICT.check(using(features, "internal")))
                 .isEqualTo(Decision.deny(
@@ -80,16 +88,11 @@ class GuardsTest {
 
     @Test
     void requestFeaturesAllowsWhatThePolicyAllowsForTheDataClass() {
-        var guard = new RequestFeaturesGuard(new Policy(
-                List.of(),
-                Map.of(
-                        Feature.REMOTE_IMAGES,
-                        List.of("public", "internal"),
-                        Feature.UNREVIEWED_FIELDS,
-                        List.of("internal"))));
-        var images = new RequestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES));
+        var guard = new RequestFeaturesGuard(allowing(Map.of(
+                Feature.REMOTE_IMAGES, List.of("public", "internal"), Feature.UNREVIEWED_FIELDS, List.of("internal"))));
+        var images = requestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES));
         var unreviewed =
-                new RequestFeatures(List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of());
+                requestFeatures(List.of(), List.of("The field 'x' is not one Tollgate has reviewed"), Set.of());
 
         assertThat(guard.check(using(images, "internal"))).isEqualTo(Decision.ALLOW);
         assertThat(guard.check(using(images, "confidential")))
@@ -104,9 +107,8 @@ class GuardsTest {
 
     @Test
     void requestFeaturesNeverAllowsWhatIsRefused() {
-        var permissive =
-                new RequestFeaturesGuard(new Policy(List.of(), Map.of(Feature.UNREVIEWED_FIELDS, List.of("internal"))));
-        var features = new RequestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of());
+        var permissive = new RequestFeaturesGuard(allowing(Map.of(Feature.UNREVIEWED_FIELDS, List.of("internal"))));
+        var features = requestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of());
 
         assertThat(permissive.check(using(features, "internal")))
                 .isEqualTo(Decision.deny(Refusal.POLICY_DENIED, "The field 'mcp_servers' is not allowed"));
@@ -124,7 +126,7 @@ class GuardsTest {
     @Test
     void policyCopiesItsFeatures() {
         List<String> classes = new ArrayList<>(List.of("public"));
-        var policy = new Policy(List.of(), Map.of(Feature.REMOTE_IMAGES, classes));
+        var policy = allowing(Map.of(Feature.REMOTE_IMAGES, classes));
         classes.add("internal");
 
         assertThat(policy.allows(Feature.REMOTE_IMAGES, "internal")).isFalse();
@@ -138,7 +140,7 @@ class GuardsTest {
     void requestFeaturesAreCopied() {
         List<String> refused = new ArrayList<>(List.of("a"));
         Set<Feature> used = new HashSet<>(Set.of(Feature.REMOTE_DOCUMENTS));
-        var features = new RequestFeatures(refused, List.of(), used);
+        var features = requestFeatures(refused, List.of(), used);
         refused.add("b");
         used.add(Feature.PROVIDER_FILES);
 

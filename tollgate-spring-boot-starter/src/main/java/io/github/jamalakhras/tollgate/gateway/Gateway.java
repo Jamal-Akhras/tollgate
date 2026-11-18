@@ -363,54 +363,46 @@ public final class Gateway implements AutoCloseable {
             StreamTarget target,
             boolean showCosts) {
         Route route = call.route();
-        CircuitBreakers.Pass breaker = admitTo(route);
-        try {
-            return reserveAndSend(call, breaker, requestBody, request, scanned, clientHeaders, target, showCosts);
-        } finally {
-            breaker.close();
-        }
-    }
-
-    private Optional<Result> reserveAndSend(
-            Call call,
-            CircuitBreakers.Pass breaker,
-            byte[] requestBody,
-            ChatRequest request,
-            ChatRequest scanned,
-            Function<String, @Nullable String> clientHeaders,
-            StreamTarget target,
-            boolean showCosts) {
-        Route route = call.route();
-        Concurrency.Slot slot = occupy(route);
-        try {
-            Budgeted budgeted = traced("tollgate.budget", () -> reserve(call, requestBody, scanned, false));
-            Map<String, String> headers = headers(route, budgeted, showCosts);
-            Reservation reservation = budgeted.reservation();
+        try (CircuitBreakers.Pass breaker = admitTo(route)) {
+            Concurrency.Slot slot = occupy(route);
             try {
-                recordIntent(
-                        call,
-                        requestBody,
-                        Decision.ALLOW,
-                        reservation == null ? null : reservation.amount(),
-                        budgeted.forwarded());
-            } catch (GatewayException e) {
-                if (reservation != null) {
-                    budgets.settle(reservation, nothing(route));
+                Budgeted budgeted = traced("tollgate.budget", () -> reserve(call, requestBody, scanned, false));
+                Map<String, String> headers = headers(route, budgeted, showCosts);
+                Reservation reservation = budgeted.reservation();
+                try {
+                    recordIntent(
+                            call,
+                            requestBody,
+                            Decision.ALLOW,
+                            reservation == null ? null : reservation.amount(),
+                            budgeted.forwarded());
+                } catch (GatewayException e) {
+                    if (reservation != null) {
+                        budgets.settle(reservation, nothing(route));
+                    }
+                    throw e;
                 }
-                throw e;
+                if (request.isStreaming()) {
+                    stream(
+                            call,
+                            breaker,
+                            budgeted,
+                            clientHeaders,
+                            target,
+                            request.wantsStreamUsage(),
+                            headers,
+                            showCosts);
+                    return Optional.empty();
+                }
+                Sent sent = send(call, breaker, budgeted.forwarded(), reservation, clientHeaders);
+                if (showCosts) {
+                    headers.put(COST_HEADER, sent.charge().toString());
+                }
+                return Optional.of(new Result(
+                        sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
+            } finally {
+                slot.close();
             }
-            if (request.isStreaming()) {
-                stream(call, breaker, budgeted, clientHeaders, target, request.wantsStreamUsage(), headers, showCosts);
-                return Optional.empty();
-            }
-            Sent sent = send(call, breaker, budgeted.forwarded(), reservation, clientHeaders);
-            if (showCosts) {
-                headers.put(COST_HEADER, sent.charge().toString());
-            }
-            return Optional.of(new Result(
-                    sent.response().status(), new String(sent.response().body(), StandardCharsets.UTF_8), headers));
-        } finally {
-            slot.close();
         }
     }
 
@@ -696,11 +688,11 @@ public final class Gateway implements AutoCloseable {
                     clientHeaders);
             report(route, breaker, response.status() < 500);
             result = Outcome.Result.RESPONDED;
-            if (succeeded(response)) {
+            if (succeeded(response.status())) {
                 usage = UsageReader.read(call.endpoint(), response.body());
             }
             charge = costOf(route, response, usage, charge);
-            if (!succeeded(response)) {
+            if (!succeeded(response.status())) {
                 throw unsuccessful(route, response, call.placeholders());
             }
             return new Sent(response.withModel(route.model()).restored(call.endpoint(), call.placeholders()), charge);
@@ -1117,16 +1109,12 @@ public final class Gateway implements AutoCloseable {
         }
     }
 
-    private static boolean succeeded(ProviderResponse response) {
-        return succeeded(response.status());
-    }
-
     private static boolean succeeded(int status) {
         return status >= 200 && status < 300;
     }
 
     private static Money costOf(Route route, ProviderResponse response, Optional<Usage> usage, Money worstCase) {
-        if (!succeeded(response)) {
+        if (!succeeded(response.status())) {
             return nothing(route);
         }
         if (usage.isEmpty()) {

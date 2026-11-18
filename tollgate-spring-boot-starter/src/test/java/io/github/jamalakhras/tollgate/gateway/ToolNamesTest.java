@@ -2,7 +2,7 @@ package io.github.jamalakhras.tollgate.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import java.net.http.HttpResponse;
@@ -10,11 +10,8 @@ import org.junit.jupiter.api.Test;
 
 class ToolNamesTest extends GatewayTestSupport {
 
-    private static final String ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
-            + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
-
-    private HttpResponse<String> chat(String tool, String key) throws Exception {
-        return post(Endpoints.OPENAI_CHAT, bodyWith(tool), "Authorization", "Bearer " + key);
+    private HttpResponse<String> chat(String tool, ApiKey key) throws Exception {
+        return chat(key, bodyWith(tool));
     }
 
     private static String bodyWith(String tool) {
@@ -22,16 +19,8 @@ class ToolNamesTest extends GatewayTestSupport {
                 + tool + "\",\"parameters\":{}}}]}";
     }
 
-    private static Intent intentOf(HttpResponse<String> response) throws Exception {
-        return auditRecordsOf(response).stream()
-                .filter(Intent.class::isInstance)
-                .map(Intent.class::cast)
-                .findFirst()
-                .orElseThrow();
-    }
-
     private void assertRefused(String tool) throws Exception {
-        HttpResponse<String> response = chat(tool, CHAT_KEY.value());
+        HttpResponse<String> response = chat(tool, CHAT_KEY);
 
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.body()).contains("\"policy_denied\"").contains(tool);
@@ -55,9 +44,9 @@ class ToolNamesTest extends GatewayTestSupport {
 
     @Test
     void forwardsARequestWhoseToolsAreAllowed() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        HttpResponse<String> response = chat("get_weather", CHAT_KEY.value());
+        HttpResponse<String> response = chat("get_weather", CHAT_KEY);
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(PROVIDER.received()).hasSize(1);
@@ -68,9 +57,9 @@ class ToolNamesTest extends GatewayTestSupport {
 
     @Test
     void leavesTenantsWithoutTheGuardAlone() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
 
-        HttpResponse<String> response = chat("run_command", CODER_KEY.value());
+        HttpResponse<String> response = chat("run_command", CODER_KEY);
 
         assertThat(response.statusCode()).isEqualTo(200);
     }

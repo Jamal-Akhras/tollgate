@@ -5,10 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -22,21 +23,20 @@ class DashboardTest {
     @Test
     void queriesOnlyMetricsTollgatePublishes() throws Exception {
         JsonNode dashboard = JsonMapper.builder().build().readTree(Files.readString(DASHBOARD));
-        Set<String> published = new HashSet<>();
-        for (String name : List.of(
-                GatewayMetrics.REQUESTS,
-                GatewayMetrics.TOKENS,
-                GatewayMetrics.COST,
-                GatewayMetrics.DURATION,
-                GatewayMetrics.FIRST_EVENT,
-                GatewayMetrics.BUDGET_SPENT,
-                GatewayMetrics.BUDGET_AVAILABLE,
-                GatewayMetrics.IN_FLIGHT,
-                Gateway.LIMITS_REFUSED_METRIC,
-                Gateway.PROVIDERS_BUSY_METRIC,
-                Gateway.FALLBACKS_METRIC)) {
-            published.add(name.replace('.', '_'));
-        }
+        Set<String> published = Stream.of(
+                        GatewayMetrics.REQUESTS,
+                        GatewayMetrics.TOKENS,
+                        GatewayMetrics.COST,
+                        GatewayMetrics.DURATION,
+                        GatewayMetrics.FIRST_EVENT,
+                        GatewayMetrics.BUDGET_SPENT,
+                        GatewayMetrics.BUDGET_AVAILABLE,
+                        GatewayMetrics.IN_FLIGHT,
+                        Gateway.LIMITS_REFUSED_METRIC,
+                        Gateway.PROVIDERS_BUSY_METRIC,
+                        Gateway.FALLBACKS_METRIC)
+                .map(name -> name.replace('.', '_'))
+                .collect(Collectors.toSet());
 
         Set<String> queried = new HashSet<>();
         for (JsonNode panel : dashboard.get("panels")) {

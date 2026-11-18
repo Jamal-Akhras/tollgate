@@ -2,10 +2,15 @@ package io.github.jamalakhras.tollgate.gateway;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
+import io.github.jamalakhras.tollgate.core.audit.Intent;
+import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import io.github.jamalakhras.tollgate.providers.TestPorts;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Metrics;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -16,10 +21,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -49,13 +58,24 @@ abstract class GatewayTestSupport {
     static final ApiKey WATCHED_KEY = ApiKey.generate(new SecureRandom());
     static final ApiKey CHAT_KEY = ApiKey.generate(new SecureRandom());
     static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
+    static final AuditKeys SIGNING_KEYS =
+            AuditKeys.of(AUDIT_KEYS.publicKey(), AUDIT_KEYS.signingKey(), AUDIT_KEYS.hmacKey());
     static final Path AUDIT_DIRECTORY = temporaryDirectory();
     static final Path CONFIG = writeConfig();
+
+    static final String QWEN_ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
+            + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
+    static final String CLOUD_ANSWER =
+            "{\"id\":\"c\",\"model\":\"qwen3:235b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\","
+                    + "\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":5}}";
 
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
 
     @LocalServerPort
     private int port;
+
+    @LocalManagementPort
+    private int managementPort;
 
     @DynamicPropertySource
     static void gateway(DynamicPropertyRegistry registry) {
@@ -76,7 +96,8 @@ abstract class GatewayTestSupport {
     }
 
     private static Path writeConfig() {
-        String config = """
+        String config =
+                """
                 dataClasses: [public, internal, confidential]
                 providers:
                   ollama:
@@ -96,9 +117,9 @@ abstract class GatewayTestSupport {
                   qwen3:
                     provider: ollama
                     upstream: "qwen3:32b"
-                    price: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+                    price: free
                     maxOutputTokens: { default: 256, cap: 1024 }
-                  llama: { provider: ollama, upstream: "llama3.3:70b", price: %5$s }
+                  llama: { provider: ollama, upstream: "llama3.3:70b", price: free }
                   claude-sonnet:
                     provider: anthropic
                     upstream: claude-sonnet-4-5
@@ -114,15 +135,15 @@ abstract class GatewayTestSupport {
                     provider: ollama
                     upstream: qwen-plus
                     price: { input: 0, output: 1, reasoning: 4, cacheRead: 0, cacheWrite: 0 }
-                  slow-model: { provider: slow, upstream: "qwen3:32b", price: %5$s }
-                  offline-model: { provider: offline, upstream: "qwen3:32b", price: %5$s }
-                  gpu-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s }
-                  cloud-model: { provider: cloud, upstream: "qwen3:235b", price: %5$s }
-                  sturdy-model: { provider: down, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
-                  broken-model: { provider: broken, upstream: "qwen3:32b", price: %5$s }
-                  mended-model: { provider: broken, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
-                  backed-model: { provider: ollama, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
-                  spill-model: { provider: gpu, upstream: "qwen3:32b", price: %5$s, fallback: [cloud-model] }
+                  slow-model: { provider: slow, upstream: "qwen3:32b", price: free }
+                  offline-model: { provider: offline, upstream: "qwen3:32b", price: free }
+                  gpu-model: { provider: gpu, upstream: "qwen3:32b", price: free }
+                  cloud-model: { provider: cloud, upstream: "qwen3:235b", price: free }
+                  sturdy-model: { provider: down, upstream: "qwen3:32b", price: free, fallback: [cloud-model] }
+                  broken-model: { provider: broken, upstream: "qwen3:32b", price: free }
+                  mended-model: { provider: broken, upstream: "qwen3:32b", price: free, fallback: [cloud-model] }
+                  backed-model: { provider: ollama, upstream: "qwen3:32b", price: free, fallback: [cloud-model] }
+                  spill-model: { provider: gpu, upstream: "qwen3:32b", price: free, fallback: [cloud-model] }
                   metered-model:
                     provider: ollama
                     upstream: "qwen3:32b"
@@ -185,19 +206,7 @@ abstract class GatewayTestSupport {
                     policy: chatting
                     userHeader: X-OpenWebUI-User-Id
                 keys:
-                  - { id: %3$s, tenant: support-bot, sha256: %4$s }
-                  - { id: %6$s, tenant: metered, sha256: %7$s }
-                  - { id: %10$s, tenant: coder, sha256: %11$s }
-                  - { id: %12$s, tenant: frugal, sha256: %13$s }
-                  - { id: %14$s, tenant: planner, sha256: %15$s }
-                  - { id: %16$s, tenant: clerk, sha256: %17$s }
-                  - { id: %18$s, tenant: hasty, sha256: %19$s }
-                  - { id: %20$s, tenant: rationed, sha256: %21$s }
-                  - { id: %22$s, tenant: thrifty, sha256: %23$s }
-                  - { id: %24$s, tenant: single, sha256: %25$s }
-                  - { id: %26$s, tenant: agent, sha256: %27$s }
-                  - { id: %28$s, tenant: watched, sha256: %29$s }
-                  - { id: %30$s, tenant: chat, sha256: %31$s }
+                %3$s
                 detectors:
                   customer-id: { pattern: "CUST-[0-9]{6}" }
                   account-number: { pattern: "account (?<value>[0-9]{8})" }
@@ -253,42 +262,11 @@ abstract class GatewayTestSupport {
                       backtracking: [internal]
                 audit:
                   mode: sync
-                  directory: '%8$s'
-                  publicKey: %9$s
+                  directory: '%4$s'
+                  publicKey: %5$s
                   signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
                   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
-                """.formatted(
-                        PROVIDER.baseUrl(),
-                        TestPorts.free(),
-                        KEY.id(),
-                        KEY.sha256(),
-                        "{ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }",
-                        METERED_KEY.id(),
-                        METERED_KEY.sha256(),
-                        AUDIT_DIRECTORY,
-                        AUDIT_KEYS.publicKey(),
-                        CODER_KEY.id(),
-                        CODER_KEY.sha256(),
-                        FRUGAL_KEY.id(),
-                        FRUGAL_KEY.sha256(),
-                        PLANNER_KEY.id(),
-                        PLANNER_KEY.sha256(),
-                        CLERK_KEY.id(),
-                        CLERK_KEY.sha256(),
-                        HASTY_KEY.id(),
-                        HASTY_KEY.sha256(),
-                        RATIONED_KEY.id(),
-                        RATIONED_KEY.sha256(),
-                        THRIFTY_KEY.id(),
-                        THRIFTY_KEY.sha256(),
-                        SINGLE_KEY.id(),
-                        SINGLE_KEY.sha256(),
-                        AGENT_KEY.id(),
-                        AGENT_KEY.sha256(),
-                        WATCHED_KEY.id(),
-                        WATCHED_KEY.sha256(),
-                        CHAT_KEY.id(),
-                        CHAT_KEY.sha256());
+                """.formatted(PROVIDER.baseUrl(), TestPorts.free(), keys(), AUDIT_DIRECTORY, AUDIT_KEYS.publicKey());
         try {
             Path file = Files.createTempFile("tollgate", ".yaml");
             file.toFile().deleteOnExit();
@@ -296,6 +274,30 @@ abstract class GatewayTestSupport {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static String keys() {
+        Map<String, ApiKey> byTenant = new LinkedHashMap<>();
+        byTenant.put("support-bot", KEY);
+        byTenant.put("metered", METERED_KEY);
+        byTenant.put("coder", CODER_KEY);
+        byTenant.put("frugal", FRUGAL_KEY);
+        byTenant.put("planner", PLANNER_KEY);
+        byTenant.put("clerk", CLERK_KEY);
+        byTenant.put("hasty", HASTY_KEY);
+        byTenant.put("rationed", RATIONED_KEY);
+        byTenant.put("thrifty", THRIFTY_KEY);
+        byTenant.put("single", SINGLE_KEY);
+        byTenant.put("agent", AGENT_KEY);
+        byTenant.put("watched", WATCHED_KEY);
+        byTenant.put("chat", CHAT_KEY);
+        return byTenant.entrySet().stream()
+                .map(entry -> "  - { id: %s, tenant: %s, sha256: %s }"
+                        .formatted(
+                                entry.getValue().id(),
+                                entry.getKey(),
+                                entry.getValue().sha256()))
+                .collect(Collectors.joining("\n"));
     }
 
     @BeforeEach
@@ -309,8 +311,12 @@ abstract class GatewayTestSupport {
     }
 
     static List<AuditRecord> auditRecordsOf(String traceId) throws IOException {
+        return auditRecordsIn(AUDIT_DIRECTORY, traceId);
+    }
+
+    static List<AuditRecord> auditRecordsIn(Path directory, String traceId) throws IOException {
         List<AuditRecord> records = new ArrayList<>();
-        for (Path file : AuditDirectory.files(AUDIT_DIRECTORY)) {
+        for (Path file : AuditDirectory.files(directory)) {
             for (String line : Files.readAllLines(file)) {
                 if (AuditJson.read(line) instanceof AuditRecord record
                         && record.id().equals(traceId)) {
@@ -321,8 +327,55 @@ abstract class GatewayTestSupport {
         return records;
     }
 
+    static Intent intentOf(HttpResponse<String> response) throws IOException {
+        return auditRecordsOf(response).stream()
+                .filter(Intent.class::isInstance)
+                .map(Intent.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    static Outcome outcomeOf(HttpResponse<String> response) throws IOException {
+        return auditRecordsOf(response).stream()
+                .filter(Outcome.class::isInstance)
+                .map(Outcome.class::cast)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    static double count(String metric, String... tags) {
+        Counter counter = Metrics.globalRegistry.find(metric).tags(tags).counter();
+        return counter == null ? 0 : counter.count();
+    }
+
+    static void awaitProviderCall() {
+        while (PROVIDER.received().isEmpty()) {
+            Thread.onSpinWait();
+        }
+    }
+
     int port() {
         return port;
+    }
+
+    HttpResponse<String> management(String path) throws IOException, InterruptedException {
+        return send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + managementPort + path)));
+    }
+
+    HttpResponse<String> chat(ApiKey key, String body, String... headers) throws IOException, InterruptedException {
+        return post(Endpoints.OPENAI_CHAT, body, withHeader("Authorization", "Bearer " + key.value(), headers));
+    }
+
+    HttpResponse<String> messages(ApiKey key, String body, String... headers) throws IOException, InterruptedException {
+        return post(Endpoints.ANTHROPIC_MESSAGES, body, withHeader("x-api-key", key.value(), headers));
+    }
+
+    private static String[] withHeader(String name, String value, String... more) {
+        String[] all = new String[more.length + 2];
+        all[0] = name;
+        all[1] = value;
+        System.arraycopy(more, 0, all, 2, more.length);
+        return all;
     }
 
     HttpResponse<String> post(String path, String body, String... headers) throws IOException, InterruptedException {

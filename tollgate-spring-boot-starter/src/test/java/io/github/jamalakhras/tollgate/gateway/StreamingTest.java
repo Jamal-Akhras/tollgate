@@ -31,11 +31,7 @@ class StreamingTest extends GatewayTestSupport {
             """;
 
     private HttpResponse<String> stream(String extra) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"stream\":true," + extra + "\"messages\":[]}",
-                "Authorization",
-                "Bearer " + KEY.value());
+        return chat(KEY, "{\"model\":\"qwen3\",\"stream\":true," + extra + "\"messages\":[]}");
     }
 
     @Test
@@ -57,7 +53,7 @@ class StreamingTest extends GatewayTestSupport {
 
                 """);
         assertThat(PROVIDER.received().getFirst().body()).contains("\"stream_options\":{\"include_usage\":true}");
-        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        Outcome outcome = outcomeOf(response);
         assertThat(outcome.result()).isEqualTo(Outcome.Result.RESPONDED);
         assertThat(outcome.status()).isEqualTo(200);
         assertThat(outcome.usage()).isEqualTo(new Usage(12, 2, 0, 0));
@@ -97,7 +93,7 @@ class StreamingTest extends GatewayTestSupport {
                 .startsWith("data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n")
                 .contains("\"code\":\"stream_interrupted\"")
                 .doesNotContain("boom");
-        assertThat(((Outcome) auditRecordsOf(response).get(1)).result()).isEqualTo(Outcome.Result.INTERRUPTED);
+        assertThat(outcomeOf(response).result()).isEqualTo(Outcome.Result.INTERRUPTED);
     }
 
     @Test
@@ -108,7 +104,7 @@ class StreamingTest extends GatewayTestSupport {
         HttpResponse<String> response = stream("");
 
         assertThat(response.body()).contains("The stream lasted longer than PT3S");
-        assertThat(((Outcome) auditRecordsOf(response).get(1)).result()).isEqualTo(Outcome.Result.INTERRUPTED);
+        assertThat(outcomeOf(response).result()).isEqualTo(Outcome.Result.INTERRUPTED);
     }
 
     @Test
@@ -129,7 +125,7 @@ class StreamingTest extends GatewayTestSupport {
                     new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
         }
 
-        Outcome outcome = outcomeOf(traceId, Duration.ofSeconds(10));
+        Outcome outcome = awaitOutcome(traceId, Duration.ofSeconds(10));
         assertThat(outcome.result()).isEqualTo(Outcome.Result.CLIENT_CLOSED);
     }
 
@@ -150,11 +146,8 @@ class StreamingTest extends GatewayTestSupport {
 
                 """);
 
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"stream\":true,\"messages\":[]}",
-                "x-api-key",
-                KEY.value());
+        HttpResponse<String> response =
+                messages(KEY, "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"stream\":true,\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body())
@@ -163,7 +156,7 @@ class StreamingTest extends GatewayTestSupport {
                 .contains("event: message_stop")
                 .doesNotContain("claude-sonnet-4-5");
         assertThat(PROVIDER.received().getFirst().body()).doesNotContain("stream_options");
-        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        Outcome outcome = outcomeOf(response);
         assertThat(outcome.usage()).isEqualTo(new Usage(25, 15, 0, 0));
     }
 
@@ -175,11 +168,8 @@ class StreamingTest extends GatewayTestSupport {
 
                 """);
 
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"stream\":true,\"messages\":[]}",
-                "x-api-key",
-                KEY.value());
+        HttpResponse<String> response =
+                messages(KEY, "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"stream\":true,\"messages\":[]}");
 
         assertThat(response.body())
                 .startsWith("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\"")
@@ -197,7 +187,7 @@ class StreamingTest extends GatewayTestSupport {
         throw new AssertionError("No trace ID in the response headers");
     }
 
-    private static Outcome outcomeOf(String traceId, Duration wait) throws Exception {
+    private static Outcome awaitOutcome(String traceId, Duration wait) throws Exception {
         Instant until = Instant.now().plus(wait);
         while (Instant.now().isBefore(until)) {
             List<AuditRecord> records = auditRecordsOf(traceId);

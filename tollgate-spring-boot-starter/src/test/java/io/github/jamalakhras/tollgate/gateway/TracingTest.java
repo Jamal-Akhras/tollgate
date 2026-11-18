@@ -31,7 +31,6 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -42,18 +41,6 @@ class TracingTest {
     private static final ApiKey KEY = ApiKey.generate(new SecureRandom());
     private static final AuditKeys.NewKeys AUDIT_KEYS = AuditKeys.generate(new SecureRandom());
     private static final String PROMPT = "My card is 4111 1111 1111 1111";
-
-    private static final StreamTarget NOT_STREAMED = new StreamTarget() {
-        @Override
-        public void open(Map<String, String> headers) {
-            throw new AssertionError("Not a streamed request");
-        }
-
-        @Override
-        public void write(byte[] event) {
-            throw new AssertionError("Not a streamed request");
-        }
-    };
 
     private final FakeProvider provider = new FakeProvider();
     private final HttpClient httpClient = ProviderClient.newHttpClient();
@@ -122,7 +109,7 @@ class TracingTest {
                         Optional.of(KEY.value()),
                         new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)),
                         name -> null,
-                        NOT_STREAMED);
+                        TestGateway.NOT_STREAMED);
             } finally {
                 scope.close();
                 parent.end();

@@ -7,46 +7,22 @@ import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Metrics;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 class ShadowModeTest extends GatewayTestSupport {
 
-    private static final String ANSWER = "{\"id\":\"c\",\"model\":\"qwen3:32b\",\"choices\":[{\"index\":0,\"message\":"
-            + "{\"role\":\"assistant\",\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":1}}";
-
     private HttpResponse<String> chat(String model, String dataClass) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"" + model + "\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + WATCHED_KEY.value(),
-                Gateway.DATA_CLASS_HEADER,
-                dataClass);
-    }
-
-    private static Intent intentOf(HttpResponse<String> response) throws Exception {
-        return auditRecordsOf(response).stream()
-                .filter(Intent.class::isInstance)
-                .map(Intent.class::cast)
-                .findFirst()
-                .orElseThrow();
+        return chat(WATCHED_KEY, "{\"model\":\"" + model + "\",\"messages\":[]}", Gateway.DATA_CLASS_HEADER, dataClass);
     }
 
     private static double monitored(String guard) {
-        Counter counter = Metrics.globalRegistry
-                .find(Gateway.GUARDS_MONITORED_METRIC)
-                .tag("tenant", "watched")
-                .tag("guard", guard)
-                .counter();
-        return counter == null ? 0 : counter.count();
+        return count(Gateway.GUARDS_MONITORED_METRIC, "tenant", "watched", "guard", guard);
     }
 
     @Test
     void forwardsARequestAMonitoredGuardWouldRefuseAndRecordsWhatItWouldHaveDone() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, QWEN_ANSWER);
         double before = monitored("request-size");
 
         HttpResponse<String> response = chat("qwen3", "internal");

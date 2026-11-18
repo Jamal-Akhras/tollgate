@@ -29,10 +29,6 @@ public final class StreamRewriter {
     private long webSearches;
     private long reasoningTokens;
 
-    public StreamRewriter(WireFormat format, String model, boolean relayUsage) {
-        this(format, model, relayUsage, Placeholders.NONE);
-    }
-
     public StreamRewriter(WireFormat format, String model, boolean relayUsage, Placeholders placeholders) {
         this.format = format;
         this.model = model;
@@ -72,13 +68,13 @@ public final class StreamRewriter {
         if (relay) {
             before.append(out).append('\n');
         }
-        return before.isEmpty() ? Optional.empty() : Optional.of(bytes(before));
+        return bytes(before);
     }
 
     public Optional<byte[]> finish() {
         StringBuilder rest = new StringBuilder();
         ended(rest);
-        return rest.isEmpty() ? Optional.empty() : Optional.of(bytes(rest));
+        return bytes(rest);
     }
 
     private void restore(ObjectNode data, StringBuilder before) {
@@ -111,8 +107,8 @@ public final class StreamRewriter {
                 .append("\n\n");
     }
 
-    private static byte[] bytes(StringBuilder text) {
-        return text.toString().getBytes(StandardCharsets.UTF_8);
+    private static Optional<byte[]> bytes(StringBuilder text) {
+        return text.isEmpty() ? Optional.empty() : Optional.of(text.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     public Optional<Usage> usage() {
@@ -162,20 +158,17 @@ public final class StreamRewriter {
     }
 
     private void anthropic(JsonNode reported) {
-        input = Math.max(input, count(reported.path("input_tokens")));
-        long reportedOutput = count(reported.path("output_tokens"));
+        input = Math.max(input, ChatRequest.wholeNumber(reported.path("input_tokens")));
+        long reportedOutput = ChatRequest.wholeNumber(reported.path("output_tokens"));
         if (reportedOutput >= 0) {
             output = reportedOutput;
         }
-        cacheRead = Math.max(cacheRead, count(reported.path("cache_read_input_tokens")));
-        cacheWrite = Math.max(cacheWrite, count(reported.path("cache_creation_input_tokens")));
+        cacheRead = Math.max(cacheRead, ChatRequest.wholeNumber(reported.path("cache_read_input_tokens")));
+        cacheWrite = Math.max(cacheWrite, ChatRequest.wholeNumber(reported.path("cache_creation_input_tokens")));
         cacheWrite1h = Math.max(cacheWrite1h, UsageReader.cacheWrite1hTokens(reported));
-        webSearches =
-                Math.max(webSearches, count(reported.path("server_tool_use").path("web_search_requests")));
-    }
-
-    private static long count(JsonNode value) {
-        return value.isIntegralNumber() && value.canConvertToLong() && value.longValue() >= 0 ? value.longValue() : -1;
+        webSearches = Math.max(
+                webSearches,
+                ChatRequest.wholeNumber(reported.path("server_tool_use").path("web_search_requests")));
     }
 
     private static ObjectNode object(String payload) {

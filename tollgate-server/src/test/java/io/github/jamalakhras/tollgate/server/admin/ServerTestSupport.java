@@ -6,19 +6,19 @@ import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditDirectory;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
-import io.github.jamalakhras.tollgate.server.TestPorts;
+import io.github.jamalakhras.tollgate.providers.TestPorts;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.function.ThrowingSupplier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -37,10 +37,8 @@ abstract class ServerTestSupport {
     static final String ADMIN_TOKEN = "a-long-enough-admin-token-for-tests-0003";
     static final Path CONFIG = writeConfig();
 
-    private static final HttpClient CLIENT = HttpClient.newHttpClient();
-
     @LocalServerPort
-    private int port;
+    int gatewayPort;
 
     @DynamicPropertySource
     static void server(DynamicPropertyRegistry registry) {
@@ -125,12 +123,41 @@ abstract class ServerTestSupport {
     }
 
     HttpResponse<String> post(String path, String body, String... headers) throws IOException, InterruptedException {
-        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
-                .header("Content-Type", "application/json");
-        if (headers.length > 0) {
-            request.headers(headers);
+        String[] all = Stream.concat(Stream.of("Content-Type", "application/json"), Stream.of(headers))
+                .toArray(String[]::new);
+        return TestHttp.send("POST", gatewayPort, path, body, all);
+    }
+
+    static HttpResponse<String> admin(String method, String path, String body, String... headers)
+            throws IOException, InterruptedException {
+        String[] all = Stream.concat(Stream.of("Authorization", "Bearer " + ADMIN_TOKEN), Stream.of(headers))
+                .toArray(String[]::new);
+        return TestHttp.send(method, ADMIN_PORT, "/admin/v1" + path, body, all);
+    }
+
+    static HttpResponse<String> admin(String path) throws IOException, InterruptedException {
+        return admin("GET", path, "");
+    }
+
+    static HttpResponse<String> reload() throws IOException, InterruptedException {
+        return admin("POST", "/config/reload", "");
+    }
+
+    static String versionIn(HttpResponse<String> reloaded) {
+        return reloaded.body().replaceAll(".*\"version\":\"([0-9a-f]{64})\".*", "$1");
+    }
+
+    static <T> T poll(ThrowingSupplier<T> read, Predicate<T> done) throws Throwable {
+        T value = read.get();
+        for (int i = 0; i < 50 && !done.test(value); i++) {
+            Thread.sleep(100);
+            value = read.get();
         }
-        return CLIENT.send(
-                request.POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
+        return value;
+    }
+
+    HttpResponse<String> answeredCall() throws IOException, InterruptedException {
+        PROVIDER.respond(200, "{\"id\":\"c\",\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3}}");
+        return post(CHAT, "{\"model\":\"qwen3\",\"messages\":[]}", "Authorization", "Bearer " + KEY.value());
     }
 }

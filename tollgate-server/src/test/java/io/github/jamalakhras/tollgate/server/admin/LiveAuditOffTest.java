@@ -2,10 +2,7 @@ package io.github.jamalakhras.tollgate.server.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.server.TestPorts;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
+import io.github.jamalakhras.tollgate.providers.TestPorts;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,20 +21,11 @@ class LiveAuditOffTest {
         registry.add("tollgate.admin.token", () -> ADMIN_TOKEN);
     }
 
-    private static HttpResponse<String> admin(String path) throws Exception {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1" + path))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-        }
-    }
-
     @Test
     void answers409WhenTheAuditTrailIsOff() throws Exception {
         for (String path : new String[] {"/live", "/activity"}) {
-            HttpResponse<String> response = admin(path);
+            HttpResponse<String> response =
+                    TestHttp.get(ADMIN_PORT, "/admin/v1" + path, "Authorization", "Bearer " + ADMIN_TOKEN);
 
             assertThat(response.statusCode()).isEqualTo(409);
             assertThat(response.body())

@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.gateway;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
@@ -23,12 +24,7 @@ final class GatewayException extends RuntimeException {
     private final boolean fallsBack;
 
     private GatewayException(HttpStatus status, String code, String message, @Nullable String param) {
-        this(status, code, message, param, null);
-    }
-
-    private GatewayException(
-            HttpStatus status, String code, String message, @Nullable String param, @Nullable String retryAfter) {
-        this(status, code, message, param, retryAfter, false);
+        this(status, code, message, param, null, false);
     }
 
     private GatewayException(
@@ -69,7 +65,8 @@ final class GatewayException extends RuntimeException {
                 "rate_limited",
                 message,
                 null,
-                retryAfterSeconds.isPresent() ? Long.toString(retryAfterSeconds.getAsLong()) : null);
+                retryAfterSeconds.isPresent() ? Long.toString(retryAfterSeconds.getAsLong()) : null,
+                false);
     }
 
     static GatewayException refused(Decision.Deny denial) {
@@ -148,10 +145,7 @@ final class GatewayException extends RuntimeException {
                     null,
                     true);
         }
-        HttpStatus status = HttpStatus.resolve(providerStatus);
-        if (status == null) {
-            status = HttpStatus.BAD_GATEWAY;
-        }
+        HttpStatus status = Objects.requireNonNullElse(HttpStatus.resolve(providerStatus), HttpStatus.BAD_GATEWAY);
         if (status == HttpStatus.TOO_MANY_REQUESTS) {
             return new GatewayException(
                     status,

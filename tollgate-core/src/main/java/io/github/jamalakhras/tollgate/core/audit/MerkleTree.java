@@ -22,8 +22,11 @@ final class MerkleTree {
             return leafHashes.getFirst();
         }
         int split = Integer.highestOneBit(leafHashes.size() - 1);
-        return Digests.sha256(
-                NODE, root(leafHashes.subList(0, split)), root(leafHashes.subList(split, leafHashes.size())));
+        return node(root(leafHashes.subList(0, split)), root(leafHashes.subList(split, leafHashes.size())));
+    }
+
+    static byte[] node(byte[] left, byte[] right) {
+        return Digests.sha256(NODE, left, right);
     }
 
     static List<byte[]> path(List<byte[]> leafHashes, int index) {

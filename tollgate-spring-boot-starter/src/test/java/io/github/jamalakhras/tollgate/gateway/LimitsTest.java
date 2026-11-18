@@ -3,8 +3,6 @@ package io.github.jamalakhras.tollgate.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Metrics;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -19,38 +17,23 @@ class LimitsTest extends GatewayTestSupport {
                     + "\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":%d,\"completion_tokens\":%d}}";
 
     private HttpResponse<String> chat(ApiKey key) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}",
-                "Authorization",
-                "Bearer " + key.value());
+        return chat(key, "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}");
     }
 
     private HttpResponse<String> gpu(boolean dryRun) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
+        return chat(
+                CODER_KEY,
                 "{\"model\":\"gpu-model\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + CODER_KEY.value(),
                 Gateway.DRY_RUN_HEADER,
                 Boolean.toString(dryRun));
     }
 
     private static double busy(String provider) {
-        Counter counter = Metrics.globalRegistry
-                .find(Gateway.PROVIDERS_BUSY_METRIC)
-                .tag("provider", provider)
-                .counter();
-        return counter == null ? 0 : counter.count();
+        return count(Gateway.PROVIDERS_BUSY_METRIC, "provider", provider);
     }
 
     private static double refused(String tenant, String limit) {
-        Counter counter = Metrics.globalRegistry
-                .find(Gateway.LIMITS_REFUSED_METRIC)
-                .tag("tenant", tenant)
-                .tag("limit", limit)
-                .counter();
-        return counter == null ? 0 : counter.count();
+        return count(Gateway.LIMITS_REFUSED_METRIC, "tenant", tenant, "limit", limit);
     }
 
     @Test
@@ -72,11 +55,8 @@ class LimitsTest extends GatewayTestSupport {
         assertThat(auditRecordsOf(refused)).isEmpty();
         assertThat(refused("rationed", "requestsPerMinute")).isEqualTo(1);
 
-        HttpResponse<String> anthropic = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                "{\"model\":\"qwen3\",\"max_tokens\":10,\"messages\":[]}",
-                "x-api-key",
-                RATIONED_KEY.value());
+        HttpResponse<String> anthropic =
+                messages(RATIONED_KEY, "{\"model\":\"qwen3\",\"max_tokens\":10,\"messages\":[]}");
         assertThat(anthropic.statusCode()).isEqualTo(429);
         assertThat(anthropic.body())
                 .contains("\"type\":\"rate_limit_error\"")
@@ -93,11 +73,7 @@ class LimitsTest extends GatewayTestSupport {
                 data: [DONE]
 
                 """);
-        HttpResponse<String> streamed = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"stream\":true,\"messages\":[]}",
-                "Authorization",
-                "Bearer " + THRIFTY_KEY.value());
+        HttpResponse<String> streamed = chat(THRIFTY_KEY, "{\"model\":\"qwen3\",\"stream\":true,\"messages\":[]}");
         assertThat(streamed.statusCode()).isEqualTo(200);
         PROVIDER.respond(200, ANSWER.formatted(40, 20));
         assertThat(chat(THRIFTY_KEY).statusCode()).isEqualTo(200);
@@ -118,9 +94,7 @@ class LimitsTest extends GatewayTestSupport {
         PROVIDER.delay(Duration.ofSeconds(1));
         try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<HttpResponse<String>> first = threads.submit(() -> chat(SINGLE_KEY));
-            while (PROVIDER.received().isEmpty()) {
-                Thread.onSpinWait();
-            }
+            awaitProviderCall();
 
             HttpResponse<String> refused = chat(SINGLE_KEY);
 
@@ -140,9 +114,7 @@ class LimitsTest extends GatewayTestSupport {
         double before = busy("gpu");
         try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<HttpResponse<String>> first = threads.submit(() -> gpu(false));
-            while (PROVIDER.received().isEmpty()) {
-                Thread.onSpinWait();
-            }
+            awaitProviderCall();
 
             HttpResponse<String> refused = gpu(false);
 
@@ -164,11 +136,7 @@ class LimitsTest extends GatewayTestSupport {
                 data: [DONE]
 
                 """);
-        assertThat(post(
-                                Endpoints.OPENAI_CHAT,
-                                "{\"model\":\"gpu-model\",\"stream\":true,\"messages\":[]}",
-                                "Authorization",
-                                "Bearer " + CODER_KEY.value())
+        assertThat(chat(CODER_KEY, "{\"model\":\"gpu-model\",\"stream\":true,\"messages\":[]}")
                         .statusCode())
                 .isEqualTo(200);
         PROVIDER.respond(200, ANSWER.formatted(5, 5));

@@ -6,8 +6,6 @@ import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Metrics;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
@@ -18,22 +16,12 @@ import org.junit.jupiter.api.Test;
 
 class FallbackTest extends GatewayTestSupport {
 
-    private static final String ANSWER =
-            "{\"id\":\"c\",\"model\":\"qwen3:235b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\","
-                    + "\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":5}}";
-
     private HttpResponse<String> chat(String model) throws Exception {
         return chat(model, "internal");
     }
 
     private HttpResponse<String> chat(String model, String dataClass) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"" + model + "\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + CODER_KEY.value(),
-                Gateway.DATA_CLASS_HEADER,
-                dataClass);
+        return chat(CODER_KEY, "{\"model\":\"" + model + "\",\"messages\":[]}", Gateway.DATA_CLASS_HEADER, dataClass);
     }
 
     private static String traceOf(HttpResponse<String> response) {
@@ -41,18 +29,12 @@ class FallbackTest extends GatewayTestSupport {
     }
 
     private static double fallbacks(String model, String provider, String reason) {
-        Counter counter = Metrics.globalRegistry
-                .find(Gateway.FALLBACKS_METRIC)
-                .tag("model", model)
-                .tag("provider", provider)
-                .tag("reason", reason)
-                .counter();
-        return counter == null ? 0 : counter.count();
+        return count(Gateway.FALLBACKS_METRIC, "model", model, "provider", provider, "reason", reason);
     }
 
     @Test
     void answersFromTheFallbackWhenTheProviderCannotBeReached() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, CLOUD_ANSWER);
         double before = fallbacks("sturdy-model", "down", "provider_unavailable");
 
         HttpResponse<String> response = chat("sturdy-model");
@@ -85,7 +67,7 @@ class FallbackTest extends GatewayTestSupport {
 
     @Test
     void neverFallsBackWhereThePolicyKeepsTheData() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, CLOUD_ANSWER);
 
         HttpResponse<String> response = chat("sturdy-model", "confidential");
 
@@ -124,13 +106,11 @@ class FallbackTest extends GatewayTestSupport {
 
     @Test
     void spillsOverWhenTheProviderIsBusy() throws Exception {
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, CLOUD_ANSWER);
         PROVIDER.delay(Duration.ofSeconds(1));
         try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<HttpResponse<String>> first = threads.submit(() -> chat("gpu-model"));
-            while (PROVIDER.received().isEmpty()) {
-                Thread.onSpinWait();
-            }
+            awaitProviderCall();
 
             HttpResponse<String> spilled = chat("spill-model");
 
@@ -151,11 +131,7 @@ class FallbackTest extends GatewayTestSupport {
 
                 """);
 
-        HttpResponse<String> response = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"sturdy-model\",\"stream\":true,\"messages\":[]}",
-                "Authorization",
-                "Bearer " + CODER_KEY.value());
+        HttpResponse<String> response = chat(CODER_KEY, "{\"model\":\"sturdy-model\",\"stream\":true,\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).contains("\"model\":\"cloud-model\"").contains("data: [DONE]");

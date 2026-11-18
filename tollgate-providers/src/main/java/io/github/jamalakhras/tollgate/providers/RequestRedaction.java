@@ -2,11 +2,9 @@ package io.github.jamalakhras.tollgate.providers;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
-import java.util.ArrayList;
 import java.util.List;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 final class RequestRedaction {
@@ -56,7 +54,7 @@ final class RequestRedaction {
     private void anthropic(ObjectNode body) {
         text(body, "system");
         blocks(body.path("system"));
-        values(body.path("safeguards"));
+        ChatRequest.mapStrings(body.path("safeguards"), redactor::redact);
         for (JsonNode message : body.path("messages")) {
             if (message instanceof ObjectNode fields) {
                 text(fields, "content");
@@ -72,7 +70,7 @@ final class RequestRedaction {
             }
             switch (block.path("type").asString("")) {
                 case "text" -> text(block, "text");
-                case "tool_use" -> values(block.path("input"));
+                case "tool_use" -> ChatRequest.mapStrings(block.path("input"), redactor::redact);
                 case "tool_result" -> {
                     text(block, "content");
                     blocks(block.path("content"));
@@ -109,39 +107,11 @@ final class RequestRedaction {
             return;
         }
         if (parsed.isContainer()) {
-            if (values(parsed)) {
+            if (ChatRequest.mapStrings(parsed, redactor::redact)) {
                 node.put(field, ChatRequest.JSON.writeValueAsString(parsed));
             }
         } else {
             node.put(field, redactor.redact(text));
         }
-    }
-
-    private boolean values(JsonNode node) {
-        boolean changed = false;
-        if (node instanceof ObjectNode object) {
-            for (String name : new ArrayList<>(object.propertyNames())) {
-                JsonNode value = object.path(name);
-                if (value.isString()) {
-                    String redacted = redactor.redact(value.stringValue());
-                    changed |= !redacted.equals(value.stringValue());
-                    object.put(name, redacted);
-                } else {
-                    changed |= values(value);
-                }
-            }
-        } else if (node instanceof ArrayNode array) {
-            for (int i = 0; i < array.size(); i++) {
-                JsonNode value = array.get(i);
-                if (value.isString()) {
-                    String redacted = redactor.redact(value.stringValue());
-                    changed |= !redacted.equals(value.stringValue());
-                    array.set(i, array.stringNode(redacted));
-                } else {
-                    changed |= values(value);
-                }
-            }
-        }
-        return changed;
     }
 }

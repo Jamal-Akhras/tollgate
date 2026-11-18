@@ -1,6 +1,7 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
 import io.github.jamalakhras.tollgate.core.audit.Seal;
+import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.gateway.audit.UsageReport;
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,10 @@ final class LiveViews {
     static SealView sealView(Seal seal) {
         return new SealView(
                 seal.batch(), seal.records(), seal.time(), seal.root(), seal.previous(), seal.key(), seal.hmacKey());
+    }
+
+    static String plain(Money money) {
+        return money.toBigDecimal().stripTrailingZeros().toPlainString();
     }
 
     record Bucket(

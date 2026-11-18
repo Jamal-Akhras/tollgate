@@ -48,6 +48,7 @@
             <configuration>
               <includes>
                 <include>**/FakeProvider*</include>
+                <include>**/TestPorts*</include>
               </includes>
             </configuration>
           </execution>

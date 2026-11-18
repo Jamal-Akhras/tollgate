@@ -25,9 +25,11 @@ class ModelPriceTest {
 
     @Test
     void boundsACallAtTheDearestInputRate() {
-        assertThat(sonnet.mostFor(1_000_000, 1_000_000)).isEqualTo(Prices.usd("18.75"));
-        assertThat(Prices.perMillion("3", "15", "5", "1").mostFor(1_000_000, 0)).isEqualTo(Prices.usd("5"));
-        assertThat(Prices.perMillion("3", "15", "1", "1").mostFor(1_000_000, 0)).isEqualTo(Prices.usd("3"));
+        assertThat(sonnet.mostFor(1_000_000, 1_000_000, 0)).isEqualTo(Prices.usd("18.75"));
+        assertThat(Prices.perMillion("3", "15", "5", "1").mostFor(1_000_000, 0, 0))
+                .isEqualTo(Prices.usd("5"));
+        assertThat(Prices.perMillion("3", "15", "1", "1").mostFor(1_000_000, 0, 0))
+                .isEqualTo(Prices.usd("3"));
     }
 
     @Test
@@ -35,7 +37,7 @@ class ModelPriceTest {
         Usage usage = new Usage(800, 300, 150, 50);
         long input = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTokens();
 
-        assertThat(sonnet.mostFor(input, usage.outputTokens())).isGreaterThanOrEqualTo(sonnet.costOf(usage));
+        assertThat(sonnet.mostFor(input, usage.outputTokens(), 0)).isGreaterThanOrEqualTo(sonnet.costOf(usage));
     }
 
     @Test
@@ -55,8 +57,8 @@ class ModelPriceTest {
     void reservesAtTheTierOfTheEstimatedPrompt() {
         ModelPrice qwen = tiered();
 
-        assertThat(qwen.mostFor(1_000, 1_000_000)).isEqualTo(usd("0.001").plus(usd("1")));
-        assertThat(qwen.mostFor(1_000_000, 1_000_000)).isEqualTo(usd("4").plus(usd("4")));
+        assertThat(qwen.mostFor(1_000, 1_000_000, 0)).isEqualTo(usd("0.001").plus(usd("1")));
+        assertThat(qwen.mostFor(1_000_000, 1_000_000, 0)).isEqualTo(usd("4").plus(usd("4")));
         assertThat(qwen.outputTokensWithin(usd("4.000004"), 1_000_000, 0)).isOne();
     }
 
@@ -65,9 +67,9 @@ class ModelPriceTest {
         ModelPrice thinking = reasoning("1.2", "4");
         Usage usage = new Usage(0, 1_000_000, 0, 0);
 
-        assertThat(thinking.costOf(usage, 250_000, 0)).isEqualTo(usd("0.9").plus(usd("1")));
-        assertThat(thinking.costOf(usage, 0, 0)).isEqualTo(usd("1.2"));
-        assertThat(thinking.costOf(usage, 2_000_000, 0)).isEqualTo(usd("4"));
+        assertThat(thinking.costOf(usage, 250_000, 0, 0)).isEqualTo(usd("0.9").plus(usd("1")));
+        assertThat(thinking.costOf(usage, 0, 0, 0)).isEqualTo(usd("1.2"));
+        assertThat(thinking.costOf(usage, 2_000_000, 0, 0)).isEqualTo(usd("4"));
     }
 
     @Test
@@ -78,13 +80,13 @@ class ModelPriceTest {
         assertThat(claude.costOf(usage, 0, 0, 400_000)).isEqualTo(usd("2.25").plus(usd("2.4")));
         assertThat(claude.costOf(usage, 0, 0, 2_000_000)).isEqualTo(usd("6"));
         assertThat(sonnet.costOf(usage, 0, 0, 1_000_000)).isEqualTo(usd("3.75"));
-        assertThat(claude.mostFor(1_000_000, 0)).isEqualTo(usd("6"));
+        assertThat(claude.mostFor(1_000_000, 0, 0)).isEqualTo(usd("6"));
     }
 
     @Test
     void reservesOutputAtTheDearerOfOutputAndReasoning() {
-        assertThat(reasoning("1.2", "4").mostFor(0, 1_000_000)).isEqualTo(usd("4"));
-        assertThat(reasoning("4", "1.2").mostFor(0, 1_000_000)).isEqualTo(usd("4"));
+        assertThat(reasoning("1.2", "4").mostFor(0, 1_000_000, 0)).isEqualTo(usd("4"));
+        assertThat(reasoning("4", "1.2").mostFor(0, 1_000_000, 0)).isEqualTo(usd("4"));
         assertThat(reasoning("1.2", "4").outputTokensWithin(usd("2"), 0, 0)).isEqualTo(500_000);
     }
 
@@ -101,7 +103,9 @@ class ModelPriceTest {
         assertThatThrownBy(() -> new ContextTier(0, rates)).hasMessage("fromTokens must be at least 1, was 0");
         var pounds = new TokenPrice(Money.of(BigDecimal.ONE, Currency.getInstance("GBP")));
         assertThatThrownBy(() -> new ModelPrice(
-                        rates, List.of(new ContextTier(1, new TokenRates(pounds, pounds, pounds, pounds))), null))
+                        rates,
+                        List.of(new ContextTier(1, new TokenRates(pounds, pounds, pounds, pounds, pounds))),
+                        null))
                 .hasMessage("All prices of a model must be in one currency");
     }
 
@@ -110,7 +114,8 @@ class ModelPriceTest {
         var pounds = new TokenPrice(Money.of(BigDecimal.ONE, Currency.getInstance("GBP")));
         var dollars = new TokenPrice(Prices.usd("1"));
 
-        assertThatThrownBy(() -> new ModelPrice(dollars, dollars, dollars, pounds))
+        assertThatThrownBy(() ->
+                        new ModelPrice(new TokenRates(dollars, dollars, dollars, dollars, pounds), List.of(), null))
                 .hasMessage("All prices of a model must be in one currency");
     }
 
@@ -143,11 +148,7 @@ class ModelPriceTest {
     }
 
     private static TokenRates rates(String input, String output) {
-        return new TokenRates(
-                new TokenPrice(usd(input)),
-                new TokenPrice(usd(output)),
-                new TokenPrice(usd(input)),
-                new TokenPrice(usd(input)));
+        return Prices.rates(input, output, input, input);
     }
 
     private static Money usd(String amount) {

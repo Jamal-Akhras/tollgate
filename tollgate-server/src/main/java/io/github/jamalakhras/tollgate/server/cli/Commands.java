@@ -5,7 +5,6 @@ import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.audit.TrailVerifier;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.core.config.AuditSettings;
-import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.Names;
 import io.github.jamalakhras.tollgate.core.money.ContextTier;
@@ -102,16 +101,33 @@ public final class Commands {
         return USAGE_ERROR;
     }
 
+    private @Nullable LoadedConfig read(Path config) {
+        try {
+            return ConfigFile.read(config);
+        } catch (IllegalStateException | UncheckedIOException e) {
+            err.println(e.getMessage());
+            return null;
+        }
+    }
+
+    private int fail(@Nullable String message) {
+        err.println(message);
+        return FAILED;
+    }
+
+    private int usageError(@Nullable String message) {
+        err.println(message);
+        return USAGE_ERROR;
+    }
+
     private int init(Path directory) {
         Init.Created created;
         try {
             created = Init.create(directory, random);
         } catch (FileAlreadyExistsException e) {
-            err.println(e.getFile() + " already exists. Tollgate init never overwrites a config or its secrets.");
-            return FAILED;
+            return fail(e.getFile() + " already exists. Tollgate init never overwrites a config or its secrets.");
         } catch (IOException e) {
-            err.println("Could not create the config in " + directory + ": " + e.getMessage());
-            return FAILED;
+            return fail("Could not create the config in " + directory + ": " + e.getMessage());
         }
         out.printf(
                 """
@@ -153,8 +169,7 @@ public final class Commands {
         try {
             Names.check("tenant", tenant);
         } catch (IllegalArgumentException e) {
-            err.println(e.getMessage());
-            return USAGE_ERROR;
+            return usageError(e.getMessage());
         }
         ApiKey key = ApiKey.generate(random);
         out.printf("""
@@ -201,19 +216,16 @@ public final class Commands {
         try {
             publicKey = AuditKeys.publicKey(publicKeyText);
         } catch (IllegalArgumentException e) {
-            err.println(e.getMessage());
-            return USAGE_ERROR;
+            return usageError(e.getMessage());
         }
         if (!Files.isDirectory(directory)) {
-            err.println("No audit trail at " + directory.toAbsolutePath());
-            return FAILED;
+            return fail("No audit trail at " + directory.toAbsolutePath());
         }
         TrailVerifier.Report report;
         try {
             report = AuditDirectory.verify(directory, publicKey);
         } catch (IOException e) {
-            err.println("Could not read the audit trail in " + directory + ": " + e.getMessage());
-            return FAILED;
+            return fail("Could not read the audit trail in " + directory + ": " + e.getMessage());
         }
         report.warnings().forEach(warning -> out.println("Warning: " + warning));
         report.failures().forEach(failure -> out.println("Failed: " + failure));
@@ -236,16 +248,12 @@ public final class Commands {
     }
 
     private int auditUser(Path config, String id) {
-        LoadedConfig loaded;
-        try {
-            loaded = ConfigFile.read(config);
-        } catch (IllegalStateException | UncheckedIOException e) {
-            err.println(e.getMessage());
+        LoadedConfig loaded = read(config);
+        if (loaded == null) {
             return FAILED;
         }
         if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
-            err.println("Users are recorded in the audit trail, and audit.mode is off in " + config);
-            return FAILED;
+            return fail("Users are recorded in the audit trail, and audit.mode is off in " + config);
         }
         AuditKeys keys;
         try {
@@ -254,8 +262,7 @@ public final class Commands {
                     audit.signingKey().resolve(environment),
                     audit.hmacKey().resolve(environment));
         } catch (IllegalArgumentException | IllegalStateException e) {
-            err.println(e.getMessage());
-            return FAILED;
+            return fail(e.getMessage());
         }
         out.println(keys.hmac(id.strip().getBytes(StandardCharsets.UTF_8)));
         return 0;
@@ -270,16 +277,12 @@ public final class Commands {
                 return USAGE_ERROR;
             }
         }
-        LoadedConfig loaded;
-        try {
-            loaded = ConfigFile.read(config);
-        } catch (IllegalStateException | UncheckedIOException e) {
-            err.println(e.getMessage());
+        LoadedConfig loaded = read(config);
+        if (loaded == null) {
             return FAILED;
         }
         if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
-            err.println("The usage report sums the audit trail, and audit.mode is off in " + config);
-            return FAILED;
+            return fail("The usage report sums the audit trail, and audit.mode is off in " + config);
         }
         Path directory = loaded.resolve(audit.directory());
         UsageReport report;
@@ -291,11 +294,9 @@ public final class Commands {
                     chosen.getOrDefault("--by", "tenant"),
                     Clock.systemUTC());
         } catch (IllegalArgumentException e) {
-            err.println(e.getMessage());
-            return USAGE_ERROR;
+            return usageError(e.getMessage());
         } catch (IOException | IllegalStateException e) {
-            err.println("Could not read the audit trail in " + directory + ": " + e.getMessage());
-            return FAILED;
+            return fail("Could not read the audit trail in " + directory + ": " + e.getMessage());
         }
         out.printf(
                 "Usage from %s up to %s, by %s:%n%n",
@@ -340,13 +341,11 @@ public final class Commands {
     private int showPrice(String provider, String model) {
         PriceCatalog catalog = PriceCatalog.bundled();
         if (!catalog.covers(provider)) {
-            err.println("The price catalog has no provider " + provider);
-            return FAILED;
+            return fail("The price catalog has no provider " + provider);
         }
         Optional<ModelPrice> price = catalog.price(provider, model);
         if (price.isEmpty()) {
-            err.println("The " + provider + " price catalog has no model " + model);
-            return FAILED;
+            return fail("The " + provider + " price catalog has no model " + model);
         }
         out.printf("%s on %s, in USD per million tokens, from %s:%n%n", model, provider, catalog.version());
         price(price.get(), "    ").forEach(out::println);
@@ -354,14 +353,11 @@ public final class Commands {
     }
 
     private int pinPrices(Path config) {
-        GatewayConfig read;
-        try {
-            read = ConfigFile.read(config).config();
-        } catch (IllegalStateException | UncheckedIOException e) {
-            err.println(e.getMessage());
+        LoadedConfig loaded = read(config);
+        if (loaded == null) {
             return FAILED;
         }
-        List<Map.Entry<String, Model>> fromCatalog = read.models().entrySet().stream()
+        List<Map.Entry<String, Model>> fromCatalog = loaded.config().models().entrySet().stream()
                 .filter(model -> model.getValue().priceCatalog() != null)
                 .sorted(Map.Entry.comparingByKey())
                 .toList();

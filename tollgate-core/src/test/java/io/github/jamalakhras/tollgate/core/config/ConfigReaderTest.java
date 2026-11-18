@@ -44,11 +44,9 @@ class ConfigReaderTest {
     private static final Map<String, Object> CLAUDE_PRICE =
             Map.of("input", 3, "output", 15L, "cacheRead", new BigDecimal("0.30"), "cacheWrite", 3.75);
     private static final Map<String, Object> SIZE_GUARD = Map.of("type", "request-size", "maxBytes", 1_048_576);
-    private static final Map<String, Object> DATA_CLASS_GUARD = Map.of(
-            "type",
-            "data-class",
-            "regions",
-            Map.of("public", List.of("us", "local"), "confidential", List.of("local")));
+    private static final Map<String, List<String>> REGIONS =
+            Map.of("public", List.of("us", "local"), "confidential", List.of("local"));
+    private static final Map<String, Object> DATA_CLASS_GUARD = Map.of("type", "data-class", "regions", REGIONS);
 
     private static final Map<String, Object> AUDIT = Map.of(
             "mode", "sync",
@@ -103,13 +101,19 @@ class ConfigReaderTest {
     }
 
     private static Map<String, Object> with(String path, Object value) {
-        Map<String, Object> document = deepCopy(document());
+        return with(deepCopy(document()), path, value);
+    }
+
+    private static Map<String, Object> with(Map<String, Object> document, String path, Object value) {
         parentOf(document, path).put(lastPart(path), value);
         return document;
     }
 
     private static Map<String, Object> without(String path) {
-        Map<String, Object> document = deepCopy(document());
+        return without(deepCopy(document()), path);
+    }
+
+    private static Map<String, Object> without(Map<String, Object> document, String path) {
         parentOf(document, path).remove(lastPart(path));
         return document;
     }
@@ -126,6 +130,12 @@ class ConfigReaderTest {
 
     private static String lastPart(String path) {
         return path.substring(path.lastIndexOf('.') + 1);
+    }
+
+    private static Map<String, Object> monitored(Map<String, Object> guard) {
+        Map<String, Object> monitored = new HashMap<>(guard);
+        monitored.put("mode", "monitor");
+        return monitored;
     }
 
     private static <T> T entry(Map<String, T> map, String key) {
@@ -168,16 +178,14 @@ class ConfigReaderTest {
         assertThat(anthropic.region()).isEqualTo("us");
         assertThat(entry(config.tenants(), "support-bot").dataClass()).isEqualTo("confidential");
         assertThat(entry(config.policies(), "default").guards())
-                .containsExactly(
-                        new RequestSizeGuard(1_048_576),
-                        new DataClassGuard(Map.of("public", List.of("us", "local"), "confidential", List.of("local"))));
+                .containsExactly(new RequestSizeGuard(1_048_576), new DataClassGuard(REGIONS));
     }
 
     @Test
     void readsBudgetsInTheConfiguredCurrency() {
         Map<String, Object> document = with("currency", "GBP");
-        parentOf(document, "tenants.support-bot.x").put("budget", Map.of("limit", 50, "period", "monthly"));
-        parentOf(document, "models.qwen3.x").put("maxOutputTokens", Map.of("default", 1_024, "cap", 1_024));
+        with(document, "tenants.support-bot.budget", Map.of("limit", 50, "period", "monthly"));
+        with(document, "models.qwen3.maxOutputTokens", Map.of("default", 1_024, "cap", 1_024));
 
         GatewayConfig config = ConfigReader.read(document);
 
@@ -280,18 +288,13 @@ class ConfigReaderTest {
 
     @Test
     void readsMonitoredGuardsAndLetsAMonitoredDataClassGuardSatisfyTheTenantCheck() {
-        Map<String, Object> monitoredDataClass = new HashMap<>(DATA_CLASS_GUARD);
-        monitoredDataClass.put("mode", "monitor");
         Map<String, Object> enforcedSize = Map.of("type", "request-size", "maxBytes", 5, "mode", "enforce");
 
         GatewayConfig config = ConfigReader.read(with(
-                "policies", Map.of("default", Map.of("guards", List.of(enforcedSize, monitoredDataClass)))));
+                "policies", Map.of("default", Map.of("guards", List.of(enforcedSize, monitored(DATA_CLASS_GUARD))))));
 
         assertThat(Objects.requireNonNull(config.policies().get("default")).guards())
-                .containsExactly(
-                        new RequestSizeGuard(5),
-                        new MonitoredGuard(new DataClassGuard(
-                                Map.of("public", List.of("us", "local"), "confidential", List.of("local")))));
+                .containsExactly(new RequestSizeGuard(5), new MonitoredGuard(new DataClassGuard(REGIONS)));
         assertThat(config.policiesOnlyMonitoringDataClasses()).containsExactly("default");
         assertThat(ConfigReader.read(document()).policiesOnlyMonitoringDataClasses())
                 .isEmpty();
@@ -299,10 +302,7 @@ class ConfigReaderTest {
 
     @Test
     void doesNotCallAPolicyMonitoringWhenAnotherDataClassGuardEnforces() {
-        Map<String, Object> stricter = new HashMap<>(DATA_CLASS_GUARD);
-        stricter.put("mode", "monitor");
-
-        GatewayConfig config = ConfigReader.read(withGuard(stricter));
+        GatewayConfig config = ConfigReader.read(withGuard(monitored(DATA_CLASS_GUARD)));
 
         assertThat(config.policiesOnlyMonitoringDataClasses()).isEmpty();
     }
@@ -322,7 +322,7 @@ class ConfigReaderTest {
 
         assertThat(Objects.requireNonNull(config.policies().get("default")).guards())
                 .containsExactly(
-                        new DataClassGuard(Map.of("public", List.of("us", "local"), "confidential", List.of("local"))),
+                        new DataClassGuard(REGIONS),
                         new ToolNamesGuard(List.of(), List.of("run_command", "write_*")),
                         new ToolNamesGuard(List.of("get_weather"), List.of()),
                         new ToolNamesGuard(List.of("file_*"), List.of("file_delete")),
@@ -484,8 +484,8 @@ class ConfigReaderTest {
     @Test
     void readsFreeModelsAndCatalogsNamedByTheProvider() {
         Map<String, Object> document = without("models.qwen3.price");
-        parentOf(document, "providers.ollama.catalog").put("catalog", "openrouter");
-        parentOf(document, "models.qwen3.upstream").put("upstream", "qwen/qwen3-32b");
+        with(document, "providers.ollama.catalog", "openrouter");
+        with(document, "models.qwen3.upstream", "qwen/qwen3-32b");
 
         assertThat(entry(ConfigReader.read(document, CATALOG).models(), "qwen3").price())
                 .isEqualTo(CATALOG.price("openrouter", "qwen/qwen3-32b").orElseThrow());
@@ -503,7 +503,7 @@ class ConfigReaderTest {
                 .hasMessage("models.qwen3.price is required: its provider has no price catalog."
                         + " Write the price, or price: free if it costs nothing");
         Map<String, Object> unknownModel = without("models.claude-sonnet.price");
-        parentOf(unknownModel, "models.claude-sonnet.upstream").put("upstream", "claude-next");
+        with(unknownModel, "models.claude-sonnet.upstream", "claude-next");
         assertThatThrownBy(() -> ConfigReader.read(unknownModel, CATALOG))
                 .hasMessage(
                         "models.claude-sonnet.price is required: the anthropic price catalog has no model claude-next");
@@ -513,7 +513,7 @@ class ConfigReaderTest {
                 .hasMessage("models.claude-sonnet.price is required, because the price catalog is in USD and the"
                         + " currency is GBP");
         Map<String, Object> unknownProvider = without("models.qwen3.price");
-        parentOf(unknownProvider, "models.qwen3.provider").put("provider", "vllm");
+        with(unknownProvider, "models.qwen3.provider", "vllm");
         assertThatThrownBy(() -> ConfigReader.read(unknownProvider, CATALOG))
                 .hasMessage("models.qwen3.provider: no provider named 'vllm'");
         assertThatThrownBy(() -> ConfigReader.read(with("models.qwen3.price", "cheap"), CATALOG))
@@ -737,8 +737,7 @@ class ConfigReaderTest {
     @Test
     void readsAModelsFallbacks() {
         Map<String, Object> document = with("models.qwen3.fallback", List.of("backup"));
-        parentOf(document, "models.backup")
-                .put("backup", Map.of("provider", "ollama", "upstream", "qwen3:8b", "price", "free"));
+        with(document, "models.backup", Map.of("provider", "ollama", "upstream", "qwen3:8b", "price", "free"));
         GatewayConfig config = ConfigReader.read(document);
 
         assertThat(entry(config.models(), "qwen3").fallback()).containsExactly("backup");

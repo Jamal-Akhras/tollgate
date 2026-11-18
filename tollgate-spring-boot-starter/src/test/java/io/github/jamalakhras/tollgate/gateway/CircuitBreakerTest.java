@@ -7,16 +7,8 @@ import org.junit.jupiter.api.Test;
 
 class CircuitBreakerTest extends GatewayTestSupport {
 
-    private static final String ANSWER =
-            "{\"id\":\"c\",\"model\":\"qwen3:235b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\","
-                    + "\"content\":\"Hi\"}}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":5}}";
-
     private HttpResponse<String> chat(String model) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"" + model + "\",\"messages\":[]}",
-                "Authorization",
-                "Bearer " + CODER_KEY.value());
+        return chat(CODER_KEY, "{\"model\":\"" + model + "\",\"messages\":[]}");
     }
 
     private static String traceOf(HttpResponse<String> response) {
@@ -40,7 +32,7 @@ class CircuitBreakerTest extends GatewayTestSupport {
                 .contains("The model 'broken-model' is unavailable because its provider keeps failing");
         assertThat(auditRecordsOf(skipped)).isEmpty();
 
-        PROVIDER.respond(200, ANSWER);
+        PROVIDER.respond(200, CLOUD_ANSWER);
         HttpResponse<String> mended = chat("mended-model");
 
         assertThat(mended.statusCode()).isEqualTo(200);

@@ -2,9 +2,6 @@ package io.github.jamalakhras.tollgate.server.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
@@ -12,16 +9,11 @@ import org.junit.jupiter.api.Test;
 class ConfigEditsOffTest extends ServerTestSupport {
 
     private static HttpResponse<String> put(String path, String body) throws Exception {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1" + path))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .header("Content-Type", "application/json")
-                            .header("If-Match", "\"anything\"")
-                            .PUT(HttpRequest.BodyPublishers.ofString(body))
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-        }
+        return admin("PUT", path, body, "Content-Type", "application/json", "If-Match", "\"anything\"");
+    }
+
+    private static HttpResponse<String> send(String method, String path) throws Exception {
+        return admin(method, path, "", "If-Match", "\"anything\"");
     }
 
     @Test
@@ -54,18 +46,6 @@ class ConfigEditsOffTest extends ServerTestSupport {
         assertThat(created.body()).contains("\"code\":\"edits_off\"").doesNotContain("tg_");
         assertThat(revoked.statusCode()).isEqualTo(409);
         assertThat(Files.readAllBytes(CONFIG)).isEqualTo(before);
-    }
-
-    private static HttpResponse<String> send(String method, String path) throws Exception {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1" + path))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .header("If-Match", "\"anything\"")
-                            .method(method, HttpRequest.BodyPublishers.noBody())
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-        }
     }
 
     @Test

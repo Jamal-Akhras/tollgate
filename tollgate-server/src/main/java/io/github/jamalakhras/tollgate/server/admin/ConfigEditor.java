@@ -83,15 +83,7 @@ class ConfigEditor {
         String version = unquoted(ifMatch);
         Gateway.Reload reload = gateway.edit(version, operations);
         if (reload.changed()) {
-            ManagedWrite write = new ManagedWrite(
-                    UUID.randomUUID().toString(),
-                    caller,
-                    version,
-                    reload.version(),
-                    operations.stream()
-                            .map(operation -> new Operation(operation.name(), operation.path()))
-                            .toList());
-            log.info(write.line());
+            log.info(line(UUID.randomUUID().toString(), caller, version, reload.version(), operations));
         }
         return reload;
     }
@@ -104,16 +96,11 @@ class ConfigEditor {
         return version;
     }
 
-    record Operation(String name, String path) {}
-
-    record ManagedWrite(String id, AdminCaller caller, String before, String after, List<Operation> operations) {
-
-        String line() {
-            return "Config change " + id + " by " + caller + ": version " + after + " replaces " + before + "; "
-                    + operations.stream()
-                            .map(operation -> operation.name() + " " + operation.path())
-                            .collect(Collectors.joining(", "));
-        }
+    static String line(String id, AdminCaller caller, String before, String after, List<ConfigOperation> operations) {
+        return "Config change " + id + " by " + caller + ": version " + after + " replaces " + before + "; "
+                + operations.stream()
+                        .map(operation -> operation.name() + " " + operation.path())
+                        .collect(Collectors.joining(", "));
     }
 
     static final class EditsOff extends RuntimeException {

@@ -4,8 +4,7 @@ import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.gateway.ConfigOperation;
 import io.github.jamalakhras.tollgate.gateway.EditRejected;
 import io.github.jamalakhras.tollgate.gateway.Gateway;
-import io.github.jamalakhras.tollgate.gateway.ReloadRejected;
-import io.github.jamalakhras.tollgate.server.admin.ConfigController.AdminError;
+import io.github.jamalakhras.tollgate.server.admin.AdminResponses.EditFailures;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -60,26 +59,7 @@ class ConfigEditController {
             responseCode = "404",
             description = "No such policy or guard",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "Edits are off, or the change needs a restart",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "412",
-            description = "If-Match is not the running version, or the file is no longer the running one",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "422",
-            description = "The changed file is not a valid configuration",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "428",
-            description = "If-Match is missing",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "500",
-            description = "The file could not be written; nothing changed",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @EditFailures
     ConfigChange guardMode(
             @PathVariable String policy,
             @PathVariable int index,
@@ -106,26 +86,7 @@ class ConfigEditController {
             responseCode = "404",
             description = "No such tenant",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "Edits are off, or the change needs a restart",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "412",
-            description = "If-Match is not the running version, or the file is no longer the running one",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "422",
-            description = "The changed file is not a valid configuration",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "428",
-            description = "If-Match is missing",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "500",
-            description = "The file could not be written; nothing changed",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @EditFailures
     ConfigChange budget(
             @PathVariable String tenant,
             @RequestBody BudgetChange body,
@@ -146,26 +107,7 @@ class ConfigEditController {
             responseCode = "404",
             description = "No such tenant",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "Edits are off, or the change needs a restart",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "412",
-            description = "If-Match is not the running version, or the file is no longer the running one",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "422",
-            description = "The changed file is not a valid configuration",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "428",
-            description = "If-Match is missing",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "500",
-            description = "The file could not be written; nothing changed",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @EditFailures
     ResponseEntity<CreatedKey> createKey(
             @PathVariable String tenant,
             @RequestHeader(value = "If-Match", required = false) @Nullable String ifMatch,
@@ -188,26 +130,7 @@ class ConfigEditController {
             responseCode = "404",
             description = "No key with that ID",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "Edits are off, or the change needs a restart",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "412",
-            description = "If-Match is not the running version, or the file is no longer the running one",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "422",
-            description = "The changed file is not a valid configuration",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "428",
-            description = "If-Match is missing",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
-    @ApiResponse(
-            responseCode = "500",
-            description = "The file could not be written; nothing changed",
-            content = @Content(schema = @Schema(implementation = AdminError.class)))
+    @EditFailures
     ConfigChange revokeKey(
             @PathVariable String id,
             @RequestHeader(value = "If-Match", required = false) @Nullable String ifMatch,
@@ -249,14 +172,6 @@ class ConfigEditController {
         HttpStatus status = e.code().equals(EditRejected.CONFIG_CHANGED)
                 ? HttpStatus.PRECONDITION_FAILED
                 : HttpStatus.INTERNAL_SERVER_ERROR;
-        return error(status, e.code(), String.valueOf(e.getMessage()));
-    }
-
-    @ExceptionHandler
-    ResponseEntity<AdminError> rejected(ReloadRejected e) {
-        HttpStatus status = e.code().equals(ReloadRejected.RESTART_REQUIRED)
-                ? HttpStatus.CONFLICT
-                : HttpStatus.UNPROCESSABLE_CONTENT;
         return error(status, e.code(), String.valueOf(e.getMessage()));
     }
 

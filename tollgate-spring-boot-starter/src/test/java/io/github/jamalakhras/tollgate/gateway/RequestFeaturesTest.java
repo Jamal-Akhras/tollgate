@@ -19,11 +19,7 @@ class RequestFeaturesTest extends GatewayTestSupport {
     private static final String OK = "{\"id\":\"1\",\"choices\":[]}";
 
     private HttpResponse<String> chat(String fields) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\"," + fields + "}",
-                "Authorization",
-                "Bearer " + KEY.value());
+        return chat(KEY, "{\"model\":\"qwen3\"," + fields + "}");
     }
 
     @Test
@@ -35,7 +31,7 @@ class RequestFeaturesTest extends GatewayTestSupport {
                 .contains("\"code\":\"policy_denied\"")
                 .contains("The field 'web_search_options' is not allowed: it sends searches to a search engine");
         assertThat(PROVIDER.received()).isEmpty();
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.decision())
                 .isEqualTo(Decision.deny(
                         Refusal.POLICY_DENIED,
@@ -83,11 +79,9 @@ class RequestFeaturesTest extends GatewayTestSupport {
 
     @Test
     void refusesBetaHeadersInTheAnthropicFormat() throws Exception {
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
+        HttpResponse<String> response = messages(
+                KEY,
                 "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[]}",
-                "x-api-key",
-                KEY.value(),
                 "anthropic-beta",
                 "mcp-client-2025-11-20");
 
@@ -102,11 +96,9 @@ class RequestFeaturesTest extends GatewayTestSupport {
     void forwardsUnreviewedFieldsAndBetasWhereThePolicyAllowsThem() throws Exception {
         PROVIDER.respond(200, "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
 
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
+        HttpResponse<String> response = messages(
+                CODER_KEY,
                 "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[],\"context_management\":{}}",
-                "x-api-key",
-                CODER_KEY.value(),
                 "anthropic-beta",
                 "interleaved-thinking-2025-05-14");
 
@@ -118,11 +110,9 @@ class RequestFeaturesTest extends GatewayTestSupport {
 
     @Test
     void stillRefusesWhatNoPolicyCanAllow() throws Exception {
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
+        HttpResponse<String> response = messages(
+                CODER_KEY,
                 "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[]}",
-                "x-api-key",
-                CODER_KEY.value(),
                 "anthropic-beta",
                 "web-fetch-2025-09-10");
 
@@ -136,15 +126,8 @@ class RequestFeaturesTest extends GatewayTestSupport {
         String remoteImage = "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":"
                 + "\"image_url\",\"image_url\":{\"url\":\"https://example.com/chart.png\"}}]}]}";
 
-        HttpResponse<String> internal =
-                post(Endpoints.OPENAI_CHAT, remoteImage, "Authorization", "Bearer " + CODER_KEY.value());
-        HttpResponse<String> confidential = post(
-                Endpoints.OPENAI_CHAT,
-                remoteImage,
-                "Authorization",
-                "Bearer " + CODER_KEY.value(),
-                Gateway.DATA_CLASS_HEADER,
-                "confidential");
+        HttpResponse<String> internal = chat(CODER_KEY, remoteImage);
+        HttpResponse<String> confidential = chat(CODER_KEY, remoteImage, Gateway.DATA_CLASS_HEADER, "confidential");
 
         assertThat(internal.statusCode()).isEqualTo(200);
         assertThat(confidential.statusCode()).isEqualTo(403);
@@ -160,12 +143,12 @@ class RequestFeaturesTest extends GatewayTestSupport {
         String search = "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[],"
                 + "\"tools\":[{\"type\":\"web_search_20250305\",\"name\":\"web_search\",\"max_uses\":10}]}";
 
-        HttpResponse<String> allowed = post(Endpoints.ANTHROPIC_MESSAGES, search, "x-api-key", CODER_KEY.value());
-        HttpResponse<String> refused = post(Endpoints.ANTHROPIC_MESSAGES, search, "x-api-key", KEY.value());
+        HttpResponse<String> allowed = messages(CODER_KEY, search);
+        HttpResponse<String> refused = messages(KEY, search);
 
         assertThat(allowed.statusCode()).isEqualTo(200);
         assertThat(PROVIDER.received().getFirst().body()).contains("\"max_uses\":3");
-        Outcome outcome = (Outcome) auditRecordsOf(allowed).get(1);
+        Outcome outcome = outcomeOf(allowed);
         assertThat(outcome.cost()).isEqualTo(Money.of(new BigDecimal("0.02105"), Currency.getInstance("USD")));
         assertThat(refused.statusCode()).isEqualTo(403);
         assertThat(refused.body()).contains("This request uses web search, which this policy does not allow");
@@ -176,16 +159,9 @@ class RequestFeaturesTest extends GatewayTestSupport {
         PROVIDER.respond(200, "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
         String request = "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[],\"tools\":[%s]}";
 
-        HttpResponse<String> server = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                request.formatted("{\"type\":\"web_fetch_20250910\",\"name\":\"web_fetch\"}"),
-                "x-api-key",
-                KEY.value());
-        HttpResponse<String> client = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                request.formatted("{\"name\":\"emit\",\"input_schema\":{}}"),
-                "x-api-key",
-                KEY.value());
+        HttpResponse<String> server =
+                messages(KEY, request.formatted("{\"type\":\"web_fetch_20250910\",\"name\":\"web_fetch\"}"));
+        HttpResponse<String> client = messages(KEY, request.formatted("{\"name\":\"emit\",\"input_schema\":{}}"));
 
         assertThat(server.statusCode()).isEqualTo(403);
         assertThat(server.body()).contains("The tool type 'web_fetch_20250910' is not allowed");

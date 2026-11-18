@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 
 class AuditLogTest {
@@ -60,10 +61,7 @@ class AuditLogTest {
                 start(true, new AuditLog.Limits(1_000, Duration.ofMillis(20), 100, Duration.ofSeconds(5)))) {
             log.append(Records.refused("a"));
 
-            long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-            while (sink.entries().size() < 2 && System.nanoTime() < deadline) {
-                Thread.onSpinWait();
-            }
+            awaitUntil(() -> sink.entries().size() >= 2);
 
             assertThat(sink.entries()).hasSize(2).last().isInstanceOf(Seal.class);
         }
@@ -247,10 +245,7 @@ class AuditLogTest {
                 String id = "request-" + i;
                 appends.add(threads.submit(() -> log.append(Records.refused(id))));
             }
-            long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-            while (log.queued() < 50 && System.nanoTime() < deadline) {
-                Thread.onSpinWait();
-            }
+            awaitUntil(() -> log.queued() >= 50);
             sink.release();
             for (Future<?> append : appends) {
                 append.get();
@@ -259,5 +254,12 @@ class AuditLogTest {
         }
 
         assertThat(sink.entries()).filteredOn(Intent.class::isInstance).hasSize(51);
+    }
+
+    private static void awaitUntil(BooleanSupplier condition) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
     }
 }

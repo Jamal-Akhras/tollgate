@@ -108,8 +108,7 @@ class GatewayConfiguration {
     }
 
     private static void restoreBudgets(LoadedConfig loaded, InMemoryBudgetStore budgets) {
-        boolean budgeted = loaded.config().tenants().values().stream().anyMatch(tenant -> tenant.budget() != null);
-        if (!budgeted) {
+        if (loaded.config().tenants().values().stream().noneMatch(tenant -> tenant.budget() != null)) {
             return;
         }
         if (!(loaded.config().audit() instanceof AuditSettings.Enabled audit)) {
@@ -118,7 +117,11 @@ class GatewayConfiguration {
         }
         Path directory = loaded.resolve(audit.directory());
         try {
-            BudgetReplay.Replayed replayed = BudgetReplay.replay(directory, loaded.config(), budgets);
+            BudgetReplay.Replayed replayed = BudgetReplay.replay(
+                    directory,
+                    loaded.config(),
+                    budgets,
+                    loaded.config().tenants().keySet());
             log.info(
                     "Restored budgets from {} settled calls and {} unfinished calls in {}",
                     replayed.settled(),

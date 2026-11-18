@@ -148,21 +148,7 @@ class EncodingTest {
     @Test
     void tellsAMissingDataClassFromAnEmptyOne() {
         Intent missing = Records.refused("a");
-        Intent empty = new Intent(
-                missing.id(),
-                missing.time(),
-                missing.tenant(),
-                missing.key(),
-                missing.endpoint(),
-                missing.model(),
-                missing.provider(),
-                missing.upstream(),
-                "",
-                missing.configVersion(),
-                missing.requestHmac(),
-                missing.steps(),
-                missing.decision(),
-                missing.reservation());
+        Intent empty = Records.edit(missing, draft -> draft.dataClass = "");
 
         assertThat(Encoding.of(missing)).isNotEqualTo(Encoding.of(empty));
     }
@@ -182,41 +168,13 @@ class EncodingTest {
     }
 
     private static Intent withSteps(Intent intent, List<GuardStep> steps) {
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                intent.tenant(),
-                intent.key(),
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                steps,
-                intent.decision(),
-                intent.reservation(),
-                intent.redactions(),
-                intent.user());
+        return Records.edit(intent, draft -> draft.steps = steps);
     }
 
     private static Intent withTenantAndKey(String tenant, String key) {
-        Intent intent = Records.intent("a");
-        return new Intent(
-                intent.id(),
-                intent.time(),
-                tenant,
-                key,
-                intent.endpoint(),
-                intent.model(),
-                intent.provider(),
-                intent.upstream(),
-                intent.dataClass(),
-                intent.configVersion(),
-                intent.requestHmac(),
-                intent.steps(),
-                intent.decision(),
-                intent.reservation());
+        return Records.edit(Records.intent("a"), draft -> {
+            draft.tenant = tenant;
+            draft.key = key;
+        });
     }
 }

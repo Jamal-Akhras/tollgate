@@ -2,7 +2,6 @@ package io.github.jamalakhras.tollgate.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
@@ -21,13 +20,11 @@ class RedactionTest extends GatewayTestSupport {
     private static final String JANE = "jane@example.com";
     private static final String CARD = "4111 1111 1111 1111";
     private static final String SECRET = "sk-proj-" + "a1B2".repeat(12);
-    private static final AuditKeys KEYS =
-            AuditKeys.of(AUDIT_KEYS.publicKey(), AUDIT_KEYS.signingKey(), AUDIT_KEYS.hmacKey());
 
     private HttpResponse<String> chat(String content, String... extra) throws Exception {
         String body = "{\"model\":\"qwen3\"," + String.join("", extra) + "\"messages\":[{\"role\":\"user\",\"content\":"
                 + "\"" + content + "\"}]}";
-        return post(Endpoints.OPENAI_CHAT, body, "Authorization", "Bearer " + CLERK_KEY.value());
+        return chat(CLERK_KEY, body);
     }
 
     private static String sent() {
@@ -56,10 +53,10 @@ class RedactionTest extends GatewayTestSupport {
                 .contains("\"model\":\"qwen3\"");
 
         List<AuditRecord> records = auditRecordsOf(response);
-        Intent intent = (Intent) records.getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.redactions())
                 .isEqualTo(new Redactions(
-                        Map.of("email", 1, "card", 1), KEYS.hmac(sent().getBytes(StandardCharsets.UTF_8))));
+                        Map.of("email", 1, "card", 1), SIGNING_KEYS.hmac(sent().getBytes(StandardCharsets.UTF_8))));
         assertThat(intent.requestHmac())
                 .isNotEqualTo(Objects.requireNonNull(intent.redactions()).sentHmac());
         assertThat(intent.steps().getLast().guard()).isEqualTo(Gateway.PERSONAL_DATA_STEP);
@@ -78,7 +75,7 @@ class RedactionTest extends GatewayTestSupport {
                         + " refuses for data class 'internal'")
                 .doesNotContain(SECRET);
         assertThat(PROVIDER.received()).isEmpty();
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.allowed()).isFalse();
         assertThat(intent.redactions()).isNull();
         GuardStep step = intent.steps().getLast();
@@ -88,11 +85,9 @@ class RedactionTest extends GatewayTestSupport {
 
     @Test
     void refusesASecretInADryRunToo() throws Exception {
-        HttpResponse<String> response = post(
-                Endpoints.OPENAI_CHAT,
+        HttpResponse<String> response = chat(
+                CLERK_KEY,
                 "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + SECRET + "\"}]}",
-                "Authorization",
-                "Bearer " + CLERK_KEY.value(),
                 Gateway.DRY_RUN_HEADER,
                 "true");
 
@@ -102,16 +97,14 @@ class RedactionTest extends GatewayTestSupport {
 
     @Test
     void recordsADryRunWithItsRedactions() throws Exception {
-        HttpResponse<String> response = post(
-                Endpoints.OPENAI_CHAT,
+        HttpResponse<String> response = chat(
+                CLERK_KEY,
                 "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + JANE + "\"}]}",
-                "Authorization",
-                "Bearer " + CLERK_KEY.value(),
                 Gateway.DRY_RUN_HEADER,
                 "true");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(Objects.requireNonNull(intent.redactions()).values()).isEqualTo(Map.of("email", 1));
     }
 
@@ -122,7 +115,7 @@ class RedactionTest extends GatewayTestSupport {
         HttpResponse<String> response = chat("Nothing personal");
 
         assertThat(response.body()).contains("\"content\":\"[EMAIL_1]\"");
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.redactions()).isNull();
         assertThat(intent.steps().getLast().guard()).isEqualTo(Gateway.PERSONAL_DATA_STEP);
     }
@@ -131,15 +124,13 @@ class RedactionTest extends GatewayTestSupport {
     void leavesRequestsAloneForTenantsWhosePolicyDoesNotRedact() throws Exception {
         PROVIDER.respond(200, "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}");
 
-        HttpResponse<String> response = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + JANE + " " + SECRET + "\"}]}",
-                "Authorization",
-                "Bearer " + KEY.value());
+        HttpResponse<String> response = chat(
+                KEY,
+                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + JANE + " " + SECRET + "\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(sent()).contains(JANE).contains(SECRET);
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.redactions()).isNull();
         assertThat(intent.steps()).extracting(GuardStep::guard).doesNotContain(Gateway.PERSONAL_DATA_STEP);
     }
@@ -207,12 +198,10 @@ class RedactionTest extends GatewayTestSupport {
 
                 """);
 
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
+        HttpResponse<String> response = messages(
+                CLERK_KEY,
                 "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"stream\":true,\"messages\":[{\"role\":\"user\","
-                        + "\"content\":[{\"type\":\"text\",\"text\":\"" + JANE + "\"}]}]}",
-                "x-api-key",
-                CLERK_KEY.value());
+                        + "\"content\":[{\"type\":\"text\",\"text\":\"" + JANE + "\"}]}]}");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(sent()).contains("\"text\":\"[EMAIL_1]\"");
@@ -232,12 +221,10 @@ class RedactionTest extends GatewayTestSupport {
                         + "{\"type\":\"tool_use\",\"id\":\"t\",\"name\":\"send\",\"input\":{\"to\":\"[EMAIL_1]\"}}],"
                         + "\"usage\":{\"input_tokens\":3,\"output_tokens\":3}}");
 
-        HttpResponse<String> response = post(
-                Endpoints.ANTHROPIC_MESSAGES,
+        HttpResponse<String> response = messages(
+                CLERK_KEY,
                 "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"system\":\"Clerk for " + JANE + "\","
-                        + "\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
-                "x-api-key",
-                CLERK_KEY.value());
+                        + "\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(sent()).contains("\"system\":\"Clerk for [EMAIL_1]\"");
@@ -258,7 +245,7 @@ class RedactionTest extends GatewayTestSupport {
 
         assertThat(sent()).contains("Customer [CUSTOMER_ID_1] wants a refund to account [ACCOUNT_NUMBER_1]");
         assertThat(response.body()).contains("Refund CUST-004211 to account 12345678");
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(Objects.requireNonNull(intent.redactions()).values())
                 .isEqualTo(Map.of("account-number", 1, "customer-id", 1));
     }
@@ -277,18 +264,16 @@ class RedactionTest extends GatewayTestSupport {
 
     @Test
     void refusesARequestWhoseScanRunsOutOfTime() throws Exception {
-        HttpResponse<String> response = post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + "a".repeat(40) + "!\"}]}",
-                "Authorization",
-                "Bearer " + HASTY_KEY.value());
+        HttpResponse<String> response = chat(
+                HASTY_KEY,
+                "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + "a".repeat(40) + "!\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(500);
         assertThat(response.body())
                 .contains("\"code\":\"redaction_timeout\"")
                 .contains("because the 'backtracking' detector took too long, so it was not sent");
         assertThat(PROVIDER.received()).isEmpty();
-        Intent intent = (Intent) auditRecordsOf(response).getFirst();
+        Intent intent = intentOf(response);
         assertThat(intent.allowed()).isFalse();
         assertThat(intent.steps().getLast().guard()).isEqualTo(Gateway.PERSONAL_DATA_STEP);
     }

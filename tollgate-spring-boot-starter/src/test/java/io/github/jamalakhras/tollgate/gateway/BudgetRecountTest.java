@@ -14,7 +14,6 @@ import io.github.jamalakhras.tollgate.core.money.Usage;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
-import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.http.HttpClient;
@@ -93,15 +92,7 @@ class BudgetRecountTest {
     }
 
     private Gateway start() {
-        return GatewayConfiguration.start(
-                ConfigFile.read(config()),
-                ENVIRONMENT::get,
-                new ProviderClient(http, 1_024 * 1_024),
-                Clock.fixed(NOW, ZoneOffset.UTC),
-                1_000_000,
-                Duration.ofMinutes(1),
-                Duration.ofSeconds(1),
-                Tracer.NOOP);
+        return TestGateway.start(config(), ENVIRONMENT::get, http, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private void spend(String file, String id, Instant at, String cost) throws IOException {
@@ -119,7 +110,9 @@ class BudgetRecountTest {
                 "b".repeat(64),
                 List.of(),
                 Decision.ALLOW,
-                Money.of(new BigDecimal("0.50"), USD));
+                Money.of(new BigDecimal("0.50"), USD),
+                null,
+                null);
         Outcome outcome = new Outcome(
                 id,
                 at,

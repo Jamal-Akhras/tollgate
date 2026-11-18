@@ -3,7 +3,6 @@ package io.github.jamalakhras.tollgate.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
-import java.io.IOException;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
@@ -12,15 +11,11 @@ class MessagesTest extends GatewayTestSupport {
     private static final String CLAUDE =
             "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}";
 
-    private HttpResponse<String> messages(String body, String... headers) throws IOException, InterruptedException {
-        return post(Endpoints.ANTHROPIC_MESSAGES, body, headers);
-    }
-
     @Test
     void forwardsAnthropicRequestsWithTheProviderKeyAndTheClientsVersion() throws Exception {
         PROVIDER.respond(200, "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
 
-        HttpResponse<String> response = messages(CLAUDE, "x-api-key", KEY.value(), "anthropic-version", "2023-06-01");
+        HttpResponse<String> response = messages(KEY, CLAUDE, "anthropic-version", "2023-06-01");
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("{\"id\":\"msg_1\",\"type\":\"message\",\"content\":[]}");
@@ -36,7 +31,8 @@ class MessagesTest extends GatewayTestSupport {
 
     @Test
     void answersInTheAnthropicErrorFormat() throws Exception {
-        HttpResponse<String> response = messages(CLAUDE, "x-api-key", "sk-ant-not-a-tollgate-key");
+        HttpResponse<String> response =
+                post(Endpoints.ANTHROPIC_MESSAGES, CLAUDE, "x-api-key", "sk-ant-not-a-tollgate-key");
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.body())
@@ -46,8 +42,7 @@ class MessagesTest extends GatewayTestSupport {
 
     @Test
     void pointsOpenAiModelsToTheChatCompletionsEndpoint() throws Exception {
-        HttpResponse<String> response =
-                messages("{\"model\":\"qwen3\",\"max_tokens\":64,\"messages\":[]}", "x-api-key", KEY.value());
+        HttpResponse<String> response = messages(KEY, "{\"model\":\"qwen3\",\"max_tokens\":64,\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("\"type\":\"invalid_request_error\"", "is served on /v1/chat/completions");
@@ -56,8 +51,7 @@ class MessagesTest extends GatewayTestSupport {
 
     @Test
     void reportsUnknownModelsAsNotFound() throws Exception {
-        HttpResponse<String> response =
-                messages("{\"model\":\"llama\",\"max_tokens\":64,\"messages\":[]}", "x-api-key", KEY.value());
+        HttpResponse<String> response = messages(KEY, "{\"model\":\"llama\",\"max_tokens\":64,\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).contains("\"type\":\"not_found_error\"");
@@ -68,9 +62,8 @@ class MessagesTest extends GatewayTestSupport {
         String content = "x".repeat(16_384);
 
         HttpResponse<String> response = messages(
-                "{\"model\":\"claude-sonnet\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}",
-                "x-api-key",
-                KEY.value());
+                KEY,
+                "{\"model\":\"claude-sonnet\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(413);
         assertThat(response.body()).contains("\"type\":\"request_too_large\"");
@@ -80,7 +73,7 @@ class MessagesTest extends GatewayTestSupport {
     void reportsProviderOutagesAsApiErrors() throws Exception {
         PROVIDER.respond(403, "{}");
 
-        HttpResponse<String> response = messages(CLAUDE, "x-api-key", KEY.value());
+        HttpResponse<String> response = messages(KEY, CLAUDE);
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.body()).contains("\"type\":\"api_error\"");

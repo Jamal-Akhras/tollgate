@@ -11,29 +11,14 @@ class PolicyTest extends GatewayTestSupport {
     private static final String QWEN = "{\"model\":\"qwen3\",\"messages\":[]}";
     private static final String CLAUDE = "{\"model\":\"claude-sonnet\",\"max_tokens\":64,\"messages\":[]}";
 
-    private HttpResponse<String> chat(String body, String... dataClass) throws IOException, InterruptedException {
-        String authorization = "Bearer " + KEY.value();
-        return dataClass.length == 0
-                ? post(Endpoints.OPENAI_CHAT, body, "Authorization", authorization)
-                : post(
-                        Endpoints.OPENAI_CHAT,
-                        body,
-                        "Authorization",
-                        authorization,
-                        Gateway.DATA_CLASS_HEADER,
-                        dataClass[0]);
+    private HttpResponse<String> chat(String body, String dataClass) throws IOException, InterruptedException {
+        return chat(KEY, body, Gateway.DATA_CLASS_HEADER, dataClass);
     }
 
     @Test
     void keepsConfidentialRequestsOnLocalModels() throws Exception {
         HttpResponse<String> local = chat(QWEN, "confidential");
-        HttpResponse<String> remote = post(
-                Endpoints.ANTHROPIC_MESSAGES,
-                CLAUDE,
-                "x-api-key",
-                KEY.value(),
-                Gateway.DATA_CLASS_HEADER,
-                "confidential");
+        HttpResponse<String> remote = messages(KEY, CLAUDE, Gateway.DATA_CLASS_HEADER, "confidential");
 
         assertThat(local.statusCode()).isEqualTo(200);
         assertThat(remote.statusCode()).isEqualTo(403);
@@ -67,7 +52,7 @@ class PolicyTest extends GatewayTestSupport {
         String content = "x".repeat(900);
 
         HttpResponse<String> response =
-                chat("{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
+                chat(KEY, "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(413);
         assertThat(response.body()).contains("this policy allows 900", "\"code\":\"request_too_large\"");

@@ -22,10 +22,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = "/admin/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 class LiveController {
 
-    private static final int BUCKETS_PER_MINUTE = 12;
+    private static final int BUCKETS_PER_MINUTE = 60 / LiveWindow.BUCKET_SECONDS;
 
     private final Gateway gateway;
     private final LiveTail tail;
@@ -58,18 +55,18 @@ class LiveController {
     @ApiResponse(
             responseCode = "400",
             description = "minutes is not between 1 and 60",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
     @ApiResponse(
             responseCode = "409",
             description = "The audit trail is off, so there is nothing to follow",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
     LiveSnapshot live(
             @Parameter(description = "How many minutes of 5-second totals to return, from 1 to 60")
                     @RequestParam(defaultValue = "15")
                     int minutes) {
         requireAudit();
         if (minutes < 1 || minutes > 60) {
-            throw new BadQuery("minutes must be between 1 and 60, was " + minutes);
+            throw AdminException.badQuery("minutes must be between 1 and 60, was " + minutes);
         }
         Live live = tail.current();
         List<Bucket> all = live.buckets();
@@ -81,7 +78,7 @@ class LiveController {
                 live.now(),
                 since,
                 live.skipped(),
-                5,
+                LiveWindow.BUCKET_SECONDS,
                 List.copyOf(buckets),
                 live.p50Millis(),
                 live.p95Millis(),
@@ -102,24 +99,24 @@ class LiveController {
     @ApiResponse(
             responseCode = "400",
             description = "limit is not between 1 and 200",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
     @ApiResponse(
             responseCode = "409",
             description = "The audit trail is off, so there is nothing to follow",
-            content = @Content(schema = @Schema(implementation = ConfigController.AdminError.class)))
+            content = @Content(schema = @Schema(implementation = AdminError.class)))
     List<CallView> activity(
             @Parameter(description = "How many calls to return, from 1 to 200") @RequestParam(defaultValue = "50")
                     int limit) {
         requireAudit();
         if (limit < 1 || limit > 200) {
-            throw new BadQuery("limit must be between 1 and 200, was " + limit);
+            throw AdminException.badQuery("limit must be between 1 and 200, was " + limit);
         }
         return tail.current().calls().stream().limit(limit).toList();
     }
 
     private void requireAudit() {
         if (gateway.auditDirectory().isEmpty()) {
-            throw new AuditOff();
+            throw AdminException.auditOff("The live view reads the audit trail, and audit.mode is off");
         }
     }
 
@@ -147,18 +144,6 @@ class LiveController {
         return byTenant;
     }
 
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> badQuery(BadQuery e) {
-        return ResponseEntity.badRequest()
-                .body(new ConfigController.AdminError("invalid_request", String.valueOf(e.getMessage())));
-    }
-
-    @ExceptionHandler
-    ResponseEntity<ConfigController.AdminError> auditOff(AuditOff e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ConfigController.AdminError("audit_off", String.valueOf(e.getMessage())));
-    }
-
     record LiveSnapshot(
             Instant now,
             Instant since,
@@ -172,22 +157,4 @@ class LiveController {
             Map<String, Long> inFlight,
             Map<String, Long> limited,
             @Nullable SealView lastSeal) {}
-
-    static final class BadQuery extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        BadQuery(String message) {
-            super(message);
-        }
-    }
-
-    static final class AuditOff extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        AuditOff() {
-            super("The live view reads the audit trail, and audit.mode is off");
-        }
-    }
 }

@@ -7,10 +7,11 @@ import org.jspecify.annotations.Nullable;
 
 public record SecretRef(String variable) {
 
-    private static final Pattern ENVIRONMENT_REFERENCE = Pattern.compile("\\$\\{env:([A-Za-z_][A-Za-z0-9_]*)}");
+    private static final String NAME = "[A-Za-z_][A-Za-z0-9_]*";
+    private static final Pattern ENVIRONMENT_REFERENCE = Pattern.compile("\\$\\{env:(" + NAME + ")}");
 
     public SecretRef {
-        if (!variable.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+        if (!variable.matches(NAME)) {
             throw new IllegalArgumentException("Not an environment variable name: " + variable);
         }
     }

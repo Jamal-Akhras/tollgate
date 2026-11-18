@@ -115,18 +115,12 @@ public final class AuditKeys {
     }
 
     static boolean verify(PublicKey key, byte[] content, String signature) {
-        byte[] signatureBytes;
-        try {
-            signatureBytes = Base64.getDecoder().decode(signature);
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
         try {
             Signature verifier = Signature.getInstance(ED25519);
             verifier.initVerify(key);
             verifier.update(content);
-            return verifier.verify(signatureBytes);
-        } catch (InvalidKeyException | SignatureException e) {
+            return verifier.verify(Base64.getDecoder().decode(signature));
+        } catch (IllegalArgumentException | InvalidKeyException | SignatureException e) {
             return false;
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Every Java runtime provides Ed25519", e);

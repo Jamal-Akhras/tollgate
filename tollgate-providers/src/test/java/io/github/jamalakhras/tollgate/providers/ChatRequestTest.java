@@ -18,6 +18,10 @@ class ChatRequestTest {
         return ChatRequest.parse(json.getBytes(StandardCharsets.UTF_8));
     }
 
+    private static ChatRequest.Forwarded forward(String json, WireFormat format) {
+        return parse(json).forward("m", format, null, 0, true);
+    }
+
     private static String text(ChatRequest.Forwarded forwarded) {
         return new String(forwarded.body(), StandardCharsets.UTF_8);
     }
@@ -59,25 +63,14 @@ class ChatRequestTest {
 
     @Test
     void countsChoicesOnlyForOpenAi() {
-        assertThat(parse("{\"model\":\"m\"}")
-                        .forward("m", WireFormat.OPENAI, null, 0, true)
-                        .choices())
-                .isOne();
-        assertThat(parse("{\"model\":\"m\",\"n\":5}")
-                        .forward("m", WireFormat.OPENAI, null, 0, true)
-                        .choices())
+        assertThat(forward("{\"model\":\"m\"}", WireFormat.OPENAI).choices()).isOne();
+        assertThat(forward("{\"model\":\"m\",\"n\":5}", WireFormat.OPENAI).choices())
                 .isEqualTo(5);
-        assertThat(parse("{\"model\":\"m\",\"n\":128}")
-                        .forward("m", WireFormat.OPENAI, null, 0, true)
-                        .choices())
+        assertThat(forward("{\"model\":\"m\",\"n\":128}", WireFormat.OPENAI).choices())
                 .isEqualTo(128);
-        assertThat(parse("{\"model\":\"m\",\"n\":null}")
-                        .forward("m", WireFormat.OPENAI, null, 0, true)
-                        .choices())
+        assertThat(forward("{\"model\":\"m\",\"n\":null}", WireFormat.OPENAI).choices())
                 .isOne();
-        assertThat(parse("{\"model\":\"m\",\"n\":5}")
-                        .forward("m", WireFormat.ANTHROPIC, null, 0, true)
-                        .choices())
+        assertThat(forward("{\"model\":\"m\",\"n\":5}", WireFormat.ANTHROPIC).choices())
                 .isOne();
     }
 
@@ -102,12 +95,8 @@ class ChatRequestTest {
                 + "{\"type\":\"image\",\"source\":{\"type\":\"url\"}},"
                 + "{\"type\":\"document\",\"source\":{\"type\":\"base64\"}}]}]}";
 
-        assertThat(parse(openAi).forward("m", WireFormat.OPENAI, null, 0, true).inlineImages())
-                .isEqualTo(2);
-        assertThat(parse(anthropic)
-                        .forward("m", WireFormat.ANTHROPIC, null, 0, true)
-                        .inlineImages())
-                .isOne();
+        assertThat(forward(openAi, WireFormat.OPENAI).inlineImages()).isEqualTo(2);
+        assertThat(forward(anthropic, WireFormat.ANTHROPIC).inlineImages()).isOne();
     }
 
     @Test

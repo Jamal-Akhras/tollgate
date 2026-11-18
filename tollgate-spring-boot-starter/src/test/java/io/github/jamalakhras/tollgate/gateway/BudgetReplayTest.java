@@ -14,7 +14,6 @@ import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.gateway.audit.AuditJson;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
 import io.github.jamalakhras.tollgate.providers.ProviderClient;
-import io.micrometer.tracing.Tracer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -30,6 +29,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,17 +43,6 @@ class BudgetReplayTest {
             "TOLLGATE_AUDIT_SIGNING_KEY", AUDIT_KEYS.signingKey(), "TOLLGATE_AUDIT_HMAC_KEY", AUDIT_KEYS.hmacKey());
     private static final String TEN_TOKENS =
             "{\"choices\":[],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":10}}";
-    private static final StreamTarget NOT_STREAMED = new StreamTarget() {
-        @Override
-        public void open(Map<String, String> headers) {
-            throw new AssertionError("Not a streamed request");
-        }
-
-        @Override
-        public void write(byte[] event) {
-            throw new AssertionError("Not a streamed request");
-        }
-    };
 
     private final FakeProvider provider = new FakeProvider();
     private final HttpClient http = ProviderClient.newHttpClient();
@@ -89,15 +78,27 @@ class BudgetReplayTest {
                   hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
                 """.formatted(
                         provider.baseUrl(), KEY.id(), KEY.sha256(), AUDIT_KEYS.publicKey()));
-        return GatewayConfiguration.start(
-                ConfigFile.read(config),
-                ENVIRONMENT::get,
-                new ProviderClient(http, 1_024 * 1_024),
-                Clock.systemUTC(),
-                1_000_000,
-                Duration.ofMinutes(1),
-                Duration.ofSeconds(1),
-                Tracer.NOOP);
+        return TestGateway.start(config, ENVIRONMENT::get, http, Clock.systemUTC());
+    }
+
+    private static Intent intent(String id, @Nullable String user) {
+        return new Intent(
+                id,
+                Instant.now(),
+                "metered",
+                KEY.id(),
+                WireFormat.OPENAI,
+                "metered-model",
+                "ollama",
+                "qwen3:32b",
+                null,
+                "a".repeat(64),
+                "b".repeat(64),
+                List.of(),
+                Decision.ALLOW,
+                Money.of(new BigDecimal("0.05"), Currency.getInstance("USD")),
+                null,
+                user);
     }
 
     private static HttpStatus call(Gateway gateway) {
@@ -109,7 +110,7 @@ class BudgetReplayTest {
                     new ByteArrayInputStream(
                             "{\"model\":\"metered-model\",\"messages\":[]}".getBytes(StandardCharsets.UTF_8)),
                     name -> null,
-                    NOT_STREAMED);
+                    TestGateway.NOT_STREAMED);
             return HttpStatus.OK;
         } catch (GatewayException e) {
             return e.status();
@@ -136,21 +137,7 @@ class BudgetReplayTest {
         try (Gateway gateway = start()) {
             assertThat(gateway.auditHealthy()).isTrue();
         }
-        Intent unfinished = new Intent(
-                "crashed",
-                Instant.now(),
-                "metered",
-                KEY.id(),
-                WireFormat.OPENAI,
-                "metered-model",
-                "ollama",
-                "qwen3:32b",
-                null,
-                "a".repeat(64),
-                "b".repeat(64),
-                List.of(),
-                Decision.ALLOW,
-                Money.of(new BigDecimal("0.05"), Currency.getInstance("USD")));
+        Intent unfinished = intent("crashed", null);
         Files.writeString(
                 directory.resolve("audit").resolve("tollgate-audit-00000099.jsonl"),
                 AuditJson.write(unfinished) + "\n");
@@ -167,23 +154,7 @@ class BudgetReplayTest {
             try (Gateway gateway = start()) {
                 assertThat(gateway.auditHealthy()).isTrue();
             }
-            Intent finished = new Intent(
-                    "finished",
-                    Instant.now(),
-                    "metered",
-                    KEY.id(),
-                    WireFormat.OPENAI,
-                    "metered-model",
-                    "ollama",
-                    "qwen3:32b",
-                    null,
-                    "a".repeat(64),
-                    "b".repeat(64),
-                    List.of(),
-                    Decision.ALLOW,
-                    Money.of(new BigDecimal("0.05"), Currency.getInstance("USD")),
-                    null,
-                    user);
+            Intent finished = intent("finished", user);
             Outcome outcome = new Outcome(
                     "finished",
                     Instant.now(),
@@ -201,7 +172,6 @@ class BudgetReplayTest {
                 assertThat(call(restarted)).isEqualTo(HttpStatus.OK);
                 assertThat(call(restarted)).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
             }
-            Files.delete(file);
             try (var files = Files.list(directory.resolve("audit"))) {
                 for (Path left : files.toList()) {
                     Files.delete(left);

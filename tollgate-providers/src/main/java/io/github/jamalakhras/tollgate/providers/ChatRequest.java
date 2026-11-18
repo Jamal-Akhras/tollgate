@@ -4,10 +4,12 @@ import io.github.jamalakhras.tollgate.core.config.OutputTokens;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import io.github.jamalakhras.tollgate.core.redact.Redactor;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.function.UnaryOperator;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.StreamReadFeature;
@@ -108,9 +110,39 @@ public final class ChatRequest {
 
     public long thinkingBudget() {
         JsonNode budget = body.path("thinking").path("budget_tokens");
-        return budget.isIntegralNumber() && budget.canConvertToLong() && budget.longValue() > 0
-                ? budget.longValue()
-                : 0;
+        return Math.max(wholeNumber(budget), 0);
+    }
+
+    static boolean mapStrings(JsonNode node, UnaryOperator<String> change) {
+        boolean changed = false;
+        if (node instanceof ObjectNode object) {
+            for (String name : new ArrayList<>(object.propertyNames())) {
+                JsonNode value = object.path(name);
+                if (value.isString()) {
+                    String replaced = change.apply(value.stringValue());
+                    changed |= !replaced.equals(value.stringValue());
+                    object.put(name, replaced);
+                } else {
+                    changed |= mapStrings(value, change);
+                }
+            }
+        } else if (node instanceof ArrayNode array) {
+            for (int i = 0; i < array.size(); i++) {
+                JsonNode value = array.get(i);
+                if (value.isString()) {
+                    String replaced = change.apply(value.stringValue());
+                    changed |= !replaced.equals(value.stringValue());
+                    array.set(i, array.stringNode(replaced));
+                } else {
+                    changed |= mapStrings(value, change);
+                }
+            }
+        }
+        return changed;
+    }
+
+    static long wholeNumber(JsonNode value) {
+        return value.isIntegralNumber() && value.canConvertToLong() && value.longValue() >= 0 ? value.longValue() : -1;
     }
 
     private long choices() {
@@ -118,10 +150,11 @@ public final class ChatRequest {
         if (n.isMissingNode() || n.isNull()) {
             return 1;
         }
-        if (!n.isIntegralNumber() || !n.canConvertToLong() || n.longValue() < 1 || n.longValue() > MAX_CHOICES) {
+        long choices = wholeNumber(n);
+        if (choices < 1 || choices > MAX_CHOICES) {
             throw new InvalidRequestException("'n' must be a whole number from 1 to " + MAX_CHOICES, "n");
         }
-        return n.longValue();
+        return choices;
     }
 
     private long limitWebSearches(ObjectNode forwarded, long maxWebSearches) {
@@ -155,10 +188,11 @@ public final class ChatRequest {
             if (value.isMissingNode() || value.isNull()) {
                 continue;
             }
-            if (!value.isIntegralNumber() || !value.canConvertToLong() || value.longValue() < 1) {
+            long tokens = wholeNumber(value);
+            if (tokens < 1) {
                 throw new InvalidRequestException("'" + field + "' must be a positive whole number", field);
             }
-            limited.put(field, limit == null ? value.longValue() : limit.limit(value.longValue()));
+            limited.put(field, limit == null ? tokens : limit.limit(tokens));
         }
         if (limited.isEmpty() && limit != null && fillOutputCap) {
             limited.put(MAX_TOKENS, limit.defaultTokens());

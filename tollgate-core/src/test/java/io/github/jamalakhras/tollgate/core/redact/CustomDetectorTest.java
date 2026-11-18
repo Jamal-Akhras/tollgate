@@ -23,23 +23,15 @@ class CustomDetectorTest {
             Detector.pattern("account-number", "(?i)account(?: number| no\\.?)?[ :#]*(?<value>[0-9]{8})");
     private static final Detector CODENAMES = Detector.terms("codenames", List.of("Bluebird", "Project Falcon"), false);
 
-    private static List<String> found(Detector detector, String text) {
-        List<Span> spans = new ArrayList<>();
-        detector.find(text, spans, ScanBudget.UNLIMITED);
-        return spans.stream()
-                .map(span -> text.substring(span.start(), span.end()))
-                .toList();
-    }
-
     @Test
     void findsWhatAPatternDescribes() {
-        assertThat(found(CUSTOMER_ID, "Orders for CUST-004211 and CUST-990001, not CUST-12"))
+        assertThat(DetectorTest.found(CUSTOMER_ID, "Orders for CUST-004211 and CUST-990001, not CUST-12"))
                 .containsExactly("CUST-004211", "CUST-990001");
     }
 
     @Test
     void replacesOnlyTheValueGroupWhenThereIsOne() {
-        assertThat(found(ACCOUNT, "Account number 12345678, account no. 87654321 and acct 11112222"))
+        assertThat(DetectorTest.found(ACCOUNT, "Account number 12345678, account no. 87654321 and acct 11112222"))
                 .containsExactly("12345678", "87654321");
 
         Redactor redactor = new Redactor(Set.of(), Set.of(ACCOUNT));
@@ -51,7 +43,7 @@ class CustomDetectorTest {
     void skipsMatchesWhereTheValueGroupIsEmptyOrMissing() {
         Detector optional = Detector.pattern("ref", "REF(?<value>[0-9]*)");
 
-        assertThat(found(optional, "REF and REF42")).containsExactly("42");
+        assertThat(DetectorTest.found(optional, "REF and REF42")).containsExactly("42");
     }
 
     @Test
@@ -65,25 +57,28 @@ class CustomDetectorTest {
 
     @Test
     void findsTermsAsWholeWordsInAnyCase() {
-        assertThat(found(CODENAMES, "Bluebird ships, BLUEBIRD's date and bluebirds stay; project   falcon too"))
+        assertThat(DetectorTest.found(
+                        CODENAMES, "Bluebird ships, BLUEBIRD's date and bluebirds stay; project   falcon too"))
                 .containsExactly("Bluebird", "BLUEBIRD", "project   falcon");
-        assertThat(found(CODENAMES, "Bluebirds, xBluebird, Bluebird_2, Project, Project\nFalcon"))
+        assertThat(DetectorTest.found(CODENAMES, "Bluebirds, xBluebird, Bluebird_2, Project, Project\nFalcon"))
                 .containsExactly("Project\nFalcon");
-        assertThat(found(CODENAMES, "ProjectFalcon Project Falconry")).isEmpty();
+        assertThat(DetectorTest.found(CODENAMES, "ProjectFalcon Project Falconry"))
+                .isEmpty();
     }
 
     @Test
     void matchesATermWrittenWithTabsOrLineBreaksAgainstAnySpacing() {
         Detector written = Detector.terms("t", List.of("Project\tFalcon", "Blue\n  Bird"), false);
 
-        assertThat(found(written, "Project Falcon and blue bird")).containsExactly("Project Falcon", "blue bird");
+        assertThat(DetectorTest.found(written, "Project Falcon and blue bird"))
+                .containsExactly("Project Falcon", "blue bird");
     }
 
     @Test
     void prefersTheLongestTermThatStartsTheSame() {
         Detector clients = Detector.terms("clients", List.of("Acme", "Acme Holdings", "Acme-Corp"), false);
 
-        assertThat(found(clients, "Acme Holdings bought Acme-Corp from Acme; Acme Hold"))
+        assertThat(DetectorTest.found(clients, "Acme Holdings bought Acme-Corp from Acme; Acme Hold"))
                 .containsExactly("Acme Holdings", "Acme-Corp", "Acme", "Acme");
     }
 
@@ -91,14 +86,14 @@ class CustomDetectorTest {
     void matchesCaseWhenAsked() {
         Detector exact = Detector.terms("clients", List.of("Globex"), true);
 
-        assertThat(found(exact, "Globex, globex, GLOBEX")).containsExactly("Globex");
+        assertThat(DetectorTest.found(exact, "Globex, globex, GLOBEX")).containsExactly("Globex");
     }
 
     @Test
     void findsTermsInOtherScripts() {
         Detector names = Detector.terms("names", List.of("Zürich Fonds", "東京"), false);
 
-        assertThat(found(names, "ZÜRICH FONDS und 東京 aber 東京都")).containsExactly("ZÜRICH FONDS", "東京");
+        assertThat(DetectorTest.found(names, "ZÜRICH FONDS und 東京 aber 東京都")).containsExactly("ZÜRICH FONDS", "東京");
     }
 
     @Test
@@ -128,7 +123,8 @@ class CustomDetectorTest {
         assertThatThrownBy(() -> Detector.terms("t", many, false))
                 .hasMessage("terms may list at most 10000, was 10001");
         assertThat(Detector.terms("t", many.subList(0, Terms.MAX_TERMS), false)).isNotNull();
-        assertThat(found(Detector.terms("t", List.of("a", "a"), false), "a")).containsExactly("a");
+        assertThat(DetectorTest.found(Detector.terms("t", List.of("a", "a"), false), "a"))
+                .containsExactly("a");
     }
 
     @Test
@@ -138,7 +134,7 @@ class CustomDetectorTest {
         Detector clients = Detector.terms("clients", terms, false);
         String text = "client 4 met client x and Client 9999. ".repeat(25_000);
 
-        List<String> found = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> found(clients, text));
+        List<String> found = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> DetectorTest.found(clients, text));
 
         assertThat(found).hasSize(50_000);
     }
@@ -180,19 +176,16 @@ class CustomDetectorTest {
         String text = "a".repeat(40) + "!";
         List<Span> spans = new ArrayList<>();
 
-        ScanTimeoutException timeout = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
-            ScanBudget budget = ScanBudget.of(Duration.ofMillis(200));
-            try {
-                slow.find(text, spans, budget);
-                throw new AssertionError("the scan should have run out of time");
-            } catch (ScanTimeoutException e) {
-                assertThat(budget.spent()).isTrue();
-                return e;
-            }
-        });
+        ScanBudget budget = ScanBudget.of(Duration.ofMillis(200));
 
-        assertThat(timeout.detector()).isEqualTo("slow");
-        assertThat(timeout).hasMessage("The 'slow' detector ran out of time");
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(10),
+                () -> assertThatThrownBy(() -> slow.find(text, spans, budget))
+                        .isInstanceOfSatisfying(
+                                ScanTimeoutException.class,
+                                e -> assertThat(e.detector()).isEqualTo("slow"))
+                        .hasMessage("The 'slow' detector ran out of time"));
+        assertThat(budget.spent()).isTrue();
     }
 
     @Test
@@ -201,8 +194,6 @@ class CustomDetectorTest {
         String text = "x".repeat(100_000) + " CUST-004211 " + "y.".repeat(100_000);
 
         assertThat(redactor.redact(text)).contains(" [CUSTOMER_ID_1] ").hasSize(text.length() + 4);
-        assertThat(Detector.pattern("ref", "REF-[0-9]+").description())
-                .isEqualTo("a value matching the 'ref' detector");
     }
 
     @Test

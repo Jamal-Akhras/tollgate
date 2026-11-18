@@ -4,9 +4,7 @@ import io.github.jamalakhras.tollgate.core.config.AuditSettings;
 import io.github.jamalakhras.tollgate.core.config.GatewayConfig;
 import io.github.jamalakhras.tollgate.core.config.Model;
 import io.github.jamalakhras.tollgate.core.config.Provider;
-import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.Tenant;
-import io.github.jamalakhras.tollgate.core.config.TenantKey;
 import io.github.jamalakhras.tollgate.core.limit.Limits;
 import io.github.jamalakhras.tollgate.core.money.ModelPrice;
 import io.github.jamalakhras.tollgate.core.policy.DataClassGuard;
@@ -21,7 +19,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
@@ -61,27 +61,28 @@ class ConfigViewController {
                 sorted(config.providers(), ConfigViewController::provider),
                 sorted(config.models(), ConfigViewController::model),
                 sorted(config.tenants(), ConfigViewController::tenant),
-                config.keys().stream().map(ConfigViewController::key).toList(),
+                config.keys().stream()
+                        .map(key -> new KeyView(key.id(), key.tenant()))
+                        .toList(),
                 sorted(config.policies(), ConfigViewController::policy),
                 audit(config.audit()));
     }
 
-    private static <T, V> List<V> sorted(Map<String, T> byName, NamedView<T, V> view) {
+    private static <T, V> List<V> sorted(Map<String, T> byName, BiFunction<String, T, V> view) {
         return new TreeMap<>(byName)
                 .entrySet().stream()
-                        .map(entry -> view.of(entry.getKey(), entry.getValue()))
+                        .map(entry -> view.apply(entry.getKey(), entry.getValue()))
                         .toList();
     }
 
     private static ProviderView provider(String name, Provider provider) {
-        SecretRef apiKey = provider.apiKey();
         return new ProviderView(
                 name,
                 provider.format().configName(),
                 provider.baseUrl().getAuthority(),
                 provider.region(),
                 provider.concurrent(),
-                apiKey == null ? null : apiKey.toString());
+                Objects.toString(provider.apiKey(), null));
     }
 
     private static ModelView model(String name, Model model) {
@@ -107,19 +108,12 @@ class ConfigViewController {
                 budget == null
                         ? null
                         : new BudgetView(
-                                budget.limit()
-                                        .toBigDecimal()
-                                        .stripTrailingZeros()
-                                        .toPlainString(),
+                                LiveViews.plain(budget.limit()),
                                 budget.limit().currency().getCurrencyCode(),
                                 budget.period().configName()),
                 new LimitsView(limits.requestsPerMinute(), limits.tokensPerMinute(), limits.concurrent()),
                 tenant.userHeader() != null,
                 tenant.showCosts());
-    }
-
-    private static KeyView key(TenantKey key) {
-        return new KeyView(key.id(), key.tenant());
     }
 
     private static PolicyView policy(String name, Policy policy) {
@@ -160,12 +154,6 @@ class ConfigViewController {
             return new AuditView(enabled.synchronous() ? "sync" : "async", enabled.publicKey());
         }
         return new AuditView("off", null);
-    }
-
-    @FunctionalInterface
-    private interface NamedView<T, V> {
-
-        V of(String name, T value);
     }
 
     record ConfigView(

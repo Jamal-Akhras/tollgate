@@ -53,21 +53,7 @@ class RecordValidationTest {
         assertThatThrownBy(() -> new Outcome(
                         "a", Records.TIME, Outcome.Result.RESPONDED, 200, null, Prices.usd("0"), Duration.ZERO, "AB"))
                 .hasMessage("responseHmac must be 64 lowercase hex characters");
-        assertThatThrownBy(() -> new Intent(
-                        intent.id(),
-                        intent.time(),
-                        intent.tenant(),
-                        intent.key(),
-                        intent.endpoint(),
-                        intent.model(),
-                        intent.provider(),
-                        intent.upstream(),
-                        intent.dataClass(),
-                        intent.configVersion(),
-                        "A".repeat(64),
-                        intent.steps(),
-                        intent.decision(),
-                        intent.reservation()))
+        assertThatThrownBy(() -> Records.edit(intent, draft -> draft.requestHmac = "A".repeat(64)))
                 .hasMessage("requestHmac must be 64 lowercase hex characters");
     }
 
@@ -83,23 +69,7 @@ class RecordValidationTest {
     void rejectsAUserThatIsNotAnHmac() {
         Intent intent = Records.intent("a");
         for (String user : List.of("alice", "a".repeat(63))) {
-            assertThatThrownBy(() -> new Intent(
-                            intent.id(),
-                            intent.time(),
-                            intent.tenant(),
-                            intent.key(),
-                            intent.endpoint(),
-                            intent.model(),
-                            intent.provider(),
-                            intent.upstream(),
-                            intent.dataClass(),
-                            intent.configVersion(),
-                            intent.requestHmac(),
-                            intent.steps(),
-                            intent.decision(),
-                            intent.reservation(),
-                            null,
-                            user))
+            assertThatThrownBy(() -> Records.edit(intent, draft -> draft.user = user))
                     .hasMessage("user must be 64 lowercase hex characters");
         }
     }
@@ -107,21 +77,7 @@ class RecordValidationTest {
     @Test
     void requiresTheConfigVersionToBeAHash() {
         Intent intent = Records.intent("a");
-        assertThatThrownBy(() -> new Intent(
-                        intent.id(),
-                        intent.time(),
-                        intent.tenant(),
-                        intent.key(),
-                        intent.endpoint(),
-                        intent.model(),
-                        intent.provider(),
-                        intent.upstream(),
-                        intent.dataClass(),
-                        "v2",
-                        intent.requestHmac(),
-                        intent.steps(),
-                        intent.decision(),
-                        intent.reservation()))
+        assertThatThrownBy(() -> Records.edit(intent, draft -> draft.configVersion = "v2"))
                 .hasMessage("configVersion must be 64 lowercase hex characters");
     }
 

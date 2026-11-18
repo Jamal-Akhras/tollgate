@@ -144,7 +144,7 @@ final class AnswerRestorer {
     private void block(ObjectNode block, int index) {
         switch (block.path("type").asString("")) {
             case TEXT -> restore(block, TEXT, new Channel(index, TEXT, -1, false));
-            case "tool_use" -> values(block.path(INPUT));
+            case "tool_use" -> ChatRequest.mapStrings(block.path(INPUT), placeholders::restore);
             default -> {}
         }
     }
@@ -164,31 +164,9 @@ final class AnswerRestorer {
         }
     }
 
-    private void values(JsonNode node) {
-        if (node instanceof ObjectNode object) {
-            for (String name : new ArrayList<>(object.propertyNames())) {
-                JsonNode value = object.path(name);
-                if (value.isString()) {
-                    object.put(name, placeholders.restore(value.stringValue()));
-                } else {
-                    values(value);
-                }
-            }
-        } else if (node instanceof ArrayNode array) {
-            for (int i = 0; i < array.size(); i++) {
-                JsonNode value = array.get(i);
-                if (value.isString()) {
-                    array.set(i, array.stringNode(placeholders.restore(value.stringValue())));
-                } else {
-                    values(value);
-                }
-            }
-        }
-    }
-
     private Map<Channel, String> releaseAll() {
         Map<Channel, String> released = new LinkedHashMap<>();
-        for (int at : held.keySet().stream().map(Channel::at).distinct().toList()) {
+        for (int at : heldChoices()) {
             released.putAll(release(at));
         }
         return released;

@@ -14,44 +14,42 @@ class UsageReaderTest {
 
     @Test
     void readsTheWebSearchesAnthropicReports() {
-        byte[] body =
-                "{\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"server_tool_use\":{\"web_search_requests\":4}}}"
-                        .getBytes(StandardCharsets.UTF_8);
+        byte[] body = bytes(
+                "{\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"server_tool_use\":{\"web_search_requests\":4}}}");
 
         assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, body)).isEqualTo(4);
         assertThat(UsageReader.webSearches(WireFormat.OPENAI, body)).isZero();
-        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, "{}".getBytes(StandardCharsets.UTF_8)))
-                .isZero();
-        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, "not json".getBytes(StandardCharsets.UTF_8)))
+        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, bytes("{}"))).isZero();
+        assertThat(UsageReader.webSearches(WireFormat.ANTHROPIC, bytes("not json")))
                 .isZero();
         assertThat(UsageReader.webSearches(
-                        WireFormat.ANTHROPIC,
-                        "{\"usage\":{\"server_tool_use\":{\"web_search_requests\":-1}}}"
-                                .getBytes(StandardCharsets.UTF_8)))
+                        WireFormat.ANTHROPIC, bytes("{\"usage\":{\"server_tool_use\":{\"web_search_requests\":-1}}}")))
                 .isZero();
     }
 
     @Test
     void readsTheReasoningTokensOpenAiFormatProvidersReport() {
-        byte[] body = """
+        byte[] body = bytes("""
                 {"usage":{"prompt_tokens":53,"completion_tokens":31,
-                 "completion_tokens_details":{"reasoning_tokens":20}}}""".getBytes(StandardCharsets.UTF_8);
+                 "completion_tokens_details":{"reasoning_tokens":20}}}""");
 
         assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, body)).isEqualTo(20);
         assertThat(UsageReader.reasoningTokens(WireFormat.ANTHROPIC, body)).isZero();
-        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, "{}".getBytes(StandardCharsets.UTF_8)))
-                .isZero();
-        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, "not json".getBytes(StandardCharsets.UTF_8)))
+        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, bytes("{}"))).isZero();
+        assertThat(UsageReader.reasoningTokens(WireFormat.OPENAI, bytes("not json")))
                 .isZero();
         assertThat(UsageReader.reasoningTokens(
                         WireFormat.OPENAI,
-                        "{\"usage\":{\"completion_tokens_details\":{\"reasoning_tokens\":-1}}}"
-                                .getBytes(StandardCharsets.UTF_8)))
+                        bytes("{\"usage\":{\"completion_tokens_details\":{\"reasoning_tokens\":-1}}}")))
                 .isZero();
     }
 
+    private static byte[] bytes(String text) {
+        return text.getBytes(StandardCharsets.UTF_8);
+    }
+
     private static Optional<Usage> read(WireFormat format, String body) {
-        return UsageReader.read(format, body.getBytes(StandardCharsets.UTF_8));
+        return UsageReader.read(format, bytes(body));
     }
 
     @Test
@@ -81,13 +79,13 @@ class UsageReaderTest {
 
     @Test
     void readsTheCacheWritesAnthropicKeepsForAnHour() {
-        byte[] body = """
+        byte[] body = bytes("""
                 {"usage":{"input_tokens":5,"output_tokens":3,"cache_creation_input_tokens":900,
-                 "cache_creation":{"ephemeral_5m_input_tokens":300,"ephemeral_1h_input_tokens":600}}}""".getBytes(StandardCharsets.UTF_8);
+                 "cache_creation":{"ephemeral_5m_input_tokens":300,"ephemeral_1h_input_tokens":600}}}""");
 
         assertThat(UsageReader.cacheWrite1hTokens(WireFormat.ANTHROPIC, body)).isEqualTo(600);
         assertThat(UsageReader.cacheWrite1hTokens(WireFormat.OPENAI, body)).isZero();
-        assertThat(UsageReader.cacheWrite1hTokens(WireFormat.ANTHROPIC, "not json".getBytes(StandardCharsets.UTF_8)))
+        assertThat(UsageReader.cacheWrite1hTokens(WireFormat.ANTHROPIC, bytes("not json")))
                 .isZero();
     }
 

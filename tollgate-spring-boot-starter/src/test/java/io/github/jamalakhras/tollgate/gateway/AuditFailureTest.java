@@ -29,7 +29,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Currency;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -89,18 +88,6 @@ class AuditFailureTest {
                 Tracer.NOOP);
     }
 
-    private static final StreamTarget NOT_STREAMED = new StreamTarget() {
-        @Override
-        public void open(Map<String, String> headers) {
-            throw new AssertionError("Not a streamed request");
-        }
-
-        @Override
-        public void write(byte[] event) {
-            throw new AssertionError("Not a streamed request");
-        }
-    };
-
     private static ByteArrayInputStream body() {
         return new ByteArrayInputStream(REQUEST.getBytes(StandardCharsets.UTF_8));
     }
@@ -109,7 +96,12 @@ class AuditFailureTest {
     void refusesARequestWhoseIntentCannotBeWrittenAndReleasesItsReservation() throws Exception {
         try (Gateway gateway = gateway(new FailingSink(0))) {
             assertThatThrownBy(() -> gateway.complete(
-                            "trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null, NOT_STREAMED))
+                            "trace",
+                            WireFormat.OPENAI,
+                            Optional.of(KEY.value()),
+                            body(),
+                            h -> null,
+                            TestGateway.NOT_STREAMED))
                     .isInstanceOfSatisfying(GatewayException.class, e -> {
                         assertThat(e.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
                         assertThat(e.code()).isEqualTo("audit_unavailable");
@@ -126,7 +118,12 @@ class AuditFailureTest {
         provider.respond(200, "{\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5}}");
         try (Gateway gateway = gateway(new FailingSink(1))) {
             var response = gateway.complete(
-                            "trace", WireFormat.OPENAI, Optional.of(KEY.value()), body(), h -> null, NOT_STREAMED)
+                            "trace",
+                            WireFormat.OPENAI,
+                            Optional.of(KEY.value()),
+                            body(),
+                            h -> null,
+                            TestGateway.NOT_STREAMED)
                     .orElseThrow();
 
             assertThat(response.status()).isEqualTo(200);

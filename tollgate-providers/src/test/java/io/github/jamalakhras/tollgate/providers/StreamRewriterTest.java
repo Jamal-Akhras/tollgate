@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
 import io.github.jamalakhras.tollgate.core.money.Usage;
+import io.github.jamalakhras.tollgate.core.redact.Placeholders;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
@@ -23,9 +24,13 @@ class StreamRewriterTest {
         return new String(relayed.orElseThrow(), StandardCharsets.UTF_8);
     }
 
+    private static StreamRewriter plain(WireFormat format, String model, boolean relayUsage) {
+        return new StreamRewriter(format, model, relayUsage, Placeholders.NONE);
+    }
+
     @Test
     void namesYourModelInEveryChunk() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
 
         assertThat(text(rewriter.rewrite(List.of(CHUNK))))
                 .isEqualTo(
@@ -35,7 +40,7 @@ class StreamRewriterTest {
 
     @Test
     void passesOtherLinesThrough() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
 
         assertThat(text(rewriter.rewrite(List.of("data: [DONE]")))).isEqualTo("data: [DONE]\n\n");
         assertThat(text(rewriter.rewrite(List.of(": keep-alive")))).isEqualTo(": keep-alive\n\n");
@@ -45,7 +50,7 @@ class StreamRewriterTest {
 
     @Test
     void readsUsageAndHidesTheUsageChunkFromClientsThatDidNotAskForIt() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
 
         assertThat(rewriter.usage()).isEmpty();
         assertThat(rewriter.rewrite(List.of(USAGE_ONLY))).isEmpty();
@@ -54,7 +59,7 @@ class StreamRewriterTest {
 
     @Test
     void readsTheReasoningTokensInTheUsageChunk() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
 
         rewriter.rewrite(List.of(CHUNK));
         assertThat(rewriter.reasoningTokens()).isZero();
@@ -65,7 +70,7 @@ class StreamRewriterTest {
 
     @Test
     void relaysTheUsageChunkToClientsThatAskedForIt() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", true);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", true);
 
         assertThat(text(rewriter.rewrite(List.of(USAGE_ONLY))))
                 .contains("\"usage\"")
@@ -75,7 +80,7 @@ class StreamRewriterTest {
 
     @Test
     void keepsAChunkThatCarriesBothAnAnswerAndUsage() {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
         String both = "data: {\"choices\":[{\"delta\":{}}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2}}";
 
         assertThat(rewriter.rewrite(List.of(both))).isPresent();
@@ -87,7 +92,7 @@ class StreamRewriterTest {
 
     @Test
     void namesYourModelInAnthropicsMessageStartAndAddsUpItsUsage() {
-        var rewriter = new StreamRewriter(WireFormat.ANTHROPIC, "claude", false);
+        var rewriter = plain(WireFormat.ANTHROPIC, "claude", false);
 
         assertThat(text(rewriter.rewrite(List.of(
                         "event: message_start",
@@ -111,7 +116,7 @@ class StreamRewriterTest {
 
     @Test
     void reportsNoAnthropicUsageUntilBothCountsArrive() {
-        var rewriter = new StreamRewriter(WireFormat.ANTHROPIC, "claude", false);
+        var rewriter = plain(WireFormat.ANTHROPIC, "claude", false);
 
         rewriter.rewrite(List.of("data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":15}}"));
         assertThat(rewriter.usage()).isEmpty();
@@ -124,7 +129,7 @@ class StreamRewriterTest {
     @ParameterizedTest
     @ValueSource(strings = {"data: not json", "data: [1,2]", "data: {\"error\":{\"message\":\"overloaded\"}}"})
     void stopsAtAnEventItCannotRelay(String line) {
-        var rewriter = new StreamRewriter(WireFormat.OPENAI, "qwen3", false);
+        var rewriter = plain(WireFormat.OPENAI, "qwen3", false);
 
         assertThatThrownBy(() -> rewriter.rewrite(List.of(line))).isInstanceOf(InvalidProviderResponseException.class);
     }

@@ -7,7 +7,6 @@ import io.github.jamalakhras.tollgate.core.policy.RequestFeatures;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
@@ -84,13 +83,13 @@ final class RequestReview {
             "thinking-display-updates-",
             "thinking-token-count-");
 
-    private long inlineImages;
     private final List<String> refused = new ArrayList<>();
     private final List<String> unreviewed = new ArrayList<>();
     private final Set<Feature> used = EnumSet.noneOf(Feature.class);
     private final List<String> tools = new ArrayList<>();
 
     private final List<String> extraFields;
+    private long inlineImages;
 
     private RequestReview(List<String> extraFields) {
         this.extraFields = extraFields;
@@ -173,10 +172,7 @@ final class RequestReview {
 
     private void anthropic(ObjectNode body, @Nullable String betas) {
         fields(body, ANTHROPIC_FIELDS);
-        JsonNode system = body.path("system");
-        if (system.isArray()) {
-            system.forEach(this::anthropicBlock);
-        }
+        blocks(body.path("system"));
         for (JsonNode message : body.path("messages")) {
             blocks(message.path("content"));
         }
@@ -254,8 +250,7 @@ final class RequestReview {
     }
 
     private void fields(ObjectNode body, Set<String> allowed) {
-        for (Map.Entry<String, JsonNode> field : body.properties()) {
-            String name = field.getKey();
+        for (String name : body.propertyNames()) {
             if (allowed.contains(name) || extraFields.contains(name)) {
                 continue;
             }

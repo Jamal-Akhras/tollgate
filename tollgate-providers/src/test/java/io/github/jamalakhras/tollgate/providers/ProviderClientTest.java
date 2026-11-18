@@ -39,6 +39,22 @@ class ProviderClientTest {
         return new Provider(format, URI.create(baseUrl), apiKey, null, Duration.ofSeconds(5));
     }
 
+    private Provider openAi() {
+        return provider(WireFormat.OPENAI, fake.baseUrl(), null);
+    }
+
+    private Provider withTimeout(long millis) {
+        return new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(millis));
+    }
+
+    private ProviderResponse send(Provider provider) {
+        return client.send(provider, null, BODY, ProviderClientTest::noClientHeader);
+    }
+
+    private ProviderStream stream(Provider provider) {
+        return client.stream(provider, null, BODY, ProviderClientTest::noClientHeader);
+    }
+
     @Test
     void postsOpenAiRequestsWithABearerToken() {
         fake.respond(200, "{\"id\":\"chatcmpl-1\"}");
@@ -90,8 +106,7 @@ class ProviderClientTest {
 
     @Test
     void defaultsTheAnthropicVersion() {
-        client.send(
-                provider(WireFormat.ANTHROPIC, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader);
+        send(provider(WireFormat.ANTHROPIC, fake.baseUrl(), null));
 
         FakeProvider.Received request = fake.received().getFirst();
         assertThat(request.headers().get("Anthropic-version")).containsExactly("2023-06-01");
@@ -109,7 +124,7 @@ class ProviderClientTest {
 
     @Test
     void sendsNoCredentialsWhenTheProviderHasNoKey() {
-        client.send(provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader);
+        send(openAi());
 
         assertThat(fake.received().getFirst().headers()).doesNotContainKeys("Authorization", "X-api-key");
     }
@@ -118,8 +133,7 @@ class ProviderClientTest {
     void returnsProviderErrorsAsResponses() {
         fake.respond(429, "{\"error\":{\"message\":\"slow down\"}}");
 
-        ProviderResponse response = client.send(
-                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader);
+        ProviderResponse response = send(openAi());
 
         assertThat(response.status()).isEqualTo(429);
     }
@@ -127,9 +141,9 @@ class ProviderClientTest {
     @Test
     void reportsATimeout() {
         fake.delay(Duration.ofSeconds(2));
-        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(200));
+        Provider slow = withTimeout(200);
 
-        assertThatThrownBy(() -> client.send(slow, null, BODY, ProviderClientTest::noClientHeader))
+        assertThatThrownBy(() -> send(slow))
                 .isInstanceOfSatisfying(
                         ProviderUnavailableException.class,
                         e -> assertThat(e.timedOut()).isTrue())
@@ -140,10 +154,10 @@ class ProviderClientTest {
     void timesOutABodyThatArrivesTooSlowly() {
         fake.respond(200, "{\"choices\":[],\"usage\":{}}");
         fake.drip(Duration.ofMillis(50));
-        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(300));
+        Provider slow = withTimeout(300);
         long started = System.nanoTime();
 
-        assertThatThrownBy(() -> client.send(slow, null, BODY, ProviderClientTest::noClientHeader))
+        assertThatThrownBy(() -> send(slow))
                 .isInstanceOfSatisfying(
                         ProviderUnavailableException.class,
                         e -> assertThat(e.timedOut()).isTrue())
@@ -155,11 +169,7 @@ class ProviderClientTest {
     void refusesAResponseLargerThanTheLimit() {
         fake.respond(200, "x".repeat(1_025));
 
-        assertThatThrownBy(() -> client.send(
-                        provider(WireFormat.OPENAI, fake.baseUrl(), null),
-                        null,
-                        BODY,
-                        ProviderClientTest::noClientHeader))
+        assertThatThrownBy(() -> send(openAi()))
                 .isInstanceOf(InvalidProviderResponseException.class)
                 .hasMessage("The provider's response was larger than 1024 bytes");
     }
@@ -168,21 +178,14 @@ class ProviderClientTest {
     void acceptsAResponseExactlyAtTheLimit() {
         fake.respond(200, "x".repeat(1_024));
 
-        assertThat(client.send(
-                                provider(WireFormat.OPENAI, fake.baseUrl(), null),
-                                null,
-                                BODY,
-                                ProviderClientTest::noClientHeader)
-                        .body())
-                .hasSize(1_024);
+        assertThat(send(openAi()).body()).hasSize(1_024);
     }
 
     @Test
     void streamsEventsOneAtATime() throws Exception {
         fake.respond(200, "data: {\"n\":1}\r\n\r\n: comment\n\ndata: {\"n\":2}\nextra: x\n\ndata: [DONE]");
 
-        try (ProviderStream stream = client.stream(
-                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+        try (ProviderStream stream = stream(openAi())) {
             assertThat(stream.status()).isEqualTo(200);
             assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly("data: {\"n\":1}");
             assertThat(stream.nextEvent(Duration.ofSeconds(5))).containsExactly(": comment");
@@ -197,8 +200,7 @@ class ProviderClientTest {
     void readsAnErrorBodyInWhole() throws Exception {
         fake.respond(429, "{\"error\":{\"message\":\"slow down\"}}");
 
-        try (ProviderStream stream = client.stream(
-                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+        try (ProviderStream stream = stream(openAi())) {
             ProviderResponse whole = stream.whole();
 
             assertThat(whole.status()).isEqualTo(429);
@@ -211,9 +213,9 @@ class ProviderClientTest {
     void stopsAStreamThatGoesQuietForTooLong() throws Exception {
         fake.respond(200, "data: {\"n\":1}\n\n");
         fake.drip(Duration.ofMillis(400));
-        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(200));
+        Provider slow = withTimeout(200);
 
-        try (ProviderStream stream = client.stream(slow, null, BODY, ProviderClientTest::noClientHeader)) {
+        try (ProviderStream stream = stream(slow)) {
             assertThatThrownBy(() -> stream.nextEvent(Duration.ofSeconds(5)))
                     .isInstanceOfSatisfying(
                             ProviderUnavailableException.class,
@@ -225,8 +227,7 @@ class ProviderClientTest {
     void stopsAStreamLargerThanTheLimit() throws Exception {
         fake.respond(200, "data: " + "x".repeat(2_000) + "\n\n");
 
-        try (ProviderStream stream = client.stream(
-                provider(WireFormat.OPENAI, fake.baseUrl(), null), null, BODY, ProviderClientTest::noClientHeader)) {
+        try (ProviderStream stream = stream(openAi())) {
             assertThatThrownBy(() -> stream.nextEvent(Duration.ofSeconds(5)))
                     .isInstanceOf(InvalidProviderResponseException.class)
                     .hasMessage("The provider's response was larger than 1024 bytes");
@@ -236,9 +237,9 @@ class ProviderClientTest {
     @Test
     void reportsATimeoutBeforeTheStreamStarts() {
         fake.delay(Duration.ofSeconds(2));
-        Provider slow = new Provider(WireFormat.OPENAI, URI.create(fake.baseUrl()), null, null, Duration.ofMillis(200));
+        Provider slow = withTimeout(200);
 
-        assertThatThrownBy(() -> client.stream(slow, null, BODY, ProviderClientTest::noClientHeader))
+        assertThatThrownBy(() -> stream(slow))
                 .isInstanceOfSatisfying(
                         ProviderUnavailableException.class,
                         e -> assertThat(e.timedOut()).isTrue());
@@ -252,7 +253,7 @@ class ProviderClientTest {
         }
         Provider unreachable = provider(WireFormat.OPENAI, "http://127.0.0.1:" + closedPort, null);
 
-        assertThatThrownBy(() -> client.send(unreachable, null, BODY, ProviderClientTest::noClientHeader))
+        assertThatThrownBy(() -> send(unreachable))
                 .isInstanceOfSatisfying(
                         ProviderUnavailableException.class,
                         e -> assertThat(e.timedOut()).isFalse())

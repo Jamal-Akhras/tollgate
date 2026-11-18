@@ -14,7 +14,7 @@ class SearchPriceTest {
     private static final Currency EUR = Currency.getInstance("EUR");
 
     private static Money usd(String amount) {
-        return Money.of(new BigDecimal(amount), USD);
+        return Prices.usd(amount);
     }
 
     private static TokenPrice perMillion(String amount) {
@@ -39,15 +39,13 @@ class SearchPriceTest {
 
     @Test
     void addsSearchesToAModelsCostAndWorstCase() {
-        var price = withSearch(
-                new TokenRates(perMillion("3"), perMillion("15"), perMillion("0.3"), perMillion("3.75")),
-                new SearchPrice(usd("10")));
+        var price = withSearch(Prices.rates("3", "15", "0.3", "3.75"), new SearchPrice(usd("10")));
         var usage = new Usage(1_000_000, 0, 0, 0);
 
-        assertThat(price.costOf(usage, 0, 2)).isEqualTo(usd("3.02"));
+        assertThat(price.costOf(usage, 0, 2, 0)).isEqualTo(usd("3.02"));
         assertThat(price.costOf(usage)).isEqualTo(usd("3"));
         assertThat(price.mostFor(1_000_000, 0, 5)).isEqualTo(usd("3.80"));
-        assertThat(price.mostFor(1_000_000, 0)).isEqualTo(usd("3.75"));
+        assertThat(price.mostFor(1_000_000, 0, 0)).isEqualTo(usd("3.75"));
     }
 
     @Test
@@ -66,9 +64,7 @@ class SearchPriceTest {
 
     @Test
     void leavesOutputTheRestOfAnAmountAfterInputAndSearches() {
-        var price = withSearch(
-                new TokenRates(perMillion("1"), perMillion("10"), perMillion("1"), perMillion("1")),
-                new SearchPrice(usd("10")));
+        var price = withSearch(Prices.rates("1", "10", "1", "1"), new SearchPrice(usd("10")));
 
         assertThat(price.outputTokensWithin(usd("1.02"), 1_000_000, 0)).isEqualTo(2_000);
         assertThat(price.outputTokensWithin(usd("1.02"), 1_000_000, 2)).isZero();
@@ -77,18 +73,17 @@ class SearchPriceTest {
 
     @Test
     void refusesToPriceSearchesWithoutASearchPrice() {
-        var price = new ModelPrice(perMillion("3"), perMillion("15"), perMillion("0.3"), perMillion("3.75"));
+        var price = Prices.perMillion("3", "15", "0.3", "3.75");
 
         assertThat(price.webSearch()).isNull();
-        assertThatThrownBy(() -> price.costOf(new Usage(1, 1, 0, 0), 0, 1))
+        assertThatThrownBy(() -> price.costOf(new Usage(1, 1, 0, 0), 0, 1, 0))
                 .hasMessage("This model has no web search price");
     }
 
     @Test
     void requiresTheSearchPriceInTheModelsCurrency() {
         assertThatThrownBy(() -> withSearch(
-                        new TokenRates(perMillion("3"), perMillion("15"), perMillion("0.3"), perMillion("3.75")),
-                        new SearchPrice(Money.of(BigDecimal.TEN, EUR))))
+                        Prices.rates("3", "15", "0.3", "3.75"), new SearchPrice(Money.of(BigDecimal.TEN, EUR))))
                 .hasMessage("All prices of a model must be in one currency");
     }
 

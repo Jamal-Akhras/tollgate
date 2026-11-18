@@ -52,29 +52,15 @@ class AnswerRestorerTest {
 
         JsonNode answer = restored(json, WireFormat.OPENAI);
 
-        JsonNode message = answer.path("choices").path(0).path("message");
+        JsonNode message = answer.at("/choices/0/message");
         assertThat(message.path("content").stringValue()).isEqualTo("Mail jane@example.com or [EMAIL_9]");
         assertThat(message.path("reasoning_content").stringValue()).isEqualTo("bob@example.org is cc");
         assertThat(message.path("refusal").isNull()).isTrue();
         assertThat(message.path("role").stringValue()).isEqualTo("assistant");
-        assertThat(message.path("tool_calls")
-                        .path(0)
-                        .path("function")
-                        .path("arguments")
-                        .stringValue())
+        assertThat(message.at("/tool_calls/0/function/arguments").stringValue())
                 .isEqualTo("{\"to\":\"jane@example.com\"}");
-        assertThat(message.path("tool_calls")
-                        .path(1)
-                        .path("custom")
-                        .path("input")
-                        .stringValue())
-                .isEqualTo("card 4111111111111111");
-        assertThat(answer.path("choices")
-                        .path(1)
-                        .path("message")
-                        .path("content")
-                        .stringValue())
-                .isEqualTo("4111111111111111");
+        assertThat(message.at("/tool_calls/1/custom/input").stringValue()).isEqualTo("card 4111111111111111");
+        assertThat(answer.at("/choices/1/message/content").stringValue()).isEqualTo("4111111111111111");
     }
 
     @Test
@@ -88,14 +74,8 @@ class AnswerRestorerTest {
                 .restored(WireFormat.OPENAI, redactor.placeholders())
                 .body());
 
-        String arguments = answer.path("choices")
-                .path(0)
-                .path("message")
-                .path("tool_calls")
-                .path(0)
-                .path("function")
-                .path("arguments")
-                .stringValue();
+        String arguments =
+                answer.at("/choices/0/message/tool_calls/0/function/arguments").stringValue();
         assertThat(ChatRequest.JSON.readTree(arguments).path("to").stringValue())
                 .isEqualTo(QUOTED.substring(QUOTED.indexOf('j'), QUOTED.length() - 1));
     }
@@ -116,12 +96,9 @@ class AnswerRestorerTest {
         assertThat(content.path(0).path("thinking").stringValue()).isEqualTo("[EMAIL_1] asked");
         assertThat(content.path(1).path("data").stringValue()).isEqualTo("[EMAIL_1]");
         assertThat(content.path(2).path("text").stringValue()).isEqualTo("Sure, jane@example.com.");
-        assertThat(content.path(3).path("input").path("to").path(0).stringValue())
-                .isEqualTo(JANE);
-        assertThat(content.path(3).path("input").path("meta").path("cc").stringValue())
-                .isEqualTo("bob@example.org");
-        assertThat(content.path(3).path("input").path("meta").path("n").intValue())
-                .isEqualTo(1);
+        assertThat(content.at("/3/input/to/0").stringValue()).isEqualTo(JANE);
+        assertThat(content.at("/3/input/meta/cc").stringValue()).isEqualTo("bob@example.org");
+        assertThat(content.at("/3/input/meta/n").intValue()).isEqualTo(1);
     }
 
     @Test
@@ -299,8 +276,7 @@ class AnswerRestorerTest {
                 continue;
             }
             JsonNode data = ChatRequest.JSON.readTree(line.substring("data: ".length()));
-            text.append(
-                    data.path("choices").path(0).path("delta").path("content").asString(""));
+            text.append(data.at("/choices/0/delta/content").asString(""));
             text.append(data.path("delta").path("text").asString(""));
         }
         return text.toString();
@@ -309,7 +285,7 @@ class AnswerRestorerTest {
     private static String argumentsOf(String relayed, int tool) {
         JsonNode data =
                 ChatRequest.JSON.readTree(relayed.substring("data: ".length()).strip());
-        for (JsonNode call : data.path("choices").path(0).path("delta").path("tool_calls")) {
+        for (JsonNode call : data.at("/choices/0/delta/tool_calls")) {
             if (call.path("index").asInt() == tool) {
                 return call.path("function").path("arguments").asString("");
             }

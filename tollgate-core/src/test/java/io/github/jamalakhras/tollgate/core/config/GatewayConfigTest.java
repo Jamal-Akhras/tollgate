@@ -60,14 +60,24 @@ class GatewayConfigTest {
     }
 
     private static GatewayConfig config(Map<String, Tenant> tenants) {
-        return new GatewayConfig(
-                DATA_CLASSES,
+        return config(
                 Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
-                MODELS,
                 tenants,
-                List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "any-size", ANY_SIZE, "open", Policy.NONE),
-                AuditSettings.DISABLED);
+                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT, "any-size", ANY_SIZE, "open", Policy.NONE));
+    }
+
+    private static GatewayConfig config(
+            Map<String, Provider> providers, Map<String, Tenant> tenants, Map<String, Policy> policies) {
+        return config(DATA_CLASSES, providers, MODELS, tenants, policies);
+    }
+
+    private static GatewayConfig config(
+            List<String> dataClasses,
+            Map<String, Provider> providers,
+            Map<String, Model> models,
+            Map<String, Tenant> tenants,
+            Map<String, Policy> policies) {
+        return new GatewayConfig(dataClasses, providers, models, tenants, List.of(), policies, AuditSettings.DISABLED);
     }
 
     @Test
@@ -167,7 +177,8 @@ class GatewayConfigTest {
 
     @Test
     void checksRequestFeaturesBeforeThePolicysGuards() {
-        var features = new RequestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of());
+        var features =
+                new RequestFeatures(List.of("The field 'mcp_servers' is not allowed"), List.of(), Set.of(), List.of());
 
         Admission admission =
                 config.admit("support-bot", config.route("support-bot", "qwen3").orElseThrow(), null, 1_001, features);
@@ -185,14 +196,12 @@ class GatewayConfigTest {
 
     @Test
     void checksOnlyRequestFeaturesWhenThereIsNoDefaultPolicy() {
-        var open = new GatewayConfig(
+        var open = config(
                 List.of(),
                 Map.of("ollama", OLLAMA),
                 Map.of("qwen3", QWEN),
                 Map.of("support-bot", new Tenant(List.of("qwen3"), null, null, null)),
-                List.of(),
-                Map.of(),
-                AuditSettings.DISABLED);
+                Map.of());
         var route = open.route("support-bot", "qwen3").orElseThrow();
 
         Admission admission = open.admit("support-bot", route, null, Long.MAX_VALUE, RequestFeatures.NONE);
@@ -215,24 +224,22 @@ class GatewayConfigTest {
         assertThatThrownBy(() -> config(Map.of("support-bot", new Tenant(List.of(), "internal", "open", null))))
                 .hasMessage("tenants.support-bot: policy 'open' has no data-class guard, so data class 'internal'"
                         + " would not be enforced");
-        assertThatThrownBy(() -> new GatewayConfig(
+        assertThatThrownBy(() -> config(
                         DATA_CLASSES,
                         Map.of(),
                         Map.of(),
                         Map.of("support-bot", new Tenant(List.of(), "internal", null, null)),
-                        List.of(),
-                        Map.of(),
-                        AuditSettings.DISABLED))
+                        Map.of()))
                 .hasMessage("tenants.support-bot has no policy to enforce its data class; set"
                         + " tenants.support-bot.policy or define a 'default' policy");
     }
 
     @Test
     void checksTheDataClassesAFeatureNames() {
-        var policies = Map.of("p", new Policy(List.of(), Map.of(Feature.REMOTE_IMAGES, List.of("secret"))));
+        var policies = Map.of(
+                "p", new Policy(List.of(), Map.of(Feature.REMOTE_IMAGES, List.of("secret")), Map.of(), Map.of()));
 
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies, AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), policies))
                 .hasMessage("policies.p.features.remote-images: no data class named 'secret'");
     }
 
@@ -242,12 +249,24 @@ class GatewayConfigTest {
                 Map.of("p", new Policy(List.of(), Map.of(), Map.of(Detector.EMAIL, List.of("secret")), Map.of()));
         var refusing = Map.of("p", new Policy(List.of(), Map.of(), Map.of(), Map.of(Detector.CARD, List.of("top"))));
 
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), redacting, AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), redacting))
                 .hasMessage("policies.p.redact.email: no data class named 'secret'");
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), refusing, AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), refusing))
                 .hasMessage("policies.p.refuse.card: no data class named 'top'");
+    }
+
+    @Test
+    void reportsTheFirstWrongDetectorInAFixedOrder() {
+        var wrong = Map.of(
+                "p",
+                new Policy(
+                        List.of(),
+                        Map.of(),
+                        Map.of(Detector.CARD, List.of("top"), Detector.EMAIL, List.of("secret")),
+                        Map.of(Detector.SECRET, List.of("top"))));
+
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), wrong))
+                .hasMessage("policies.p.redact.email: no data class named 'secret'");
     }
 
     @Test
@@ -260,8 +279,7 @@ class GatewayConfigTest {
                         Map.of(Detector.SECRET, List.of("public")),
                         Map.of(Detector.SECRET, List.of("internal", "public"))));
 
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), both, AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), both))
                 .hasMessage("policies.p: secret is both redacted and refused for data class 'public'; choose one");
     }
 
@@ -272,14 +290,10 @@ class GatewayConfigTest {
                 Map.of(),
                 Map.of(Detector.EMAIL, List.of("internal", "confidential"), Detector.CARD, List.of("confidential")),
                 Map.of(Detector.SECRET, List.of("public", "internal", "confidential")));
-        GatewayConfig scanned = new GatewayConfig(
-                DATA_CLASSES,
+        GatewayConfig scanned = config(
                 Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
-                MODELS,
                 Map.of("support-bot", new Tenant(List.of("qwen3", "claude-sonnet"), "internal", null, null)),
-                List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, scanning),
-                AuditSettings.DISABLED);
+                Map.of(GatewayConfig.DEFAULT_POLICY, scanning));
         GatewayConfig.Route route = scanned.route("support-bot", "qwen3").orElseThrow();
 
         Admission internal = scanned.admit("support-bot", route, null, 10, RequestFeatures.NONE);
@@ -311,16 +325,13 @@ class GatewayConfigTest {
 
     @Test
     void appliesThePolicyFeaturesToTheRequest() {
-        var images = new RequestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES));
-        var withImages = new Policy(STRICT.guards(), Map.of(Feature.REMOTE_IMAGES, List.of("internal")));
-        var allowing = new GatewayConfig(
-                DATA_CLASSES,
+        var images = new RequestFeatures(List.of(), List.of(), Set.of(Feature.REMOTE_IMAGES), List.of());
+        var withImages =
+                new Policy(STRICT.guards(), Map.of(Feature.REMOTE_IMAGES, List.of("internal")), Map.of(), Map.of());
+        var allowing = config(
                 Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
-                MODELS,
                 Map.of("support-bot", new Tenant(List.of("qwen3"), "internal", null, null)),
-                List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, withImages),
-                AuditSettings.DISABLED);
+                Map.of(GatewayConfig.DEFAULT_POLICY, withImages));
         var route = allowing.route("support-bot", "qwen3").orElseThrow();
         var strictRoute = config.route("support-bot", "qwen3").orElseThrow();
 
@@ -335,29 +346,22 @@ class GatewayConfigTest {
 
     @Test
     void requiresAPriceForEveryAnthropicModelThatMaySearch() {
-        var searching = new Policy(STRICT.guards(), Map.of(Feature.WEB_SEARCH, List.of("internal")));
+        var searching =
+                new Policy(STRICT.guards(), Map.of(Feature.WEB_SEARCH, List.of("internal")), Map.of(), Map.of());
         var tenants = Map.of("support-bot", new Tenant(List.of("qwen3", "claude-sonnet"), "internal", null, null));
         var anthropicFormat = new Provider(
                 WireFormat.ANTHROPIC, URI.create("https://api.example.com"), null, "us", Duration.ofSeconds(30));
 
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES,
+        assertThatThrownBy(() -> config(
                         Map.of("ollama", OLLAMA, "anthropic", anthropicFormat),
-                        MODELS,
                         tenants,
-                        List.of(),
-                        Map.of(GatewayConfig.DEFAULT_POLICY, searching),
-                        AuditSettings.DISABLED))
+                        Map.of(GatewayConfig.DEFAULT_POLICY, searching)))
                 .hasMessage("tenants.support-bot may use web search, so models.claude-sonnet needs price.webSearch"
                         + " and maxWebSearches");
-        assertThat(new GatewayConfig(
-                                DATA_CLASSES,
+        assertThat(config(
                                 Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC),
-                                MODELS,
                                 tenants,
-                                List.of(),
-                                Map.of(GatewayConfig.DEFAULT_POLICY, searching),
-                                AuditSettings.DISABLED)
+                                Map.of(GatewayConfig.DEFAULT_POLICY, searching))
                         .tenants())
                 .containsKey("support-bot");
     }
@@ -384,16 +388,13 @@ class GatewayConfigTest {
     void checksTheDataClassesAGuardNames() {
         var guard = new DataClassGuard(Map.of("secret", List.of("local")));
         var policies = Map.of("p", new Policy(List.of(guard)));
-        assertThatThrownBy(() -> new GatewayConfig(
-                        DATA_CLASSES, Map.of(), Map.of(), Map.of(), List.of(), policies, AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(DATA_CLASSES, Map.of(), Map.of(), Map.of(), policies))
                 .hasMessage("policies.p: the data-class guard names an unknown data class 'secret'");
         var badName = List.of("top secret");
-        assertThatThrownBy(() -> new GatewayConfig(
-                        badName, Map.of(), Map.of(), Map.of(), List.of(), Map.of(), AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(badName, Map.of(), Map.of(), Map.of(), Map.of()))
                 .hasMessageStartingWith("data class 'top secret' must start with a letter or digit");
         var repeated = List.of("public", "public");
-        assertThatThrownBy(() -> new GatewayConfig(
-                        repeated, Map.of(), Map.of(), Map.of(), List.of(), Map.of(), AuditSettings.DISABLED))
+        assertThatThrownBy(() -> config(repeated, Map.of(), Map.of(), Map.of(), Map.of()))
                 .hasMessage("dataClasses must not repeat a data class");
     }
 
@@ -410,14 +411,12 @@ class GatewayConfigTest {
     private static GatewayConfig withFallback(Model model, Map<String, Tenant> tenants) {
         Map<String, Model> models = new HashMap<>(MODELS);
         models.put("sturdy", model);
-        return new GatewayConfig(
+        return config(
                 DATA_CLASSES,
                 Map.of("ollama", OLLAMA, "anthropic", ANTHROPIC, "messages", MESSAGES),
                 models,
                 tenants,
-                List.of(),
-                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT),
-                AuditSettings.DISABLED);
+                Map.of(GatewayConfig.DEFAULT_POLICY, STRICT));
     }
 
     private static Model sturdy(String... fallback) {

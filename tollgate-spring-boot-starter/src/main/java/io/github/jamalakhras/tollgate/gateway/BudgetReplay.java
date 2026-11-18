@@ -33,10 +33,6 @@ final class BudgetReplay {
 
     record Replayed(int settled, int unfinished) {}
 
-    static Replayed replay(Path directory, GatewayConfig config, BudgetStore budgets) throws IOException {
-        return replay(directory, config, budgets, config.tenants().keySet());
-    }
-
     static Replayed replay(Path directory, GatewayConfig config, BudgetStore budgets, Set<String> tenants)
             throws IOException {
         BudgetReplay replay = new BudgetReplay(config, budgets, tenants);

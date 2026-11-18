@@ -27,10 +27,6 @@ public record TokenRates(
         this(input, output, reasoning, cacheRead, cacheWrite, cacheWrite);
     }
 
-    public TokenRates(TokenPrice input, TokenPrice output, TokenPrice cacheRead, TokenPrice cacheWrite) {
-        this(input, output, output, cacheRead, cacheWrite);
-    }
-
     public TokenRates withCacheWrite1h(TokenPrice price) {
         return new TokenRates(input, output, reasoning, cacheRead, cacheWrite, price);
     }

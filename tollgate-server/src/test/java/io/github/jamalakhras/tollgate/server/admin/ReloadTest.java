@@ -6,9 +6,6 @@ import io.github.jamalakhras.tollgate.core.audit.AuditRecord;
 import io.github.jamalakhras.tollgate.core.audit.Intent;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.security.SecureRandom;
@@ -32,17 +29,6 @@ class ReloadTest extends ServerTestSupport {
     void restoreTheConfig() throws Exception {
         Files.writeString(CONFIG, original);
         assertThat(reload().statusCode()).isEqualTo(200);
-    }
-
-    private static HttpResponse<String> reload() throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1/config/reload"))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .POST(HttpRequest.BodyPublishers.noBody())
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-        }
     }
 
     private HttpResponse<String> chat(ApiKey key) throws IOException, InterruptedException {
@@ -109,9 +95,5 @@ class ReloadTest extends ServerTestSupport {
     private static String configVersionOf(HttpResponse<String> response) throws IOException {
         List<AuditRecord> records = auditRecordsOf(response);
         return ((Intent) records.getFirst()).configVersion();
-    }
-
-    private static String versionIn(HttpResponse<String> reloaded) {
-        return reloaded.body().replaceAll(".*\"version\":\"([0-9a-f]{64})\".*", "$1");
     }
 }

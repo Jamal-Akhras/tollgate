@@ -3,6 +3,7 @@ package io.github.jamalakhras.tollgate.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
+import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
@@ -12,24 +13,20 @@ class CostsTest extends GatewayTestSupport {
             {"choices":[],"usage":{"prompt_tokens":0,"completion_tokens":1000,
              "completion_tokens_details":{"reasoning_tokens":250}}}""";
 
-    private HttpResponse<String> chat(String model, String extra, String key) throws Exception {
-        return post(
-                Endpoints.OPENAI_CHAT,
-                "{\"model\":\"" + model + "\"," + extra + "\"messages\":[]}",
-                "Authorization",
-                "Bearer " + key);
+    private HttpResponse<String> chat(String model, String extra, ApiKey key) throws Exception {
+        return chat(key, "{\"model\":\"" + model + "\"," + extra + "\"messages\":[]}");
     }
 
     @Test
     void showsTheMostACallCouldCostAndWhatItWasCharged() throws Exception {
         PROVIDER.respond(200, THINKING);
 
-        HttpResponse<String> response = chat("thinking-model", "\"max_tokens\":100,", CODER_KEY.value());
+        HttpResponse<String> response = chat("thinking-model", "\"max_tokens\":100,", CODER_KEY);
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue(Gateway.COST_MAX_HEADER)).contains("0.0004 USD");
         assertThat(response.headers().firstValue(Gateway.COST_HEADER)).contains("0.00175 USD");
-        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        Outcome outcome = outcomeOf(response);
         assertThat(outcome.cost()).hasToString("0.00175 USD");
     }
 
@@ -37,7 +34,7 @@ class CostsTest extends GatewayTestSupport {
     void leavesOutTheMostWhenNothingCapsTheAnswer() throws Exception {
         PROVIDER.respond(200, THINKING);
 
-        HttpResponse<String> response = chat("thinking-model", "", CODER_KEY.value());
+        HttpResponse<String> response = chat("thinking-model", "", CODER_KEY);
 
         assertThat(response.headers().firstValue(Gateway.COST_MAX_HEADER)).isEmpty();
         assertThat(response.headers().firstValue(Gateway.COST_HEADER)).contains("0.00175 USD");
@@ -47,7 +44,7 @@ class CostsTest extends GatewayTestSupport {
     void showsNoCostsToTenantsThatDidNotAskForThem() throws Exception {
         PROVIDER.respond(200, THINKING);
 
-        HttpResponse<String> response = chat("qwen3", "\"max_tokens\":100,", KEY.value());
+        HttpResponse<String> response = chat("qwen3", "\"max_tokens\":100,", KEY);
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue(Gateway.COST_MAX_HEADER)).isEmpty();
@@ -65,8 +62,7 @@ class CostsTest extends GatewayTestSupport {
 
                 """);
 
-        HttpResponse<String> response =
-                chat("thinking-model", "\"stream\":true,\"max_tokens\":100,", CODER_KEY.value());
+        HttpResponse<String> response = chat("thinking-model", "\"stream\":true,\"max_tokens\":100,", CODER_KEY);
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue(Gateway.COST_MAX_HEADER)).contains("0.0004 USD");

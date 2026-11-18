@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.jamalakhras.tollgate.core.audit.Outcome;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
 import io.github.jamalakhras.tollgate.providers.FakeProvider;
-import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -15,19 +14,11 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     private static final String QWEN = "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}]}";
 
-    private HttpResponse<String> chat(String body, String... headers) throws IOException, InterruptedException {
-        return post(Endpoints.OPENAI_CHAT, body, headers);
-    }
-
-    private HttpResponse<String> chatWithKey(String body) throws IOException, InterruptedException {
-        return chat(body, "Authorization", "Bearer " + KEY.value());
-    }
-
     @Test
     void forwardsTheRequestWithTheUpstreamModelAndTheProviderKey() throws Exception {
         PROVIDER.respond(200, "{\"id\":\"chatcmpl-1\",\"model\":\"qwen3:32b\",\"choices\":[]}");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("{\"id\":\"chatcmpl-1\",\"model\":\"qwen3\",\"choices\":[]}");
@@ -47,23 +38,21 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void stillLowersAnOutputCapAboveTheModelsCapWithoutABudget() throws Exception {
         PROVIDER.respond(200, "{\"choices\":[]}");
 
-        chatWithKey("{\"model\":\"qwen3\",\"max_tokens\":5000,\"messages\":[]}");
+        chat(KEY, "{\"model\":\"qwen3\",\"max_tokens\":5000,\"messages\":[]}");
 
         assertThat(PROVIDER.received().getFirst().body()).contains("\"max_tokens\":1024");
     }
 
     @Test
     void acceptsTheKeyInTheAnthropicStyleHeaderToo() throws Exception {
-        assertThat(chat(QWEN, "x-api-key", KEY.value()).statusCode()).isEqualTo(200);
+        assertThat(post(Endpoints.OPENAI_CHAT, QWEN, "x-api-key", KEY.value()).statusCode())
+                .isEqualTo(200);
     }
 
     @Test
     void rejectsMissingAndUnknownKeysWithoutCallingTheProvider() throws Exception {
-        HttpResponse<String> missing = chat(QWEN);
-        HttpResponse<String> unknown = chat(
-                QWEN,
-                "Authorization",
-                "Bearer " + ApiKey.generate(new SecureRandom()).value());
+        HttpResponse<String> missing = post(Endpoints.OPENAI_CHAT, QWEN);
+        HttpResponse<String> unknown = chat(ApiKey.generate(new SecureRandom()), QWEN);
 
         assertThat(missing.statusCode()).isEqualTo(401);
         assertThat(missing.body())
@@ -76,7 +65,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void hidesModelsTheTenantMayNotUse() throws Exception {
-        HttpResponse<String> response = chatWithKey("{\"model\":\"llama\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"llama\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.body()).contains("\"code\":\"model_not_found\"", "\"param\":\"model\"");
@@ -85,7 +74,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void pointsToTheRightEndpointForAnotherFormat() throws Exception {
-        HttpResponse<String> response = chatWithKey("{\"model\":\"claude-sonnet\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"claude-sonnet\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body())
@@ -94,7 +83,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void rejectsAStreamFlagThatIsNotABoolean() throws Exception {
-        HttpResponse<String> response = chatWithKey("{\"model\":\"qwen3\",\"stream\":\"yes\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"qwen3\",\"stream\":\"yes\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("'stream' must be true or false", "\"param\":\"stream\"");
@@ -103,7 +92,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void rejectsBodiesThatAreNotJsonObjects() throws Exception {
-        HttpResponse<String> response = chatWithKey("[1, 2]");
+        HttpResponse<String> response = chat(KEY, "[1, 2]");
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("The request body must be a JSON object", "invalid_request");
@@ -113,7 +102,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void rebuildsProviderRateLimitsWithoutTheProvidersDetails() throws Exception {
         PROVIDER.respond(429, "{\"error\":{\"message\":\"Rate limit reached in organization org-secret\"}}");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(429);
         assertThat(response.body())
@@ -128,7 +117,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void passesOnTheProvidersMessageForAMalformedRequest() throws Exception {
         PROVIDER.respond(400, "{\"error\":{\"message\":\"'temperature' must be at most 2\"}}");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.body()).contains("'temperature' must be at most 2").contains("\"code\":\"provider_error\"");
@@ -139,7 +128,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void reportsProviderFailuresAsABadGateway() throws Exception {
         PROVIDER.respond(503, "{\"error\":{\"message\":\"overloaded on cluster eu-west-7\"}}");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.body())
@@ -151,7 +140,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void refusesASuccessfulResponseThatIsNotJson() throws Exception {
         PROVIDER.respond(200, "<html><script>alert(1)</script></html>");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.headers().firstValue("Content-Type")).contains("application/json");
@@ -164,7 +153,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void doesNotBlameTheCallerWhenTheProviderRejectsTollgatesKey() throws Exception {
         PROVIDER.respond(401, "{\"error\":{\"message\":\"Incorrect API key provided: sk-pr***der\"}}");
 
-        HttpResponse<String> response = chatWithKey(QWEN);
+        HttpResponse<String> response = chat(KEY, QWEN);
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.body())
@@ -174,7 +163,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
 
     @Test
     void reportsAnUnreachableProvider() throws Exception {
-        HttpResponse<String> response = chatWithKey("{\"model\":\"offline-model\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"offline-model\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.body()).contains("\"type\":\"server_error\"", "\"code\":\"provider_unavailable\"");
@@ -184,7 +173,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void reportsAProviderTimeout() throws Exception {
         PROVIDER.delay(Duration.ofSeconds(2));
 
-        HttpResponse<String> response = chatWithKey("{\"model\":\"slow-model\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"slow-model\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(504);
         assertThat(response.body()).contains("\"code\":\"provider_timeout\"");
@@ -195,7 +184,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
         PROVIDER.respond(200, "{\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}");
         PROVIDER.drip(Duration.ofMillis(50));
 
-        HttpResponse<String> response = chatWithKey("{\"model\":\"slow-model\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"slow-model\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(504);
         assertThat(response.body()).contains("\"code\":\"provider_timeout\"");
@@ -205,13 +194,13 @@ class ChatCompletionsTest extends GatewayTestSupport {
     void refusesAProviderResponseOverTheLimitAndRecordsIt() throws Exception {
         PROVIDER.respond(200, "{\"pad\":\"" + "x".repeat(17_000) + "\"}");
 
-        HttpResponse<String> response = chatWithKey("{\"model\":\"qwen3\",\"messages\":[]}");
+        HttpResponse<String> response = chat(KEY, "{\"model\":\"qwen3\",\"messages\":[]}");
 
         assertThat(response.statusCode()).isEqualTo(502);
         assertThat(response.body())
                 .contains("\"code\":\"provider_invalid_response\"")
                 .contains("larger than 16384 bytes");
-        Outcome outcome = (Outcome) auditRecordsOf(response).get(1);
+        Outcome outcome = outcomeOf(response);
         assertThat(outcome.result()).isEqualTo(Outcome.Result.INVALID_RESPONSE);
     }
 
@@ -220,7 +209,7 @@ class ChatCompletionsTest extends GatewayTestSupport {
         String content = "x".repeat(16_384);
 
         HttpResponse<String> response =
-                chatWithKey("{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
+                chat(KEY, "{\"model\":\"qwen3\",\"messages\":[{\"role\":\"user\",\"content\":\"" + content + "\"}]}");
 
         assertThat(response.statusCode()).isEqualTo(413);
         assertThat(response.body()).contains("The request body is larger than the limit of 16384 bytes");

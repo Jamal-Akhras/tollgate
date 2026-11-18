@@ -2,31 +2,14 @@ package io.github.jamalakhras.tollgate.server.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 class UsageApiTest extends ServerTestSupport {
 
-    private static HttpResponse<String> admin(String path) throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            return client.send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + ADMIN_PORT + "/admin/v1" + path))
-                            .header("Authorization", "Bearer " + ADMIN_TOKEN)
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-        }
-    }
-
     @Test
     void sumsTheAuditTrailForEachTenant() throws Exception {
-        PROVIDER.respond(200, "{\"id\":\"c\",\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3}}");
-        assertThat(post(CHAT, "{\"model\":\"qwen3\",\"messages\":[]}", "Authorization", "Bearer " + KEY.value())
-                        .statusCode())
-                .isEqualTo(200);
+        assertThat(answeredCall().statusCode()).isEqualTo(200);
 
         HttpResponse<String> usage = admin("/usage?by=tenant");
 

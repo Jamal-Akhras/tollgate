@@ -12,7 +12,7 @@ class TokenPriceTest {
     private static final Currency USD = Currency.getInstance("USD");
 
     private static TokenPrice dollarsPerMillion(String amount) {
-        return new TokenPrice(Money.of(new BigDecimal(amount), USD));
+        return new TokenPrice(Prices.usd(amount));
     }
 
     @Test
