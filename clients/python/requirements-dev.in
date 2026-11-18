@@ -1,6 +1,7 @@
 openai
 anthropic
 hatchling
+editables
 build
 ruff
 mypy
