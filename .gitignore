@@ -17,3 +17,7 @@ tollgate.env
 node_modules/
 test-results/
 playwright-report/
+.venv/
+__pycache__/
+dist/
+*.egg-info/
