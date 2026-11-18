@@ -1,0 +1,54 @@
+{
+  "name": "tollgate-client",
+  "version": "0.1.0",
+  "description": "The official OpenAI and Anthropic clients, pointed at a Tollgate gateway",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jamal-Akhras/tollgate.git",
+    "directory": "clients/typescript"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./openai": {
+      "types": "./dist/openai.d.ts",
+      "default": "./dist/openai.js"
+    },
+    "./anthropic": {
+      "types": "./dist/anthropic.d.ts",
+      "default": "./dist/anthropic.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "check": "tsc -p . && node --test \"test/*.test.mjs\""
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^1.9.0",
+    "openai": "^7.57.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "1.10.0",
+    "@types/node": "24.19.2",
+    "openai": "7.59.0",
+    "typescript": "7.0.2"
+  }
+}
