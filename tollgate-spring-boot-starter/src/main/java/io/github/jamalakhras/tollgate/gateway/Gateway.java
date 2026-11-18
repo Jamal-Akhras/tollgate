@@ -81,6 +81,7 @@ public final class Gateway implements AutoCloseable {
     static final String COST_MAX_HEADER = "X-Tollgate-Cost-Max";
     static final String COST_HEADER = "X-Tollgate-Cost";
     static final String DRY_RUN_HEADER = "X-Tollgate-Dry-Run";
+    static final String ERROR_HEADER = "X-Tollgate-Error";
     static final String PERSONAL_DATA_STEP = "personal-data";
     static final String LIMITS_REFUSED_METRIC = "tollgate.limits.refused";
     static final String PROVIDERS_BUSY_METRIC = "tollgate.providers.busy";

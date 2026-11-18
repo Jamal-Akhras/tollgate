@@ -51,6 +51,8 @@ class LimitsTest extends GatewayTestSupport {
         assertThat(refused.body())
                 .contains("\"code\":\"rate_limited\"")
                 .contains("This tenant is limited to 2 requests a minute");
+        assertThat(refused.headers().firstValue(Gateway.ERROR_HEADER)).contains("rate_limited");
+        assertThat(refused.headers().firstValue("x-should-retry")).isEmpty();
         assertThat(PROVIDER.received()).hasSize(2);
         assertThat(auditRecordsOf(refused)).isEmpty();
         assertThat(refused("rationed", "requestsPerMinute")).isEqualTo(1);
@@ -61,6 +63,7 @@ class LimitsTest extends GatewayTestSupport {
         assertThat(anthropic.body())
                 .contains("\"type\":\"rate_limit_error\"")
                 .contains("This tenant is limited to 2 requests a minute");
+        assertThat(anthropic.headers().firstValue(Gateway.ERROR_HEADER)).contains("rate_limited");
     }
 
     @Test

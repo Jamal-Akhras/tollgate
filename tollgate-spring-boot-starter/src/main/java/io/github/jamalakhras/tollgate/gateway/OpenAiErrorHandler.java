@@ -3,7 +3,6 @@ package io.github.jamalakhras.tollgate.gateway;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,11 +15,7 @@ class OpenAiErrorHandler {
     @ExceptionHandler
     ResponseEntity<OpenAiError> handle(GatewayException e) {
         return ResponseEntity.status(e.status())
-                .headers(headers -> {
-                    if (e.retryAfter() != null) {
-                        headers.set(HttpHeaders.RETRY_AFTER, e.retryAfter());
-                    }
-                })
+                .headers(headers -> ErrorHeaders.add(headers, e))
                 .body(new OpenAiError(
                         new OpenAiError.Detail(String.valueOf(e.getMessage()), typeOf(e), e.param(), e.code())));
     }
@@ -29,6 +24,7 @@ class OpenAiErrorHandler {
     ResponseEntity<OpenAiError> handleUnexpected(Exception e) {
         log.error("Request failed", e);
         return ResponseEntity.internalServerError()
+                .header(Gateway.ERROR_HEADER, "internal_error")
                 .body(new OpenAiError(new OpenAiError.Detail(
                         "Tollgate could not complete the request", "server_error", null, "internal_error")));
     }
