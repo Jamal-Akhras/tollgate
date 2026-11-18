@@ -4,11 +4,11 @@ Date: 2026-11-16 · Status: Accepted, amended 2026-11-16, amends [ADR 0004](0004
 
 ## Amendment (2026-11-16)
 
-The first version of this ADR shipped 0.2.0 read-only and left managed mode
-for later. The control surface was then settled, and four edits moved into 0.2.0.
+The first version of this ADR kept the console read-only and left managed mode
+for later. The control surface was then settled, and four edits moved into 0.1.0.
 What changed:
 
-- **Managed mode ships in 0.2.0,** with exactly four edits: a guard's mode,
+- **Managed mode ships in 0.1.0,** with exactly four edits: a guard's mode,
   a tenant's budget, create a key, revoke a key. Every other edit is still
   later.
 - **Managed mode is still off by default.** `tollgate init` now turns it on
@@ -19,7 +19,7 @@ What changed:
 - **Losing the file's comments on the first managed write is accepted.**
 - **The Docker quickstart mounts the config's folder, not the file,** and
   not read-only. A single mounted file can't be replaced atomically.
-- **The viewer token stays after 0.2.0.** ADR 0026 said it arrives with the
+- **The viewer token stays after 0.1.0.** ADR 0026 said it arrives with the
   first endpoint that changes the config; that sentence needs the same
   amendment.
 - **A reload sums the trail again for a tenant whose budget period changes,**
@@ -91,7 +91,7 @@ Four facts limit what a write can be:
 - **This is the GitOps mode of `docs/DESIGN.md` §11.** A team that keeps the
   file in Git leaves edits off and loses nothing.
 
-### Managed mode, in 0.2.0
+### Managed mode, in 0.1.0
 
 Set `tollgate.admin.edits=file` (`TOLLGATE_ADMIN_EDITS=file`) and the admin
 API may rewrite `tollgate.yaml`. The default is `off`. The file is still the
@@ -100,7 +100,7 @@ only source of truth; there is no second file and no database.
 - **`tollgate init` turns it on,** with a line in `tollgate.env`. Someone
   trying Tollgate gets the switches. Someone deploying it removes the line
   or leaves the file read-only on purpose.
-- **Each change is its own endpoint.** 0.2.0 has four:
+- **Each change is its own endpoint.** 0.1.0 has four:
 
   | Route | Changes |
   |---|---|
@@ -131,7 +131,7 @@ only source of truth; there is no second file and no database.
   reload brings in, and each version a write replaces or creates. Nothing
   deletes them.
 - **Every write is logged from one small value:** an ID for the change,
-  who asked (in 0.2.0 always the admin token), the versions before and
+  who asked (in 0.1.0 always the admin token), the versions before and
   after, and each operation's name and the place in the document it
   touched. A new key's secret is never part of it. The same value is what
   a later release would store or put in the audit trail.
@@ -164,7 +164,7 @@ only source of truth; there is no second file and no database.
   line, which is how the file says it by hand.
 - **A tenant's budget.** A limit as a decimal and a period (`daily`,
   `monthly`, `total`), in the config's currency. It sets a budget on a
-  tenant that had none. Removing a budget is not in 0.2.0.
+  tenant that had none. Removing a budget is not in 0.1.0.
   - What is already spent stays counted when only the limit changes. A
     limit below what is spent refuses the tenant's priced calls at once.
   - Changing the period, or setting a first budget, makes the reload sum
@@ -230,7 +230,7 @@ only source of truth; there is no second file and no database.
   tenants, policies, providers, models, removing a budget, rotating a key.
   Each is a later endpoint under the rules above.
 - **Pausing a tenant** (ADR 0030).
-- **The viewer token** (ADR 0026). It comes after 0.2.0, sees everything
+- **The viewer token** (ADR 0026). It comes after 0.1.0, sees everything
   the admin token sees, and may verify the trail and look up proofs. Those
   are all `GET`s, so its one rule, "only `GET` and `HEAD`", already says
   it.
@@ -253,7 +253,7 @@ only source of truth; there is no second file and no database.
   document, and a small language to design, validate and keep compatible.
 - **Putting the whole config in a database now.** It is where managed mode
   ends up, and it is a storage tier Tollgate doesn't have yet.
-- **Shipping 0.2.0 read-only,** as first decided. Less to build and nothing
+- **Shipping 0.1.0 read-only,** as first decided. Less to build and nothing
   to get wrong in a write. But the console would show a switch-shaped thing
   that opens instructions, and the four edits are what people ask a
   console for first.
@@ -271,7 +271,7 @@ only source of truth; there is no second file and no database.
 
 ## Consequences
 
-- **In 0.2.0 the console can switch a guard, set a budget, and create and
+- **In 0.1.0 the console can switch a guard, set a budget, and create and
   revoke keys,** when edits are on. Everything else is still made in the
   file, and the console shows the YAML to write.
 - **Managed mode costs a team its comments,** once, in exchange for

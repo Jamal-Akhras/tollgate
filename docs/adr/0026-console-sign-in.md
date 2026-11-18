@@ -64,7 +64,7 @@ defence is that no other script can run there:
   can hide what a viewer can't do. The server still refuses it.
 - **Every read-only operation is a `GET`,** including verifying the audit
   trail (ADR 0028), so the rule stays one line.
-- **The viewer token comes after 0.2.0.** Until then the admin token is the
+- **The viewer token comes after 0.1.0.** Until then the admin token is the
   only way in, and everyone who can look can also change, when edits are
   on. The viewer token sees everything the admin token sees, and may verify
   the trail and look up proofs.

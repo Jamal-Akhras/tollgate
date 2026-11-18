@@ -18,7 +18,7 @@ has three ways to stop a tenant today, and each is the wrong tool:
   `429` is what the OpenAI and Anthropic SDKs retry by themselves.
 
 The console's list of controls has "Pause a tenant" as an emergency stop. It is a new setting, not an edit of an existing one, so it
-gets its own decision. It is built after 0.2.0.
+gets its own decision. It is built after 0.1.0.
 
 Two facts about the code shape it:
 

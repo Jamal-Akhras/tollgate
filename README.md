@@ -304,14 +304,14 @@ writing them to the current folder as your own user:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-  ghcr.io/jamal-akhras/tollgate:0.2.0 init
+  ghcr.io/jamal-akhras/tollgate:0.1.0 init
 ```
 
 On Windows, Docker Desktop writes the files as you, so leave out `--user`. In
 PowerShell:
 
 ```powershell
-docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.2.0 init
+docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.1.0 init
 ```
 
 The other commands here are for bash; in PowerShell, end each continued line
@@ -327,7 +327,7 @@ docker run -d --name tollgate --user "$(id -u):$(id -g)" \
   --env-file tollgate.env \
   --add-host=host.docker.internal:host-gateway \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:8081:8081 -p 127.0.0.1:9090:9090 \
-  ghcr.io/jamal-akhras/tollgate:0.2.0
+  ghcr.io/jamal-akhras/tollgate:0.1.0
 ```
 
 On Windows, leave out `--user`, as for `init`. The folder is mounted, not the
@@ -636,9 +636,8 @@ hold no data, and it loads nothing from other hosts.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | Everything under "What works today", with the core, provider, starter and client libraries on Maven Central, and the `tollgate-client` packages on PyPI and npm |
+| **0.1.0** | Everything under "What works today" and the [console](#the-console) with four edits, with the core, provider, starter and client libraries on Maven Central, and the `tollgate-client` packages on PyPI and npm |
 | **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
-| **0.2.0** | The [console](#the-console) with four edits |
 | **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
 | **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; the console's viewer token, pausing a tenant, more edits and approvals, and TLS on the admin port; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
 

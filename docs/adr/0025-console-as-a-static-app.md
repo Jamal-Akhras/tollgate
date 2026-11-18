@@ -143,4 +143,4 @@ objection stands. A small compiled app does not have to bring them.
 - **Other UIs lose nothing.** The contract is still the product, and the
   console proves it is enough to build on.
 - **`docs/DESIGN.md` §2 and §11 and the roadmap change:** `tollgate-studio`
-  becomes `tollgate-console`, and it moves from "Later" to 0.2.0.
+  becomes `tollgate-console`, and it moves from "Later" to 0.1.0.
