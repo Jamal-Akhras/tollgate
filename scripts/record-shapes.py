@@ -75,10 +75,10 @@ def endpoint(method, path):
 
 def listed(name, value):
     if name == "user-agent":
-        return value.split()[0]
+        return [value.split()[0]]
     if name in ("anthropic-beta", "openai-beta"):
         return [beta.strip() for beta in value.split(",") if beta.strip()]
-    return value
+    return [value]
 
 
 class Recorder:
@@ -91,8 +91,7 @@ class Recorder:
         }
         for name, value in headers.items():
             if name in LISTED_HEADERS or name == "user-agent":
-                found = listed(name, value)
-                self.request["headers"][name] = found if isinstance(found, list) else [found]
+                self.request["headers"][name] = listed(name, value)
         if body and "json" in content_type:
             self.request["body"] = shape(json.loads(body))
         self.answer = {"contentType": [], "body": {}, "events": {}}
@@ -104,13 +103,11 @@ class Recorder:
         self.answer["contentType"] = [content_type.split(";")[0]]
 
     def chunk(self, data):
+        self.pending += data
         if self.answer["contentType"] == ["text/event-stream"]:
-            self.pending += data
             *lines, self.pending = self.pending.split(b"\n")
             for line in lines:
                 self.event(line.strip())
-        else:
-            self.pending += data
 
     def event(self, line):
         if not line.startswith(b"data:"):
@@ -142,7 +139,7 @@ def combine(left, right):
     combined = dict(left)
     for part, value in right.items():
         old = combined.get(part)
-        if part in ("body",):
+        if part == "body":
             combined[part] = merge(old or {}, value)
         elif part == "events":
             events = dict(old or {})
@@ -212,9 +209,9 @@ def handler(upstream, output):
     return Relay
 
 
-def closed(shape):
+def closed(tree):
     found = {}
-    for kind, detail in shape.items():
+    for kind, detail in tree.items():
         if kind.startswith("object"):
             detail = {name: {"opaque": True} if name in OPAQUE else closed(field) for name, field in detail.items()}
         elif kind == "array":
@@ -223,8 +220,8 @@ def closed(shape):
     return found
 
 
-def fixture(recording, output):
-    with open(recording, encoding="utf-8") as file:
+def fixture(source, output):
+    with open(source, encoding="utf-8") as file:
         calls = json.load(file)
     requests = {}
     for key, call in calls.items():

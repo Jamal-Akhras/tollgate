@@ -18,7 +18,6 @@
     <skipTests>false</skipTests>
     <frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
     <node.version>v24.22.3</node.version>
-    <node.download.dir>${project.build.directory}/node-download</node.download.dir>
   </properties>
 
   <profiles>
@@ -144,7 +143,7 @@
             <phase>generate-resources</phase>
             <configuration>
               <url>https://nodejs.org/dist/${node.version}/node-${node.version}-${node.archive}</url>
-              <outputDirectory>${node.download.dir}/${node.version}</outputDirectory>
+              <outputDirectory>${project.build.directory}/node-download/${node.version}</outputDirectory>
               <outputFileName>node-${node.version}-${node.archive}</outputFileName>
               <sha256>${node.sha256}</sha256>
               <overwrite>true</overwrite>
