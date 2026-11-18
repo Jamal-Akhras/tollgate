@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [java-kotlin, javascript-typescript]
+        language: [java-kotlin, javascript-typescript, python]
     permissions:
       security-events: write
     steps:

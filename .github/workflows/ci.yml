@@ -94,3 +94,40 @@ jobs:
           name: playwright-report
           path: tollgate-console/playwright-report/
           if-no-files-found: ignore
+
+  clients:
+    name: Client libraries against the server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - name: Build the server and the console
+        run: ./mvnw -B -ntp -DskipTests install
+      - name: Use the Node the build installed
+        run: echo "$PWD/tollgate-console/target/node" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install the Python library's tools
+        run: |
+          pip install --require-hashes -r requirements-dev.txt
+          pip install --no-deps --no-build-isolation -e .
+        working-directory: clients/python
+      - name: Check the Python library
+        run: ruff check . && ruff format --check . && mypy && python -m unittest discover -s tests
+        working-directory: clients/python
+      - name: Run the Python library against the server
+        run: python clients/e2e/serve.py python -m unittest discover -s clients/python/e2e
+      - name: Install the TypeScript library's packages
+        run: npm ci --ignore-scripts
+        working-directory: clients/typescript
+      - name: Check the TypeScript library
+        run: npm run check
+        working-directory: clients/typescript
+      - name: Run the TypeScript library against the server
+        run: python clients/e2e/serve.py node --test "clients/typescript/e2e/*.test.mjs"
