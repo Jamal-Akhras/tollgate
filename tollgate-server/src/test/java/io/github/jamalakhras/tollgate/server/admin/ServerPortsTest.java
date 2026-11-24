@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import io.github.jamalakhras.tollgate.providers.TestPorts;
+import io.github.jamalakhras.tollgate.testsupport.TestPorts;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;

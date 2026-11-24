@@ -8,7 +8,7 @@ import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
-import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import io.github.jamalakhras.tollgate.testsupport.FakeProvider;
 import java.math.BigDecimal;
 import java.net.http.HttpResponse;
 import java.util.Currency;

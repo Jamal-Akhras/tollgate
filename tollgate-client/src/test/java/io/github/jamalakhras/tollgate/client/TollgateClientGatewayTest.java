@@ -13,7 +13,7 @@ import com.openai.models.FunctionDefinition;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import io.github.jamalakhras.tollgate.testsupport.FakeProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;

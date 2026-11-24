@@ -1,4 +1,4 @@
-package io.github.jamalakhras.tollgate.providers;
+package io.github.jamalakhras.tollgate.testsupport;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;

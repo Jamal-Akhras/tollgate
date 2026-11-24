@@ -40,9 +40,7 @@
     </dependency>
     <dependency>
       <groupId>io.github.jamal-akhras</groupId>
-      <artifactId>tollgate-providers</artifactId>
-      <type>test-jar</type>
-      <version>${project.version}</version>
+      <artifactId>tollgate-test-support</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

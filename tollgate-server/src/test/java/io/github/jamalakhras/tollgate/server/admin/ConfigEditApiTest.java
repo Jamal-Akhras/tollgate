@@ -3,7 +3,7 @@ package io.github.jamalakhras.tollgate.server.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.github.jamalakhras.tollgate.providers.TestPorts;
+import io.github.jamalakhras.tollgate.testsupport.TestPorts;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.http.HttpResponse;

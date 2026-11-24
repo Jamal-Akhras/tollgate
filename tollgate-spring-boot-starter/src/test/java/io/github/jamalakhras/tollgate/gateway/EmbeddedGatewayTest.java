@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jamalakhras.tollgate.core.audit.AuditKeys;
 import io.github.jamalakhras.tollgate.core.auth.ApiKey;
-import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import io.github.jamalakhras.tollgate.testsupport.FakeProvider;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;

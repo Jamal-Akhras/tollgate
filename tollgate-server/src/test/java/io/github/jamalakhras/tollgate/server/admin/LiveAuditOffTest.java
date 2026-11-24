@@ -2,7 +2,7 @@ package io.github.jamalakhras.tollgate.server.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.providers.TestPorts;
+import io.github.jamalakhras.tollgate.testsupport.TestPorts;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

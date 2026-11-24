@@ -1,4 +1,4 @@
-package io.github.jamalakhras.tollgate.providers;
+package io.github.jamalakhras.tollgate.testsupport;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

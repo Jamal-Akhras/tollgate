@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.jamalakhras.tollgate.core.config.Provider;
 import io.github.jamalakhras.tollgate.core.config.SecretRef;
 import io.github.jamalakhras.tollgate.core.config.WireFormat;
+import io.github.jamalakhras.tollgate.testsupport.FakeProvider;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;

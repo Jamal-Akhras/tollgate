@@ -37,6 +37,7 @@
   </scm>
 
   <modules>
+    <module>tollgate-test-support</module>
     <module>tollgate-core</module>
     <module>tollgate-providers</module>
     <module>tollgate-spring-boot-starter</module>
@@ -97,6 +98,11 @@
       <dependency>
         <groupId>io.github.jamal-akhras</groupId>
         <artifactId>tollgate-console</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.jamal-akhras</groupId>
+        <artifactId>tollgate-test-support</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -487,6 +493,7 @@
               <excludeArtifacts>
                 <artifact>tollgate-server</artifact>
                 <artifact>tollgate-console</artifact>
+                <artifact>tollgate-test-support</artifact>
               </excludeArtifacts>
             </configuration>
           </plugin>

@@ -2,7 +2,7 @@ package io.github.jamalakhras.tollgate.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.jamalakhras.tollgate.providers.FakeProvider;
+import io.github.jamalakhras.tollgate.testsupport.FakeProvider;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
