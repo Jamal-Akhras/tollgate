@@ -28,3 +28,8 @@ The price catalog, prices.tsv in tollgate-core, is generated from models.dev
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+The console in tollgate-console bundles preact, @preact/signals,
+@preact/signals-core and uPlot under the MIT licence. Their notices are in
+tollgate-console/public/THIRD-PARTY-LICENSES.txt, which is served with the
+console at /console/THIRD-PARTY-LICENSES.txt.
