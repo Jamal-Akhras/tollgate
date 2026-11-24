@@ -36,20 +36,22 @@ jobs:
           CURRENT: ${{ steps.digest.outputs.current }}
           PINNED: ${{ steps.digest.outputs.pinned }}
         run: |
-          branch="base-image/${CURRENT:7:12}"
-          if [[ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]]; then
-            echo "A pull request for $CURRENT already exists"
+          branch="base-image/update"
+          body="gcr.io/distroless/java25-debian13:nonroot moved from $PINNED to $CURRENT."
+          sed -i "s/$PINNED/$CURRENT/" tollgate-server/pom.xml
+          if git fetch -q origin "$branch" 2>/dev/null && git diff --quiet FETCH_HEAD -- tollgate-server/pom.xml; then
+            echo "The open update already has this digest"
             exit 0
           fi
-          if ! git ls-remote --exit-code --heads origin "$branch"; then
-            sed -i "s/$PINNED/$CURRENT/" tollgate-server/pom.xml
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git switch -c "$branch"
-            git commit -am "Update the distroless base image"
-            git push origin "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "Update the distroless base image"
+          git push --force origin "$branch"
+          if [[ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]]; then
+            gh pr create --base main --head "$branch" \
+              --title "Update the distroless base image" --body "$body"
+          else
+            gh pr edit "$branch" --body "$body"
           fi
-          gh pr create --base main --head "$branch" \
-            --title "Update the distroless base image" \
-            --body "gcr.io/distroless/java25-debian13:nonroot moved from $PINNED to $CURRENT."
           gh workflow run ci.yml --ref "$branch"

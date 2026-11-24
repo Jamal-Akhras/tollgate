@@ -39,19 +39,21 @@ jobs:
         env:
           COMMIT: ${{ steps.convert.outputs.commit }}
         run: |
-          branch="prices/${COMMIT:0:12}"
-          if [[ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]]; then
-            echo "A pull request for models.dev $COMMIT already exists"
+          branch="prices/update"
+          body="Prices from models.dev at anomalyco/models.dev@$COMMIT. Review every changed line before merging: these prices size every reservation and settle every budget."
+          if git fetch -q origin "$branch" 2>/dev/null && git diff --quiet FETCH_HEAD -- "$CATALOG"; then
+            echo "The open update already has these prices"
             exit 0
           fi
-          if ! git ls-remote --exit-code --heads origin "$branch"; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git switch -c "$branch"
-            git commit -am "Update the price catalog from models.dev"
-            git push origin "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "Update the price catalog from models.dev"
+          git push --force origin "$branch"
+          if [[ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]]; then
+            gh pr create --base main --head "$branch" \
+              --title "Update the price catalog from models.dev" --body "$body"
+          else
+            gh pr edit "$branch" --body "$body"
           fi
-          gh pr create --base main --head "$branch" \
-            --title "Update the price catalog from models.dev" \
-            --body "Prices from models.dev at anomalyco/models.dev@$COMMIT. Review every changed line before merging: these prices size every reservation and settle every budget."
           gh workflow run ci.yml --ref "$branch"
