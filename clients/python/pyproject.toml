@@ -10,13 +10,31 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
+authors = [{ name = "Jamal Akhras" }]
+keywords = ["llm", "gateway", "openai", "anthropic", "audit", "budget", "policy", "tollgate"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
 
 [project.optional-dependencies]
 openai = ["openai>=3.52,<4"]
 anthropic = ["anthropic>=2.9,<3"]
 
 [project.urls]
+Homepage = "https://github.com/Jamal-Akhras/tollgate"
 Repository = "https://github.com/Jamal-Akhras/tollgate"
+Changelog = "https://github.com/Jamal-Akhras/tollgate/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Jamal-Akhras/tollgate/issues"
+Documentation = "https://github.com/Jamal-Akhras/tollgate/tree/main/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tollgate"]

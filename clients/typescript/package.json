@@ -4,6 +4,21 @@
   "description": "The official OpenAI and Anthropic clients, pointed at a Tollgate gateway",
   "type": "module",
   "license": "Apache-2.0",
+  "author": "Jamal Akhras",
+  "homepage": "https://github.com/Jamal-Akhras/tollgate/tree/main/clients/typescript#readme",
+  "bugs": {
+    "url": "https://github.com/Jamal-Akhras/tollgate/issues"
+  },
+  "keywords": [
+    "llm",
+    "gateway",
+    "openai",
+    "anthropic",
+    "audit",
+    "budget",
+    "policy",
+    "tollgate"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jamal-Akhras/tollgate.git",
