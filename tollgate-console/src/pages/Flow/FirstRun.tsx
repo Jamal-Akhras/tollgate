@@ -17,7 +17,7 @@ export function firstRunCommand(
   if (provider.format === 'anthropic') {
     return [
       `curl ${origin}/anthropic/v1/messages \\`,
-      '  -H "x-api-key: $TOLLGATE_KEY" \\',
+      '  -H "x-api-key: $TOLLGATE_API_KEY" \\',
       '  -H "anthropic-version: 2023-06-01" \\',
       '  -H "content-type: application/json" \\',
       `  -d '{"model": "${model.name}", "max_tokens": 64, "messages": [{"role": "user", "content": "Say hello"}]}'`,
@@ -25,7 +25,7 @@ export function firstRunCommand(
   }
   return [
     `curl ${origin}/v1/chat/completions \\`,
-    '  -H "Authorization: Bearer $TOLLGATE_KEY" \\',
+    '  -H "Authorization: Bearer $TOLLGATE_API_KEY" \\',
     '  -H "content-type: application/json" \\',
     `  -d '{"model": "${model.name}", "messages": [{"role": "user", "content": "Say hello"}]}'`,
   ].join('\n');

@@ -9,7 +9,7 @@ test('anOpenAiFormatModelUsesTheChatCompletionsEndpoint', () => {
   const command = firstRunCommand('gateway.local', configBusyFixture, 'research')!;
   expect(command).toContain('curl http://gateway.local:8080/v1/chat/completions');
   expect(command).toContain('"model": "qwen3"');
-  expect(command).toContain('Authorization: Bearer $TOLLGATE_KEY');
+  expect(command).toContain('Authorization: Bearer $TOLLGATE_API_KEY');
 });
 
 test('anAnthropicFormatModelUsesTheMessagesEndpointWithItsHeaders', () => {
@@ -21,7 +21,7 @@ test('anAnthropicFormatModelUsesTheMessagesEndpointWithItsHeaders', () => {
   };
   const command = firstRunCommand('localhost', config, 'research')!;
   expect(command).toContain('curl http://localhost:8080/anthropic/v1/messages');
-  expect(command).toContain('x-api-key: $TOLLGATE_KEY');
+  expect(command).toContain('x-api-key: $TOLLGATE_API_KEY');
   expect(command).toContain('anthropic-version: 2023-06-01');
   expect(command).toContain('"model": "claude-sonnet"');
   expect(command).toContain('"max_tokens"');
