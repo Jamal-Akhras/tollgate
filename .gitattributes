@@ -3,3 +3,6 @@
 *.bat text eol=crlf
 *.png binary
 *.jar binary
+
+docs/api/admin-openapi.json linguist-generated=true
+clients/python/requirements-dev.txt linguist-generated=true

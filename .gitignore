@@ -1,7 +1,26 @@
+# Build output
 target/
+dist/
 *.class
+*.egg-info/
+*.tgz
+*.tsbuildinfo
+tollgate-*.jar
+
+# Logs and test output
 *.log
 .jqwik-database
+test-results/
+playwright-report/
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+
+# Dependencies and environments
+node_modules/
+.venv/
 
 # IDEs and OS
 .idea/
@@ -10,14 +29,16 @@ target/
 .DS_Store
 Thumbs.db
 
-# Local configuration and secrets
+# Secrets and local configuration
 .env
+.env.*
 tollgate.env
 *.local.yaml
-node_modules/
-test-results/
-playwright-report/
-.venv/
-__pycache__/
-dist/
-*.egg-info/
+*.pem
+*.key
+
+# Files the quickstart creates in a checkout
+/tollgate.yaml
+/tollgate.yaml.original
+/config-history/
+/audit/
