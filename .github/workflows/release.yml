@@ -7,10 +7,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Upload to Central, publish the image and draft a release
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: write
       packages: write
@@ -18,14 +23,12 @@ jobs:
       attestations: write
     env:
       IMAGE: ghcr.io/jamal-akhras/tollgate
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: 25
-          cache: maven
           server-id: central
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
@@ -46,6 +49,21 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match the npm package version $node_version"
             exit 1
           fi
+          awk -v heading="## [$version]" 'index($0, heading) == 1 { found = 1; next } found && (/^## \[/ || /^\[[^]]+\]: /) { exit } found' CHANGELOG.md > "$RUNNER_TEMP/section.md"
+          awk '
+            /^[[:space:]]*```/ { fence = !fence }
+            {
+              starts = fence || /^[[:space:]]*$/ || /^[[:space:]]*([-*>|#]|[0-9]+\.|```)/
+              if (NR > 1 && !starts && !blank && !wasfence) { sub(/^[[:space:]]+/, ""); printf " %s", $0 }
+              else { if (NR > 1) printf "\n"; printf "%s", $0 }
+              blank = /^[[:space:]]*$/
+              wasfence = fence || /^[[:space:]]*```/
+            }
+            END { printf "\n" }' "$RUNNER_TEMP/section.md" > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "CHANGELOG.md has no section with content for $version"
+            exit 1
+          fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Build and verify
         run: ./mvnw -B -ntp -Psbom install
@@ -57,6 +75,8 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
         run: ./mvnw -B -ntp -Prelease -DskipTests -Djacoco.skip=true deploy
       - name: Push the image
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           ./mvnw -B -ntp -pl tollgate-server jib:build -Djib.to.tags=latest
@@ -82,22 +102,33 @@ jobs:
             tollgate-${{ env.VERSION }}.console.sbom.json
       - name: Draft the GitHub release
         env:
+          GH_TOKEN: ${{ github.token }}
           BUNDLE: ${{ steps.jar-provenance.outputs.bundle-path }}
         run: |
           cp "$BUNDLE" "tollgate-$VERSION.sigstore.json"
-          awk -v heading="## [$VERSION]" 'index($0, heading) == 1 { found = 1; next } found && /^## \[/ { exit } found' CHANGELOG.md > notes.md
-          if [[ ! -s notes.md ]]; then
-            echo "CHANGELOG.md has no section for $VERSION"
-            exit 1
+          base="https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME"
+          sed -E \
+            -e "s#\]\((\./)?([A-Za-z0-9_][^):]*)\)#](${base}/\2)#g" \
+            -e "s#\]\((\#[^)]*)\)#](${base}/CHANGELOG.md\1)#g" \
+            "$RUNNER_TEMP/notes.md" > notes.md
+          files=("tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json" "tollgate-$VERSION.console.sbom.json" "tollgate-$VERSION.sigstore.json")
+          if is_draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Release $GITHUB_REF_NAME is already published"
+              exit 1
+            fi
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md --title "Tollgate $VERSION"
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md \
+              --title "Tollgate $VERSION" "${files[@]}"
           fi
-          gh release create "$GITHUB_REF_NAME" --draft --notes-file notes.md \
-            --title "Tollgate $VERSION" \
-            "tollgate-$VERSION.jar" "tollgate-$VERSION.sbom.json" "tollgate-$VERSION.console.sbom.json" "tollgate-$VERSION.sigstore.json"
 
   packages:
     name: Build the Python and TypeScript packages
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -132,6 +163,7 @@ jobs:
     name: Publish to PyPI
     needs: packages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: pypi
     permissions:
       id-token: write
@@ -146,6 +178,7 @@ jobs:
     name: Publish to npm
     needs: packages
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: npm
     permissions:
       id-token: write
