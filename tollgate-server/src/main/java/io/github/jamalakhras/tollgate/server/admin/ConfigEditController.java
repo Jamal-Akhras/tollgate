@@ -75,7 +75,8 @@ class ConfigEditController {
             description = "Rewrites tollgate.yaml with the tenant's budget, in the config's currency, and swaps the"
                     + " new configuration in. It sets a budget on a tenant that had none and replaces one that"
                     + " existed. What is already spent stays counted when only the limit changes; changing the"
-                    + " period starts the count from zero. Needs If-Match with the config version, and"
+                    + " period counts the spend again from the audit trail. Needs If-Match with the config"
+                    + " version, and"
                     + " TOLLGATE_ADMIN_EDITS=file.")
     @ApiResponse(responseCode = "200", description = "The version now running, and whether the file changed")
     @ApiResponse(
