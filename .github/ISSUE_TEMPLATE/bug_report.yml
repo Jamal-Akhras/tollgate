@@ -1,0 +1,60 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If this is a security problem, do not file it here. Use a [private report](https://github.com/Jamal-Akhras/tollgate/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: Tollgate version
+      description: The jar or image tag, or the library version.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How you run it
+      options:
+        - Jar
+        - Docker image
+        - Spring Boot starter
+        - Python client library
+        - TypeScript client library
+        - Java client library
+        - Console
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Java, Python or Node version, and operating system
+      description: Whichever applies, for example "Java 25 on Ubuntu 24.04".
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: The relevant part of tollgate.yaml. Remove API keys, tokens and anything else secret first.
+      render: yaml
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Include the steps to reproduce it and any error text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: trace
+    attributes:
+      label: Trace id
+      description: The trace id from the error response or the audit record, if you have one.
