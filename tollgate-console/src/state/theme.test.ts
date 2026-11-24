@@ -27,9 +27,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('followsTheSystemUntilAChoiceIsMade', async () => {
+test('startsDarkUntilAChoiceIsMade', async () => {
+  const { theme } = await load();
+  expect(theme.value).toBe('dark');
+  expect(document.documentElement.dataset.theme).toBe('dark');
+});
+
+test('followsTheSystemWhenAsked', async () => {
   systemDark = true;
-  await load();
+  const { setTheme } = await load();
+  setTheme('system');
   expect(document.documentElement.dataset.theme).toBe('dark');
   systemDark = false;
   listeners.forEach((listener) => listener({ matches: false }));
@@ -48,7 +55,7 @@ test('remembersAChoice', async () => {
 test('ignoresAStoredValueItDoesNotKnow', async () => {
   localStorage.setItem('tollgate.theme', 'purple');
   const { theme } = await load();
-  expect(theme.value).toBe('system');
+  expect(theme.value).toBe('dark');
 });
 
 test('survivesAStorageThatThrows', async () => {
@@ -59,7 +66,7 @@ test('survivesAStorageThatThrows', async () => {
     throw new Error('blocked');
   });
   const { theme, setTheme } = await load();
-  expect(theme.value).toBe('system');
+  expect(theme.value).toBe('dark');
   setTheme('light');
   expect(theme.value).toBe('light');
   expect(document.documentElement.dataset.theme).toBe('light');

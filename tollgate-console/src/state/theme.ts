@@ -11,9 +11,9 @@ function isTheme(value: string | null): value is Theme {
 function stored(): Theme {
   try {
     const value = localStorage.getItem(key);
-    return isTheme(value) ? value : 'system';
+    return isTheme(value) ? value : 'dark';
   } catch {
-    return 'system';
+    return 'dark';
   }
 }
 
