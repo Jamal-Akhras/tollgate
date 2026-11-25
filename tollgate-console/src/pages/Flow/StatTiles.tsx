@@ -7,7 +7,7 @@ import { StatTile } from '../../ui/StatTile';
 import styles from './StatTiles.module.css';
 
 function spendText(spend: Record<string, string>): string {
-  const parts = Object.entries(spend).map(([currency, amount]) => moneyText({ amount, currency }));
+  const parts = Object.entries(spend).map(([currency, amount]) => moneyText({ amount, currency, short: true }));
   return parts.length === 0 ? '0' : parts.join(' + ');
 }
 

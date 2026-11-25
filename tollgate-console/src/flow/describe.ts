@@ -129,7 +129,7 @@ function budgetDetail(tenant: TenantView, budgets: BudgetState[]): string | null
   const { limit, currency, period } = tenant.budget;
   const state = budgets.find((budget) => budget.tenant === tenant.name);
   return state
-    ? `${moneyText({ amount: state.spent, currency })} / ${moneyText({ amount: limit, currency })}`
+    ? `${moneyText({ amount: state.spent, currency, short: true })} / ${moneyText({ amount: limit, currency })}`
     : `${moneyText({ amount: limit, currency })} ${period}`;
 }
 
@@ -266,7 +266,7 @@ export function providersFor(
           ? null
           : paid.length === 0
             ? 'free'
-            : paid.map((money) => moneyText(money)).join(' + ');
+            : paid.map((money) => moneyText({ ...money, short: true })).join(' + ');
       const isReachable = reachable(policy, tenant.dataClass, provider.region);
       const fallbackOnly = !direct.has(provider.name);
       const inFlight = live?.inFlight[provider.name] ?? 0;

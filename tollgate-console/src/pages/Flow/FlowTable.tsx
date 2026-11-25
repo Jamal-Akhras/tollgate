@@ -16,7 +16,7 @@ type FlowTableProps = {
 
 function spend(flow: Flow): string {
   const parts = Object.entries(flow.cost).map(([currency, amount]) =>
-    moneyText({ amount, currency, free: true }),
+    moneyText({ amount, currency, free: true, short: true }),
   );
   return parts.length === 0 ? 'free' : parts.join(' + ');
 }

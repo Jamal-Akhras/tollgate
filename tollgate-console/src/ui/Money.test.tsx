@@ -19,6 +19,22 @@ test.each(moneyCases)('moneyText(%s %s free=%s)', (amount, currency, free, text)
   expect(moneyText({ amount, currency, free })).toBe(text);
 });
 
+const shortCases: [string, string][] = [
+  ['0.581043', '$0.58'],
+  ['0.010725', '$0.011'],
+  ['0.01', '$0.01'],
+  ['0.00042', '$0.00042'],
+  ['0.5', '$0.50'],
+  ['12.5000', '$12.50'],
+  ['1234.5678', '$1234.57'],
+  ['50', '$50'],
+  ['0', '$0'],
+];
+
+test.each(shortCases)('moneyText(%s short)', (amount, text) => {
+  expect(moneyText({ amount, currency: 'USD', short: true })).toBe(text);
+});
+
 test('moneyRendersItsText', () => {
   render(<Money amount="0" currency="USD" free />);
   expect(screen.getByText('free')).toBeTruthy();

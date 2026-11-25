@@ -13,6 +13,7 @@ import {
   opensFor,
   previewProviders,
   providersFor,
+  sumDecimals,
   tenantCalls,
   tenantCaption,
 } from './describe';
@@ -96,9 +97,9 @@ test('providersAreTheOnesTheTenantsModelsServeWithCountsAndSpend', () => {
   expect(providers.map((provider) => provider.name)).toEqual(['anthropic', 'ollama', 'openai']);
   expect(providers.map((provider) => provider.calls)).toEqual([64, 11, 416]);
   expect(providers.every((provider) => provider.reachable && !provider.fallbackOnly)).toBe(true);
-  expect(providers[0]?.caption).toBe('us · 64 calls · $0.525');
+  expect(providers[0]?.caption).toBe('us · 64 calls · $0.53');
   expect(providers[1]?.caption).toBe('local · 11 calls · free · 1 in flight');
-  expect(providers[2]?.caption).toBe('us · 416 calls · $0.0936 · 3 in flight');
+  expect(providers[2]?.caption).toBe('us · 416 calls · $0.094 · 3 in flight');
 });
 
 test('aTenantOnlyListsItsOwnProviders', () => {
@@ -167,20 +168,9 @@ test('aTenantWithNoDataClassCannotReachAnythingWhileTheGuardEnforces', () => {
 });
 
 test('moneyIsSummedWithoutRounding', () => {
-  const live = {
-    ...liveBusyFixture,
-    flows: liveBusyFixture.flows.map((flow) =>
-      flow.provider === 'openai' ? { ...flow, cost: { USD: '0.1' } } : flow,
-    ),
-  };
-  const twice = {
-    ...live,
-    flows: [...live.flows, { ...live.flows[0]!, cost: { USD: '0.0001' } }],
-  };
-  const openai = providersFor(configBusyFixture, 'support-bot', twice).find(
-    (provider) => provider.name === 'openai',
-  );
-  expect(openai?.spend).toBe('$0.1001');
+  expect(sumDecimals(['0.1', '0.0001'])).toBe('0.1001');
+  expect(sumDecimals(['0.1', '0.2'])).toBe('0.3');
+  expect(sumDecimals(['1.50', '2.5'])).toBe('4');
 });
 
 test('tenantCallsCountSentFailedAndRefused', () => {

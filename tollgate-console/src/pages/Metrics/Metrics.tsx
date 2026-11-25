@@ -28,7 +28,8 @@ function windowFrom(query: string | undefined): number {
 }
 
 function money(budget: BudgetState) {
-  return (n: number) => moneyText({ amount: String(n), currency: budget.currency });
+  return (n: number) =>
+    moneyText({ amount: String(n), currency: budget.currency, short: true });
 }
 
 function spendFormat(value: number): string {

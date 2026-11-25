@@ -25,7 +25,7 @@ test('theCallsTableHasARowForEachFlow', () => {
   expect(within(calls).getAllByRole('row')).toHaveLength(liveBusyFixture.flows.length + 1);
   const gpt = within(calls).getByText('gpt-fast').closest('tr')!;
   expect(gpt.textContent).toContain('support-bot');
-  expect(gpt.textContent).toContain('$0.0936');
+  expect(gpt.textContent).toContain('$0.094');
 });
 
 test('theChecksTableListsTheSelectedTenantsChecksWithTheirCounts', () => {

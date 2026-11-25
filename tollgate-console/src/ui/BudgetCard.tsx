@@ -32,7 +32,7 @@ export function BudgetCard() {
   if (!budget) {
     return null;
   }
-  const money = (n: number) => moneyText({ amount: String(n), currency: budget.currency });
+  const money = (n: number) => moneyText({ amount: String(n), currency: budget.currency, short: true });
   return (
     <div class={styles.card}>
       <Meter
