@@ -27,7 +27,7 @@ test('theFlowPageHasALabelledPreviewSwitchThatStartsOn', () => {
   bar();
   const toggle = screen.getByRole('switch', { name: 'Preview this page without Tollgate' });
   expect(toggle.getAttribute('aria-checked')).toBe('true');
-  expect(screen.getByText('Preview')).toBeTruthy();
+  expect(screen.getByText('With Tollgate')).toBeTruthy();
   fireEvent.click(toggle);
   expect(tollgateOn.value).toBe(false);
   expect(toggle.getAttribute('aria-checked')).toBe('false');

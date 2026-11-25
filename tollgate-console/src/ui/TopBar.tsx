@@ -120,7 +120,7 @@ export function TopBar({
         <div class={styles.preview} data-slot="preview">
           {route.value.name === 'flow' && (
             <>
-              <span class={styles.previewLabel}>Preview</span>
+              <span class={styles.previewLabel}>With Tollgate</span>
               <Switch
                 label="Preview this page without Tollgate"
                 checked={tollgateOn.value}
