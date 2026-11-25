@@ -18,7 +18,7 @@ function topLevel(result: Layout): Rect[] {
   return [...result.tenants, result.policy, ...result.providers];
 }
 
-const widths = [800, 1000, 1199, 1200, 1600];
+const widths = [800, 1000, 1039, 1040, 1200, 1600];
 const counts = [
   { tenants: 1, checks: 3, providers: 1 },
   { tenants: 3, checks: 6, providers: 3 },
@@ -32,8 +32,8 @@ test('underEightHundredPixelsThereIsNoLayout', () => {
 
 test('theBandFollowsTheMeasuredWidth', () => {
   expect(layout(800, counts[0]!)?.band).toBe('medium');
-  expect(layout(1199, counts[0]!)?.band).toBe('medium');
-  expect(layout(1200, counts[0]!)?.band).toBe('wide');
+  expect(layout(1039, counts[0]!)?.band).toBe('medium');
+  expect(layout(1040, counts[0]!)?.band).toBe('wide');
 });
 
 test('mediumCardsAreTwoHundredTwoHundredFortyAndTwoHundred', () => {

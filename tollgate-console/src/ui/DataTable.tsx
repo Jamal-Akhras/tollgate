@@ -16,6 +16,7 @@ type DataTableProps<Row> = {
   rowKey: (row: Row) => string;
   onRowClick?: (row: Row) => void;
   empty?: ComponentChildren;
+  nowrap?: boolean;
 };
 
 function classes<Row>(column: Column<Row>): string {
@@ -32,13 +33,14 @@ export function DataTable<Row>({
   rowKey,
   onRowClick,
   empty,
+  nowrap,
 }: DataTableProps<Row>) {
   if (rows.length === 0 && empty) {
     return <div class={styles.empty}>{empty}</div>;
   }
   return (
     <div class={styles.wrap}>
-      <table class={styles.table} aria-label={label}>
+      <table class={`${styles.table} ${nowrap ? styles.nowrap : ''}`} aria-label={label}>
         <thead>
           <tr>
             {columns.map((column) => (

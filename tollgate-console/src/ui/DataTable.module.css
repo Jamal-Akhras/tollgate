@@ -54,6 +54,16 @@
   border-radius: var(--radius-card);
 }
 
+.nowrap td {
+  white-space: nowrap;
+}
+
+@container (max-width: 1280px) {
+  .nowrap .priority3 {
+    display: none;
+  }
+}
+
 @container (max-width: 900px) {
   .priority3 {
     display: none;
@@ -115,5 +125,9 @@
   .table .priority2,
   .table .priority3 {
     display: block;
+  }
+
+  .nowrap td {
+    white-space: normal;
   }
 }

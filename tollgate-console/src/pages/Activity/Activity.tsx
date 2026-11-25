@@ -65,7 +65,7 @@ function columns(now: number): Column<CallView>[] {
       align: 'right',
       cell: (call) =>
         call.outcome ? (
-          <Money amount={call.outcome.cost.amount} currency={call.outcome.cost.currency} />
+          <Money amount={call.outcome.cost.amount} currency={call.outcome.cost.currency} short />
         ) : (
           '—'
         ),
@@ -210,6 +210,7 @@ export function Activity() {
             rowKey={(call) => call.id}
             onRowClick={(call) => setOpenId(call.id)}
             empty={shown.length === 0 ? 'No calls match these filters.' : undefined}
+            nowrap
           />
         </>
       )}

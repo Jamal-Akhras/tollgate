@@ -46,7 +46,7 @@ export function layout(width: number, counts: Counts): Layout | null {
   if (width < 800) {
     return null;
   }
-  const band = width >= 1200 ? 'wide' : 'medium';
+  const band = width >= 1040 ? 'wide' : 'medium';
   const sizes = bands[band];
   const columns = sizes.tenant + sizes.policy + sizes.provider;
   const gap = Math.min(
