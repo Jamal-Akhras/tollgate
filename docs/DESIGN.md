@@ -46,14 +46,15 @@ model call: what was sent, who sent it, what it cost, and why it was allowed.
 |---|---|
 | `tollgate-core` | Framework-free Java 21: request model, policy pipeline, decision trace, money. May depend only on the JDK and JSpecify ([ADR 0002](adr/0002-module-boundaries.md)). |
 | `tollgate-providers` | Provider wire formats on the JDK HTTP client: OpenAI (also used by any OpenAI-compatible server, such as Ollama, vLLM, LM Studio or Gemini's compatible endpoint) and Anthropic. |
-| `tollgate-spring-boot-starter` | The gateway as Spring Boot 4.1 auto-configuration on Spring MVC, Java 21: the endpoints, the request pipeline, budgets, the audit sink and the metrics ([ADR 0021](adr/0021-spring-boot-starter.md)). |
+| `tollgate-spring-boot-starter` | The gateway itself, in the package `io.github.jamalakhras.tollgate.gateway`, as Spring Boot 4.1 auto-configuration on Spring MVC, Java 21: the endpoints, the request pipeline, budgets, the audit sink and the metrics ([ADR 0021](adr/0021-spring-boot-starter.md)). |
 | `tollgate-client` | Java 17 library that builds the official OpenAI and Anthropic Java clients for a gateway, and reads receipts and refusals ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md)). The vendor SDKs are optional dependencies. The Python and TypeScript libraries are in `clients/python` and `clients/typescript`, outside Maven ([ADR 0033](adr/0033-publish-the-client-libraries.md)). |
 | `tollgate-console` | The console: a TypeScript and Preact app built by Vite into static files in a jar, with its own unit tests ([ADR 0025](adr/0025-console-as-a-static-app.md)). Only the server depends on it. |
-| `tollgate-server` | Standalone server on the starter: the admin API on its own port, the console, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
+| `tollgate-test-support` | A fake provider and a free-port helper for the other modules' tests. Not published. |
+| `tollgate-server` | A thin application around the starter: the admin API on its own port, the console, the CLI and the image. Spring MVC on virtual threads, JDK 25. |
 
 Commands ship inside the server jar, so the one download does both:
 `init`, `keys create --tenant <name>`, `audit keys create`, `audit verify`,
-`prices show`, `prices pin` and `usage`.
+`audit user`, `prices show`, `prices pin` and `usage`.
 
 ### Ports
 
@@ -128,115 +129,8 @@ metrics, and its ID comes back in the `X-Tollgate-Trace-Id` header.
 
 YAML is the source of truth. Tollgate reads its own `tollgate.yaml` rather
 than Spring properties, so the server, the starter and the CLI load the same
-model the same way.
-
-```yaml
-currency: USD
-dataClasses: [public, internal, confidential, restricted]   # least to most strict
-
-providers:
-  anthropic: { format: anthropic, baseUrl: https://api.anthropic.com, apiKey: "${env:ANTHROPIC_API_KEY}", region: us }
-  ollama:    { format: openai, baseUrl: http://gpu-box:11434/v1, region: local, concurrent: 2 }
-
-models:
-  claude-sonnet:
-    provider: anthropic
-    upstream: claude-sonnet-4-5
-    price: { input: 3.00, output: 15.00, cacheRead: 0.30, cacheWrite: 3.75 }   # per million tokens
-    maxOutputTokens: { default: 2048, cap: 8192 }
-  qwen3:
-    provider: ollama
-    upstream: qwen3:32b
-    price: free
-    maxOutputTokens: { default: 4096, cap: 16384 }
-
-tenants:
-  support-bot:
-    dataClass: confidential          # default; headers can only make it stricter
-    models: [claude-sonnet, qwen3]
-    policy: default
-    userHeader: X-OpenWebUI-User-Id  # optional; the user is recorded as an HMAC
-    budget: { limit: 50.00, period: monthly }
-    limits: { requestsPerMinute: 60, tokensPerMinute: 200000, concurrent: 8 }
-
-keys:
-  - { id: k7Qm2xPa9bCd, tenant: support-bot, sha256: 3f1c…9ab2 }
-
-policies:
-  default:
-    guards:
-      - type: request-size
-        maxBytes: 1048576
-      - type: tool-names
-        refuse: [run_command, "delete_*"]
-      - type: data-class
-        regions: { public: [us, eu, local], internal: [us, eu, local], confidential: [local], restricted: [local] }
-    redact:                        # replaced before the call, restored in the answer
-      email: [internal, confidential]
-      iban: [internal, confidential, restricted]
-      customer-id: [internal, confidential, restricted]
-    refuse:                        # never sent
-      secret: [public, internal, confidential, restricted]
-      codenames: [public, internal, confidential, restricted]
-
-detectors:                         # your own, next to the built-in ones
-  customer-id: { pattern: "CUST-[0-9]{6}" }
-  codenames: { terms: [Bluebird, Project Falcon] }
-
-audit:                             # required; 'mode: off' must be written out
-  mode: sync                       # sync | async | off
-  directory: audit
-  publicKey: MCowBQYDK2VwAyEA…
-  signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
-  hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
-```
-
-- **Tenants** may call only the models they list; any other model is reported as
-  not found. Once `dataClasses` are defined, every tenant needs a default
-  class, and a request header may move it to a stricter class only.
-- **Guards** are `request-size`, `data-class` and `tool-names`. The data-class guard fails
-  closed: a class with no listed regions, or a provider with no region, is
-  refused. The `tool-names` guard refuses a request that defines a tool
-  with a listed name (`*` matches any run of characters), or one not on an
-  `allow` list. It sees tool definitions only, and the client chooses the
-  names ([ADR 0024](adr/0024-refuse-tools-by-name.md)).
-- **Users:** a tenant's `userHeader` names the request header that says which
-  person is calling. Its value is recorded as an HMAC, and `usage --by user`
-  groups by it. The header is the application's word, not proof
-  ([ADR 0023](adr/0023-attribute-calls-to-a-user.md)).
-- **Shadow mode:** a guard with `mode: monitor` records what it would have
-  refused, in the audit trail and the `tollgate.guards.monitored` metric,
-  without refusing, so a new guard can be measured before it is enforced
-  ([ADR 0022](adr/0022-shadow-mode.md)).
-- **Models** are the names applications ask for. Each maps to one provider,
-  the provider's own model name, a price and an output-token cap. Every model
-  has a known price before its first request. The price comes from the config,
-  or from the reviewed catalog that ships with each release
-  ([ADR 0009](adr/0009-price-catalog.md)). Nothing is fetched at runtime.
-  A price can also give reasoning tokens and hour-long cache writes their own
-  rates, and list long-context tiers that apply once a prompt reaches a size.
-- **Secrets** are references, never values, and are never logged:
-  `${env:NAME}`.
-- **Tenant keys** never appear in configuration; only their hashes do.
-  `tollgate keys create` prints a new key once, with the line to add.
-- **Reloads** validate the new config and swap it in atomically, through
-  `POST /admin/v1/config/reload`. An invalid config never replaces a running
-  one, and each decision records the config version that made it. A reload
-  that changes a tenant's budget period, or gives it its first budget, sums
-  the audit trail again for that tenant, so its spend is not lost.
-- **Edits through the admin API** are off unless `TOLLGATE_ADMIN_EDITS=file`
-  ([ADR 0029](adr/0029-config-in-the-console.md)). Four routes change the file:
-  a guard's mode, a tenant's budget, create a key and revoke a key. A write
-  reads the file, changes the document, validates it as a reload does, writes
-  it beside the original, moves it into place atomically and swaps the
-  running config, under the reload's lock. It needs `If-Match` with the
-  running config version: `428` without it, `412` if the version or the file
-  is not the running one. The file is rewritten in a fixed layout and its
-  comments are not kept; the first write saves the hand-written file as
-  `tollgate.yaml.original`. Every version that ran, at startup, on reload and
-  on write, is kept in `config-history/<version>.yaml` next to the file, so
-  the version named in an audit record can be looked up. With edits on and a
-  file or folder that can't be written, the server doesn't start.
+model the same way. The file, its main settings and the rules for reloads and
+edits are in [the configuration reference](configuration.md).
 
 ### Planned
 
@@ -271,14 +165,14 @@ call will be audited.
 Applications point their existing SDK at the gateway:
 
 ```python
-openai = OpenAI(base_url="https://tollgate.internal/v1", api_key=os.environ["TOLLGATE_KEY"])
+openai = OpenAI(base_url="https://tollgate.internal/v1", api_key=os.environ["TOLLGATE_API_KEY"])
 openai.chat.completions.create(
     model="qwen3",
     messages=[...],
     extra_headers={"X-Tollgate-Data-Class": "restricted"},
 )
 
-anthropic = Anthropic(base_url="https://tollgate.internal/anthropic", api_key=os.environ["TOLLGATE_KEY"])
+anthropic = Anthropic(base_url="https://tollgate.internal/anthropic", api_key=os.environ["TOLLGATE_API_KEY"])
 anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...])
 ```
 
@@ -301,8 +195,9 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
   errors stay events ([ADR 0032](adr/0032-say-the-error-code-in-a-header.md)).
 - Coding agents work too: Claude Code is recorded and replayed in the build
   ([setup](clients/claude-code.md),
-  [ADR 0020](adr/0020-agent-clients-and-skills.md)). Open WebUI works the
-  same way ([setup](clients/open-webui.md)).
+  [ADR 0020](adr/0020-agent-clients-and-skills.md)). Any OpenAI-compatible
+  client that can send a header naming its user can be attributed with
+  `userHeader`; a tested Open WebUI setup guide is planned.
 - **Client libraries** build the official client, already pointed at Tollgate
   ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md)). They are
   optional: the base URL above does the same. Each of the three has four
@@ -313,6 +208,8 @@ anthropic.messages.create(model="claude-sonnet", max_tokens=1024, messages=[...]
     `TollgateOpenAI.builder()` and `TollgateAnthropic.builder()` in Java. The
     address is the argument, then `TOLLGATE_BASE_URL`, then
     `http://localhost:8080`; the key is the argument, then `TOLLGATE_API_KEY`.
+    In Java, `builder()` reads both variables and `builder(baseUrl, apiKey)`
+    reads neither.
   - **Headers** for one call: the data class, the user and a dry run.
   - **A receipt**: the trace ID, the cost, the most it could cost and the
     output cap, read from a response.
@@ -395,8 +292,8 @@ settle exactly too.
 - **Privacy by default:** prompts and answers are stored only as keyed hashes
   (HMAC), which cannot be reversed by guessing. A user is stored the same
   way, never as the ID, name or email the client sent.
-- **Durability modes:** synchronous, the default (durable before the provider
-  is called, group-committed), or asynchronous (batched). If the intent record
+- **Durability modes:** synchronous (durable before the provider is called,
+  group-committed) or asynchronous (batched). The config names one. If the intent record
   cannot be written, the request is refused.
 
 - **Proofs:** the admin API lists sealed batches, shows one batch's leaves,
@@ -501,7 +398,7 @@ mode, and it loses nothing.
 | Correctness | Immutable records, sealed result types, no `null` in public interfaces (NullAway at compile time), injected clock |
 | Static analysis | Error Prone and NullAway in every compile; `-Xlint:all -Werror`; CodeQL; strict TypeScript in the console |
 | Formatting | Spotless with palantir-java-format, checked in CI |
-| Tests | JUnit, jqwik property tests against reference implementations, a fake provider for HTTP-level tests, recorded agent-client sessions, ArchUnit module rules; Vitest unit and render tests for the console, run by `mvnw verify`, with a test that greps for inline styles, injected HTML, stray `fetch` calls and colours outside the tokens |
+| Tests | JUnit, jqwik property tests against reference implementations, a fake provider for HTTP-level tests, recorded agent-client sessions, ArchUnit module rules; Vitest unit and render tests for the console, run by `mvnw verify`, with a test that greps for inline styles, injected HTML, stray `fetch` calls and colours outside the tokens; Playwright browser tests of the console against the server, in CI, that fail on any Content-Security-Policy violation |
 | Coverage | JaCoCo floors per module; PIT mutation testing on core |
 | Supply chain | Actions pinned to commits, Dependabot, CycloneDX SBOM, build provenance attested for each image, OpenSSF Scorecard; the console builds with a pinned Node whose checksum is checked, a committed lockfile and `npm ci --ignore-scripts`, and its first load must stay under 80 kB gzipped |
 | Observability | OpenTelemetry traces (GenAI conventions, still at development status), Micrometer metrics for Prometheus, a Grafana dashboard |
@@ -512,7 +409,7 @@ mode, and it loses nothing.
 | Area | Practice |
 |---|---|
 | Correctness | Idempotency keys on admin writes |
-| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection; browser tests of the console (Playwright, in CI) that fail on any Content-Security-Policy violation |
+| Tests | Testcontainers, WireMock provider fixtures, Toxiproxy fault injection |
 | Performance | JMH microbenchmarks for hot paths and Gatling load tests, published in 0.1.1; regression thresholds and JFR allocation profiling |
 | Compatibility | japicmp on the extension interfaces from the first release |
 | Supply chain | Signed images |
@@ -527,8 +424,8 @@ with hardware details for every audit mode.
 
 | Release | Scope |
 |---|---|
-| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code and Open WebUI through the review; a Docker image; the `X-Tollgate-Error` header and `GET /anthropic/v1/models` ([ADR 0032](adr/0032-say-the-error-code-in-a-header.md)); client libraries for Python, TypeScript and Java ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md), [ADR 0033](adr/0033-publish-the-client-libraries.md)); the console at `/console/` on the admin port ([ADR 0025](adr/0025-console-as-a-static-app.md), [ADR 0026](adr/0026-console-sign-in.md)): flow, activity, metrics, usage, audit and config pages; live numbers read from the audit trail ([ADR 0027](adr/0027-live-data-for-the-console.md)); the audit trail's batches, trees and a request's proof checked in the browser ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)); four edits when `TOLLGATE_ADMIN_EDITS=file`: a guard's mode, a tenant's budget, create a key and revoke a key, with the config's versions kept ([ADR 0029](adr/0029-config-in-the-console.md)); a budget's spend counted again when its period changes; `tollgate-core`, `tollgate-providers`, `tollgate-spring-boot-starter` and `tollgate-client` on Maven Central, and `tollgate-client` on PyPI and npm |
-| **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on |
+| **0.1.0** | OpenAI chat completions and Anthropic messages, streamed or not, forwarded in their own format to OpenAI, Anthropic and any OpenAI-compatible server; `/v1/models`; tenants, hashed keys and per-tenant model lists; data classes with the size and data-class guards, and shadow mode for them; calls attributed to a user and a guard that refuses tools by name ([ADR 0023](adr/0023-attribute-calls-to-a-user.md), [ADR 0024](adr/0024-refuse-tools-by-name.md)); a Spring Boot starter that embeds the gateway; the request review of [ADR 0008](adr/0008-harden-the-request-path.md); redaction and restore of patterned personal data and detectors of your own, streams included; budget reservations priced from a reviewed catalog ([ADR 0009](adr/0009-price-catalog.md)); per-tenant rate limits; provider concurrency limits, fallback and circuit breakers; a signed, batch-chained audit trail with `audit verify` and a usage report; config reload; Prometheus metrics, OpenTelemetry traces and a Grafana dashboard; Claude Code through the review; a Docker image; the `X-Tollgate-Error` header and `GET /anthropic/v1/models` ([ADR 0032](adr/0032-say-the-error-code-in-a-header.md)); client libraries for Python, TypeScript and Java ([ADR 0031](adr/0031-client-libraries-wrap-the-official-sdks.md), [ADR 0033](adr/0033-publish-the-client-libraries.md)); the console at `/console/` on the admin port ([ADR 0025](adr/0025-console-as-a-static-app.md), [ADR 0026](adr/0026-console-sign-in.md)): flow, activity, metrics, usage, audit and config pages; live numbers read from the audit trail ([ADR 0027](adr/0027-live-data-for-the-console.md)); the audit trail's batches, trees and a request's proof checked in the browser ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)); four edits when `TOLLGATE_ADMIN_EDITS=file`: a guard's mode, a tenant's budget, create a key and revoke a key, with the config's versions kept ([ADR 0029](adr/0029-config-in-the-console.md)); a budget's spend counted again when its period changes; `tollgate-core`, `tollgate-providers`, `tollgate-spring-boot-starter` and `tollgate-client` on Maven Central, and `tollgate-client` on PyPI and npm |
+| **0.1.1** | The first performance report: JMH microbenchmarks and Gatling load tests for each audit mode, with the hardware they ran on; a tested Open WebUI setup guide |
 | **Next** | The Responses API and embeddings, for Codex ([ADR 0018](adr/0018-responses-and-embeddings.md)); MCP tool calls through Tollgate ([ADR 0019](adr/0019-mcp-through-tollgate.md)); GitHub Copilot and Gemini CLI ([ADR 0020](adr/0020-agent-clients-and-skills.md)); audit records for tool calls and sessions |
 | **Later** | Output guards with a hold-back window on streams; name detection; CEL rules; webhook guards; the testkit; Postgres and Redis storage; the console's viewer token ([ADR 0026](adr/0026-console-sign-in.md)), pausing a tenant ([ADR 0030](adr/0030-pause-a-tenant.md)), more edits and managed mode with approvals and rollback, and TLS on the admin port; cluster config sync; Azure OpenAI and Bedrock; a Helm chart and a Terraform example; semantic caching; an in-process Java mode ([ADR 0034](adr/0034-in-process-java-mode.md)) |
 

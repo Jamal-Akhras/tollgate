@@ -13,146 +13,59 @@ signed audit trail that shows when a record has been changed or removed.
 It is built for teams that have to answer four questions about any model call:
 what was sent, who sent it, what it cost, and why it was allowed.
 
-> **Status: 0.1.0, the first release.** Everything under "What works today"
-> is built and tested. What comes next is on the [roadmap](#roadmap).
+> **Status: 0.1.0, the first release.** What comes next is on the
+> [roadmap](#roadmap).
 
-## What works today
+![The Tollgate console showing live calls](docs/images/console.png)
 
-- **Your SDKs, unchanged.** Tollgate serves the OpenAI chat completions API and
-  the Anthropic messages API, so existing SDKs connect by changing their base
-  URL. Requests are forwarded in their own format, so structured output, tool
-  use and prompt caching keep working
-  ([ADR 0005](docs/adr/0005-forward-requests-in-their-own-format.md)).
-- **Client libraries.** `tollgate-client` gives you the official OpenAI or
-  Anthropic client already pointed at Tollgate, with the headers, the receipt
-  of a call and the reason for a refusal as small functions. There is one
-  for Python (`pip install "tollgate-client[openai]"`), TypeScript
-  (`npm install tollgate-client openai`) and Java
-  (`io.github.jamal-akhras:tollgate-client`). You don't need them: the
-  base URL above works on its own
-  ([ADR 0031](docs/adr/0031-client-libraries-wrap-the-official-sdks.md),
-  [ADR 0033](docs/adr/0033-publish-the-client-libraries.md)).
-- **Inside your Spring Boot application.** The same gateway runs inside a
-  Spring Boot 4.1 application through `tollgate-spring-boot-starter`, with one
-  dependency and a config file ([embedding](#inside-a-spring-boot-application)).
-- **Coding agents too.** Claude Code works through Tollgate with every
-  request reviewed: point `ANTHROPIC_BASE_URL` at Tollgate and give it a
-  tenant key ([setup](docs/clients/claude-code.md),
-  [ADR 0020](docs/adr/0020-agent-clients-and-skills.md)).
-- **Open WebUI too.** It works through Tollgate with every request
-  reviewed: add Tollgate as an OpenAI connection with a tenant key
-  ([setup](docs/clients/open-webui.md)).
-- **Calls per person.** A tenant with `userHeader: X-OpenWebUI-User-Id` has
-  that header's value recorded in the audit trail as an HMAC, so usage can
-  be summed by user without storing who they are. `tollgate init` sets
-  `userHeader: X-Tollgate-User` on its tenant
-  ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)).
-- **Tenants and keys.** Each application gets a tenant with its own API keys,
-  which are stored only as SHA-256 hashes, and its own list of models.
-- **Data classes and regions.** Each tenant has a default data class, such as
-  `internal` or `confidential`. A request may make its class stricter, never
-  looser, and each class may go only to providers in the regions you allow.
-  Guards fail closed.
-- **Refuse tools by name.** A `tool-names` guard refuses a request that
-  defines a tool you list, such as `run_command` or `delete_*`, or any tool
-  not on an `allow` list. It sees tool definitions, not tools written into a
-  prompt ([ADR 0024](docs/adr/0024-refuse-tools-by-name.md)).
-- **Try a guard before it refuses.** A guard with `mode: monitor` runs on
-  real traffic and records what it would have refused, in the audit trail and
-  the `tollgate.guards.monitored` metric, without refusing anything
-  ([ADR 0022](docs/adr/0022-shadow-mode.md)).
-- **Errors you can act on.** Every error Tollgate writes carries an
-  `X-Tollgate-Error` header with its code, such as `policy_denied`,
-  `budget_exceeded` or `rate_limited`, on both endpoints, so a program
-  doesn't have to read the message. A spent budget also says
-  `x-should-retry: false`, so the SDKs don't send the call again.
-  `GET /anthropic/v1/models` lists a tenant's Anthropic models
-  ([ADR 0032](docs/adr/0032-say-the-error-code-in-a-header.md)).
-- **Streaming.** Streamed answers are relayed event by event as they arrive,
-  with the same policies, budgets and audit as other calls
-  ([ADR 0010](docs/adr/0010-streaming.md)).
+- [What it does](#what-it-does)
+- [Quickstart](#quickstart)
+- [Client libraries](#client-libraries)
+- [The console](#the-console)
+- [Inside a Spring Boot application](#inside-a-spring-boot-application)
+- [Operating it](#operating-it)
+- [Building](#building)
+- [Roadmap](#roadmap)
+- [Documentation](#documentation)
+
+## What it does
+
+- **Your SDKs, unchanged.** It serves the OpenAI chat completions API and the
+  Anthropic messages API, so an SDK connects by changing its base URL.
+  Requests are forwarded in their own format, and streams are relayed as they
+  arrive ([ADR 0005](docs/adr/0005-forward-requests-in-their-own-format.md)).
+- **Tenants, keys and data classes.** Each application gets a tenant with its
+  own hashed keys, its own models and a data class that decides which regions
+  its requests may reach. Guards fail closed.
 - **Only reviewed requests leave.** Fields, tools and content are checked
-  against an allowlist, so a request cannot ask the provider to fetch URLs,
-  call other servers or keep the conversation. A policy can allow a reviewed
-  feature, such as images by URL, for named data classes only
-  ([ADR 0008](docs/adr/0008-harden-the-request-path.md)).
-- **Personal data stays home.** A policy can replace email addresses, card
-  numbers, IBANs, phone numbers, national ID numbers and IP addresses with
-  placeholders such as `[EMAIL_1]` before a request leaves, and put the real
-  values back in the answer, in tool-call arguments and in streams. It can
-  refuse API keys and private keys outright. You can add detectors of your
-  own, as a pattern such as `CUST-[0-9]{6}` or a list of terms such as client
-  names, and redact or refuse them the same way. The audit trail counts what
-  was replaced and proves what was sent, without recording any value.
-  Detection is by pattern and checksum, so a value written in words or a key
-  with an unknown prefix gets through
-  ([ADR 0012](docs/adr/0012-redact-personal-data.md),
-  [ADR 0013](docs/adr/0013-custom-detectors.md)).
-- **Budgets with exact money.** The most a call can cost is reserved before
-  the provider is called, and the reservation is settled from the provider's
-  reported token usage. Near the limit, the answer is shortened to fit rather
-  than refused, and the `X-Tollgate-Output-Limited` header says so. Spending
-  is rebuilt from the audit trail when Tollgate starts, so a restart never
-  resets a budget. Amounts
-  are integer nano-units, never floating point
-  ([ADR 0003](docs/adr/0003-money-representation.md),
-  [ADR 0006](docs/adr/0006-budget-reservations.md)).
-- **Prices you don't have to type.**
-  - **Hosted models:** a reviewed catalog generated from
-    [models.dev](https://models.dev) ships with each release. Models on
-    OpenAI, Anthropic, DashScope, OpenRouter and other known hosts take their
-    price from it, including long-context tiers and reasoning rates.
-  - **Other providers:** a provider can name a catalog with `catalog:`.
-  - **Local models:** set `price: free`.
-  - **Cache writes kept for an hour** are charged at `cacheWrite1h`, which is
-    twice the input price on Anthropic unless you set it.
-  - **Your own rates:** a `price` you write always wins. `tollgate prices pin
-    tollgate.yaml` prints the catalog prices your config uses, ready to paste
-    in, and `tollgate prices show openai gpt-6.1-sol` prints one.
-  - Nothing is fetched at runtime ([ADR 0009](docs/adr/0009-price-catalog.md)).
-- **Costs where you can see them.** A tenant with `showCosts: true` gets
-  `X-Tollgate-Cost-Max`, the most a call could cost, and `X-Tollgate-Cost`,
-  what it was charged, on every response. A stream ends with the charge as a
-  comment line that clients ignore. Add `X-Tollgate-Dry-Run: true` to get the
-  estimate, after every policy and budget check, without calling the model
-  or spending anything ([ADR 0011](docs/adr/0011-report-costs.md)).
-- **Limits per tenant.** `limits: { requestsPerMinute: 60, tokensPerMinute:
-  200000, concurrent: 8 }` stops one application from starving the others or
-  a local GPU. A tenant over a limit gets `429` with `Retry-After`, which the
-  OpenAI and Anthropic SDKs already retry. Each Tollgate instance enforces the
-  limits on its own for now
-  ([ADR 0015](docs/adr/0015-tenant-rate-limits.md)).
-- **Fallback and limits per provider**
-  ([ADR 0016](docs/adr/0016-provider-fallback.md)).
-  - **Fallback:** `fallback: [qwen3-cloud]` on a model names models to try,
-    in order, when its provider can't be reached, times out, is busy, or
-    answers `401`, `403`, `408`, `429` or `5xx`. Each fallback is checked by
-    the tenant's policy again, so confidential data never falls back to a
-    region it may not go to. Streams fall back only before the first byte.
-  - **Circuit breaker:** after five failures in a row, calls skip a provider
-    for 30 seconds instead of waiting for it to time out, then one call
-    tries it again.
-  - **Limits:** `concurrent: 2` on a provider caps the calls in flight to it
-    across all tenants, so a local model is never sent more than it can
-    serve. Extra calls go to a fallback, or get `503` `provider_busy` at
-    once instead of waiting.
-- **A tamper-evident audit trail:**
-  - Every decision is recorded before the provider is called, and every
-    outcome after.
-  - Records are hashed into Merkle trees (RFC 6962). Each tree's root is
-    chained to the previous one and signed with Ed25519.
-  - Prompts and responses are stored only as keyed hashes (HMAC).
-  - `audit verify` checks a trail end to end and names the line of any change
-    ([ADR 0007](docs/adr/0007-audit-trail.md)).
-- **Reloads without restarts.** Change `tollgate.yaml` and call the admin API.
-  An invalid file never replaces the running config, and every audit record
-  names the config version that decided it.
-- **A console.** Open `http://127.0.0.1:8081/console/` to see calls flow from
-  tenants through their rules to providers, with live numbers, the audit trail
-  drawn as Merkle trees, and the running config. It can also make four edits
-  ([the console](#the-console)).
-- **A minimal, non-root image** on a distroless Java 25 base, with no shell
-  and no package manager.
+  against an allowlist, and a `tool-names` guard can refuse tools by name
+  ([ADR 0008](docs/adr/0008-harden-the-request-path.md),
+  [ADR 0024](docs/adr/0024-refuse-tools-by-name.md)).
+- **Personal data stays home.** A policy can replace emails, card numbers,
+  IBANs and more before a request leaves and put them back in the answer, and
+  refuse secrets ([ADR 0012](docs/adr/0012-redact-personal-data.md)).
+- **Budgets with exact money.** The most a call can cost is reserved first and
+  settled from reported usage, in integer nano-units
+  ([ADR 0006](docs/adr/0006-budget-reservations.md)).
+- **Prices from a reviewed catalog,** so you don't type them
+  ([ADR 0009](docs/adr/0009-price-catalog.md)).
+- **Limits and fallback.** Rate limits per tenant, concurrency limits per
+  provider, and fallback models with a circuit breaker
+  ([ADR 0015](docs/adr/0015-tenant-rate-limits.md),
+  [ADR 0016](docs/adr/0016-provider-fallback.md)).
+- **A tamper-evident audit trail.** Every decision is recorded before the
+  provider is called, in Merkle trees signed with Ed25519, and `audit verify`
+  names the batch that no longer matches ([ADR 0007](docs/adr/0007-audit-trail.md)).
+- **Calls per person** through a configurable user header, recorded as an HMAC
+  ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)).
+- **Try a guard before it refuses,** with `mode: monitor`
+  ([ADR 0022](docs/adr/0022-shadow-mode.md)).
+- **Metrics, traces and a Grafana dashboard**
+  ([operating it](docs/operations.md)).
+- **A console, a Spring Boot starter and client libraries** for Python,
+  TypeScript and Java, and a non-root image on a distroless base.
+
+The full list is in [what works today](docs/features.md).
 
 ## Quickstart
 
@@ -180,59 +93,12 @@ function tollgate { java -XX:+ExitOnOutOfMemoryError -jar tollgate-0.1.0.jar @ar
 tollgate init
 ```
 
-- **`tollgate.yaml`** is ready for Ollama with `qwen3:8b`, and holds no secrets.
+- **`tollgate.yaml`** is ready for Ollama with `qwen3:8b`, and holds no secrets
+  ([what is in it](docs/configuration.md#the-config-tollgate-init-writes)).
 - **`tollgate.env`** holds the audit keys, an admin token, and the line that
   lets the console change `tollgate.yaml`. Only you can read it, and `init`
-  never overwrites it. Keep it out of version control and back
-  it up.
+  never overwrites it. Keep it out of version control and back it up.
 - **The API key** for the tenant `my-app` is printed once.
-
-The config it writes, with comments added here:
-
-```yaml
-dataClasses: [public, internal, confidential]
-
-providers:
-  ollama: { format: openai, baseUrl: "http://localhost:11434/v1", region: local }
-
-models:
-  qwen3:
-    provider: ollama
-    upstream: "qwen3:8b"
-    price: free
-    maxOutputTokens: { default: 1024, cap: 4096 }
-
-tenants:
-  my-app:
-    models: [qwen3]
-    dataClass: internal
-    userHeader: X-Tollgate-User
-    # budget: { limit: 5.00, period: monthly }  for a priced model
-    # limits: { requestsPerMinute: 60, concurrent: 4 }
-
-keys:
-  - { id: …, tenant: my-app, sha256: … }
-
-policies:
-  default:
-    guards:
-      - { type: request-size, maxBytes: 1048576 }
-      - type: data-class
-        regions: { public: [local], internal: [local], confidential: [local] }
-    features:                                 # confidential data stays strict
-      remote-images: [public, internal]
-    redact:                                   # sent as [CARD_1], restored in the answer
-      card: [public, internal, confidential]
-    refuse:                                   # API keys and private keys never leave
-      secret: [public, internal, confidential]
-
-audit:
-  mode: sync
-  directory: audit
-  publicKey: …
-  signingKey: ${env:TOLLGATE_AUDIT_SIGNING_KEY}
-  hmacKey: ${env:TOLLGATE_AUDIT_HMAC_KEY}
-```
 
 **3. Start Tollgate** with the secrets in its environment:
 
@@ -249,9 +115,8 @@ tollgate
 ```
 
 The console is at `http://127.0.0.1:8081/console/`; sign in with the admin
-token from `tollgate.env`. Edits are on, so it can change `tollgate.yaml`,
-keeping each earlier version in `config-history/`. Remove the
-`TOLLGATE_ADMIN_EDITS` line from `tollgate.env` to keep the file read-only.
+token from `tollgate.env`. Remove the `TOLLGATE_ADMIN_EDITS` line from
+`tollgate.env` to keep `tollgate.yaml` read-only.
 
 **4. Call it** with the OpenAI SDK, using the tenant key:
 
@@ -265,26 +130,11 @@ reply = client.chat.completions.create(
 print(reply.choices[0].message.content)
 ```
 
-With the Python library, the same call is shorter. It reads
-`TOLLGATE_BASE_URL` and `TOLLGATE_API_KEY`, and `pip install
-"tollgate-client[openai]"` installs it:
-
-```python
-import tollgate
-
-reply = tollgate.openai().chat.completions.create(
-    model="qwen3", messages=[{"role": "user", "content": "Say hello"}]
-)
-```
-
-The TypeScript and Java libraries work the same way
-([the libraries](#the-client-libraries)).
-
 A request that breaks a rule is refused in the SDK's own error format, with
 the reason, and each response carries an `X-Tollgate-Trace-Id` header that
 matches its audit records.
 
-**5. Verify the audit trail:**
+**5. Verify the audit trail** with the `audit.publicKey` from `tollgate.yaml`:
 
 ```console
 $ tollgate audit verify --public-key MCowBQYDK2VwAyEA… audit
@@ -299,27 +149,15 @@ batch that no longer matches.
 ### With Docker
 
 Each version is published as `ghcr.io/jamal-akhras/tollgate:<version>` for
-amd64 and arm64. Create the config and its secrets with the image itself,
-writing them to the current folder as your own user:
+amd64 and arm64. Create the config with the image, as you:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
   ghcr.io/jamal-akhras/tollgate:0.1.0 init
 ```
 
-On Windows, Docker Desktop writes the files as you, so leave out `--user`. In
-PowerShell:
-
-```powershell
-docker run --rm -v "${PWD}:/work" -w /work ghcr.io/jamal-akhras/tollgate:0.1.0 init
-```
-
-The other commands here are for bash; in PowerShell, end each continued line
-with a backtick instead of `\`, and write `${PWD}` for `$PWD`.
-
 In `tollgate.yaml`, point the provider at `host.docker.internal` instead of
-`localhost`. Then start it in the same folder, as you, so the audit trail
-lands in `./audit`:
+`localhost`. Then start it in the same folder:
 
 ```bash
 docker run -d --name tollgate --user "$(id -u):$(id -g)" \
@@ -330,66 +168,48 @@ docker run -d --name tollgate --user "$(id -u):$(id -g)" \
   ghcr.io/jamal-akhras/tollgate:0.1.0
 ```
 
-On Windows, leave out `--user`, as for `init`. The folder is mounted, not the
-file, because the console replaces `tollgate.yaml` and keeps earlier versions
-in `config-history/`. The console is at `http://127.0.0.1:8081/console/`, and
-edits are on. For a config the console must not change, remove
-`TOLLGATE_ADMIN_EDITS` from `tollgate.env` and add `:ro` to the mount of a
-folder that holds only the config.
+[Deploying](docs/deploy.md) has the Windows commands, how to check an image's
+signed build record, and a systemd service.
 
-The `--add-host` line makes `host.docker.internal` work on Linux too; Docker
-Desktop provides it already.
+## Client libraries
 
-Each image comes with a signed record of how it was built. Check it before you
-run it:
+`tollgate-client` gives you the official OpenAI or Anthropic client already
+pointed at Tollgate. In Python, `pip install "tollgate-client[openai]"`
+installs it. It reads `TOLLGATE_BASE_URL` and `TOLLGATE_API_KEY`:
 
-```bash
-gh attestation verify oci://ghcr.io/jamal-akhras/tollgate:<version> --owner Jamal-Akhras
+```python
+import tollgate
+
+client = tollgate.openai(data_class="confidential", user="u-17")
+raw = client.chat.completions.with_raw_response.create(
+    model="qwen3", messages=[{"role": "user", "content": "Say hello"}]
+)
+print(tollgate.receipt(raw).trace_id)
 ```
 
-### As a systemd service
+- **TypeScript:** `npm install tollgate-client openai`, then
+  `openai()` from `tollgate-client/openai`.
+- **Java:** `io.github.jamal-akhras:tollgate-client`, then
+  `TollgateOpenAI.builder()`.
 
-```ini
-[Unit]
-Description=Tollgate, a policy and audit gateway for LLM traffic
-Wants=network-online.target
-After=network-online.target
+Each also reads a call's receipt and why Tollgate refused one
+([the libraries](docs/client-libraries.md)). You don't need them: the base URL
+works on its own.
 
-[Service]
-User=tollgate
-StateDirectory=tollgate
-EnvironmentFile=/etc/tollgate/tollgate.env
-Environment=TOLLGATE_CONFIG=/etc/tollgate/tollgate.yaml
-Environment=TOLLGATE_ADDRESS=0.0.0.0
-ExecStart=/usr/bin/java -XX:+ExitOnOutOfMemoryError -jar /opt/tollgate/tollgate.jar
-Restart=on-failure
+## The console
 
-[Install]
-WantedBy=multi-user.target
-```
+Open `http://127.0.0.1:8081/console/` and paste the admin token. You see calls
+flow from tenants through their rules to providers, with live numbers, the
+audit trail drawn as Merkle trees with proofs checked in your browser, usage by
+tenant, model or user, and the running config. With edits on, it can switch a
+guard between `enforce` and `monitor`, set a budget, and create or revoke a
+key, each after showing the YAML that changes. It is part of the server jar
+([the console](docs/console.md)).
 
-- **`TOLLGATE_ADDRESS`** is only needed when clients run on other machines or
-  in containers, such as Open WebUI. Without it, they get a connection error.
-- **`tollgate.env`** holds the audit secrets and the admin token as
-  `NAME=value` lines. Make it readable by root only.
-- **Set `audit.directory` to `/var/lib/tollgate/audit`.** A relative directory
-  is resolved next to the config file, and `/etc/tollgate` is not writable.
-- **`/etc/tollgate` is not writable**, so remove `TOLLGATE_ADMIN_EDITS=file`
-  from `tollgate.env`, or Tollgate stops at startup and says so. To use the
-  console's edits, keep `tollgate.yaml` in `/var/lib/tollgate` and point
-  `TOLLGATE_CONFIG` there.
-- **Start it** with `systemctl enable --now tollgate`. `journalctl -u tollgate`
-  shows the address each port listens on.
-- **Memory:** each call in flight holds its request and answer, up to
-  `tollgate.max-request-size` (16 MB) and `tollgate.max-response-size`
-  (32 MB). A slow model lets calls pile up, so give its provider a
-  `concurrent` limit, and set `-Xmx` to about half the machine's or
-  container's memory. `-XX:+ExitOnOutOfMemoryError` with `Restart=on-failure`
-  turns running out into a clean restart.
+## Inside a Spring Boot application
 
-### Inside a Spring Boot application
-
-Add the starter to a Spring Boot 4.1 application on Spring MVC
+The same gateway runs inside a Spring Boot 4.1 application on Spring MVC, with
+one dependency and a config file
 ([ADR 0021](docs/adr/0021-spring-boot-starter.md)):
 
 ```xml
@@ -400,248 +220,19 @@ Add the starter to a Spring Boot 4.1 application on Spring MVC
 </dependency>
 ```
 
-It needs Java 21 or later; Spring Boot 4.1 itself runs on 17, but the starter
-does not.
-
-Create the config, the audit keys and a tenant key with the server jar's
-`init`, or with `audit keys create` and `keys create` for an existing config.
-Set `tollgate.config` to the `tollgate.yaml` and give the application the
-audit secrets as environment variables, as for the server. It then serves
-`/v1/chat/completions`, `/v1/models`, `/anthropic/v1/messages` and `/anthropic/v1/models` with the
-same guards, budgets, redaction, audit, metrics and traces.
-
-- **It listens where your application does.** The server binds to
-  `127.0.0.1`; your application may listen on every interface, and then
-  tenant keys are the only gate.
-- **The routes are fixed:** `/v1/*` and `/anthropic/*` belong to the gateway.
-- **There is no admin API.** Reload, the usage report and budgets are the
-  server's.
-- **Settings the server makes for itself,** which you may want too: virtual
-  threads, the histogram buckets of `gen_ai.client.operation.duration` and
-  `tollgate.stream.first_event`, the Prometheus endpoint, the `audit`
-  readiness group, and turning off OTLP metric export. They are in
-  [the server's `application.yaml`](tollgate-server/src/main/resources/application.yaml).
-- **Metrics go through Micrometer's global registry.** An application that
-  sets `management.metrics.use-global-registry=false` gets none of the
-  gateway's metrics.
-- **Not supported:** WebFlux applications.
-
-## The client libraries
-
-The libraries build the official OpenAI or Anthropic client for you, with the
-base URL, the tenant key and Tollgate's headers set. You then call the vendor's
-client as you always did. Each has the same four things:
-
-| | Python | TypeScript | Java |
-|---|---|---|---|
-| Install | `pip install "tollgate-client[openai]"` or `[anthropic]` | `npm install tollgate-client openai` or `@anthropic-ai/sdk` | `io.github.jamal-akhras:tollgate-client` |
-| A client | `tollgate.openai()`, `tollgate.anthropic()` | `openai()` from `tollgate-client/openai`, `anthropic()` from `tollgate-client/anthropic` | `TollgateOpenAI.builder()`, `TollgateAnthropic.builder()` |
-| Headers for one call | `tollgate.headers(data_class=, user=, dry_run=)` | `headers({ dataClass, user, dryRun })` | `Tollgate.DATA_CLASS`, `Tollgate.USER`, `Tollgate.DRY_RUN` |
-| What Tollgate said | `tollgate.receipt(raw)` | `receipt(response)` | `TollgateOpenAI.receipt(response)` |
-| Why it refused | `tollgate.refusal(error)` | `refusal(error)` | `TollgateOpenAI.refusal(e)` |
-
-- **The address** is the argument, then `TOLLGATE_BASE_URL`, then
-  `http://localhost:8080`. **The key** is the argument, then
-  `TOLLGATE_API_KEY`. The libraries never read `OPENAI_API_KEY` or
-  `ANTHROPIC_API_KEY`, so a vendor key can't reach Tollgate by mistake.
-- **A receipt** has the trace ID, the cost, the most the call could have cost
-  and the output cap if the budget lowered it. **A refusal** has the code, the
-  message, the status, the trace ID and `Retry-After`, and is empty for an
-  error that didn't come from Tollgate.
-- **A library decides nothing.** It doesn't retry, log or cache, and a call
-  made without it gets the same guards, budget and audit.
-- **Python** needs 3.10 or later and has `async_openai` and `async_anthropic`
-  too. **TypeScript** needs Node 22 or later. **Java** needs 17 or later,
-  and `builder()` gives you the vendor's own builder.
-- **Each package is built from this repo** by the release workflow, and
-  PyPI and npm show where each one was built
-  ([the security policy](SECURITY.md)).
-- Streams are the vendor's own. A stream's charged cost is a comment line the
-  SDKs drop, so a client reads it from the audit trail or the usage report.
-
-```ts
-import { openai } from 'tollgate-client/openai';
-import { receipt, refusal } from 'tollgate-client';
-
-const client = openai();
-const { data, response } = await client.chat.completions
-  .create({ model: 'qwen3', messages })
-  .withResponse();
-console.log(receipt(response).traceId);
-```
-
-```java
-OpenAIClient client = TollgateOpenAI.builder().build();
-try {
-    client.chat().completions().create(params);
-} catch (OpenAIServiceException e) {
-    TollgateOpenAI.refusal(e).ifPresent(why -> log.warn("{} {}", why.code(), why.traceId()));
-}
-```
-
-## The console
-
-The console is a web app on the admin port. Start Tollgate, open
-`http://127.0.0.1:8081/console/` and paste the admin token from
-`tollgate.env`. It is part of the server jar and needs nothing else
-([ADR 0025](docs/adr/0025-console-as-a-static-app.md)).
-
-- **Flow** draws each tenant, the rules of its policy and its providers.
-  Lines move while calls pass: green for calls sent, amber for fallbacks, red
-  for refusals. The switch in the top bar shows the picture as it would be
-  without Tollgate. It is a preview and changes nothing.
-- **Activity** lists the latest calls with each guard's verdict, and
-  **Metrics** charts the last hour. Both are counted from the audit trail by
-  one background reader, not from the request path, so they start empty after
-  a restart and need `audit.mode` on
-  ([ADR 0027](docs/adr/0027-live-data-for-the-console.md)).
-- **Usage** is the usage report, by tenant, model, key, user or day.
-- **Audit** shows sealed batches chained by their roots, a batch as its Merkle
-  tree, and a request's proof. The page hashes the record and walks the proof
-  itself, step by step, and a button verifies the whole trail
-  ([ADR 0028](docs/adr/0028-audit-trail-through-the-admin-api.md)).
-- **Config** shows the running config, with Reload. Detector terms and key
-  hashes are never shown.
-
-**Signing in.** The token is kept in the tab's `sessionStorage` and sent by the
-console's own code. There is no cookie, so another site's page can't make the
-browser call the admin API for you. Closing the tab forgets the token
-([ADR 0026](docs/adr/0026-console-sign-in.md)).
-
-**Proofs need HTTPS or localhost.** A browser lets a page hash only on
-`localhost` or over HTTPS. Over plain HTTP from another machine, the Audit
-page can't check a proof itself. It shows the server's result and says so.
-Tollgate doesn't serve TLS yet; put a TLS-terminating proxy in front of the
-admin port, or use an SSH tunnel to `localhost`. TLS on the admin port is on
-the [roadmap](#roadmap).
-
-**Edits.** With `TOLLGATE_ADMIN_EDITS=file`, which `tollgate init` writes into
-`tollgate.env`, the console can make four changes
-([ADR 0029](docs/adr/0029-config-in-the-console.md)):
-
-- switch a guard between `enforce` and `monitor`
-- set a tenant's budget, as a limit and a period
-- create a key for a tenant, shown once
-- revoke a key
-
-Each one shows the lines of YAML that change and asks first. A change that
-widens what can happen says so in words, such as monitoring a data-class guard
-or revoking a tenant's last key. Calls already running finish when a key is
-revoked.
-
-- **The first edit rewrites `tollgate.yaml`** in a fixed layout, and its
-  comments are lost. The file as you wrote it is kept beside it as
-  `tollgate.yaml.original`.
-- **Every version that ran is kept** in `config-history/` next to the file,
-  named by the config version, which is the version each audit record names.
-  Nothing deletes them.
-- **The file must be writable.** With edits on and a file or folder Tollgate
-  can't write, it stops at startup and says which path. Remove
-  `TOLLGATE_ADMIN_EDITS` for a file that must stay read-only, such as one kept
-  in Git. The console then shows the YAML to write, and Reload.
-- **A budget's period:** changing it, or setting a first budget, makes the
-  reload count the spend again from the audit trail. With the audit trail off,
-  the count starts from zero.
-- **The same edits are routes** in the [OpenAPI contract](docs/api/admin-openapi.json).
-  They need `If-Match` with the running config version, and answer `428`
-  without it and `412` if the version or the file has moved:
-
-  ```bash
-  VERSION=$(curl -s -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" \
-    http://127.0.0.1:8081/admin/v1/config | jq -r .version)
-  curl -X PUT -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" \
-    -H "If-Match: $VERSION" -H "Content-Type: application/json" \
-    -d '{"mode":"monitor"}' \
-    http://127.0.0.1:8081/admin/v1/policies/default/guards/1/mode
-  ```
-
-**Turning it off.** `TOLLGATE_CONSOLE_ENABLED=false` removes the console and its
-reader. The admin API stays. The console's files need no token, since they
-hold no data, and it loads nothing from other hosts.
+[The starter](docs/spring-boot-starter.md) has the setup and its limits.
 
 ## Operating it
 
 | Port | Serves |
 |---|---|
-| 8080 | The gateway API, for applications: `/v1/chat/completions`, `/v1/models`, `/anthropic/v1/messages` and `/anthropic/v1/models` |
-| 8081 | The admin API, its [OpenAPI contract](docs/api/admin-openapi.json) and the [console](#the-console), for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise, and every API call needs the admin token |
-| 9090 | Health probes and Prometheus metrics at `/actuator/prometheus`. Readiness reports down if the audit trail cannot be written |
+| 8080 | The gateway API, for applications |
+| 8081 | The admin API, its OpenAPI contract and the console, for operators. Loopback only unless `TOLLGATE_ADMIN_ADDRESS` says otherwise |
+| 9090 | Health probes and Prometheus metrics at `/actuator/prometheus`. It listens on all interfaces, and its metrics name your tenants and models and show their spend, so keep it off the public network |
 
-- **Who can connect:**
-  - The gateway and admin ports listen only on `127.0.0.1` unless
-    `TOLLGATE_ADDRESS` and `TOLLGATE_ADMIN_ADDRESS` say otherwise.
-  - The image listens on all of its own interfaces, and `docker run -p`
-    decides what the host exposes.
-  - Tollgate speaks plain HTTP. For clients on other machines, put a
-    TLS-terminating proxy in front of it.
-  - Port 9090 listens on all interfaces, and its metrics name your tenants
-    and models and show their spend. Keep it on a private network, or bind
-    it with `MANAGEMENT_SERVER_ADDRESS=127.0.0.1`.
-
-- **Metrics** ([ADR 0017](docs/adr/0017-metrics-traces-and-usage.md)), for
-  each tenant, model and provider:
-  - `tollgate_requests_total` by result or refusal code
-  - `gen_ai_client_token_usage` by token type, and `tollgate_cost_total`
-  - `gen_ai_client_operation_duration_seconds` for each provider call, and
-    `tollgate_stream_first_event_seconds` for streams
-  - `tollgate_budget_spent` and `tollgate_budget_available`, and
-    `tollgate_providers_in_flight`
-  - `tollgate_limits_refused_total`, `tollgate_providers_busy_total` and
-    `tollgate_fallbacks_total`
-
-  Prompts, answers, key IDs and users never appear in metrics. To see them,
-  import [docs/grafana/tollgate.json](docs/grafana/tollgate.json) into
-  Grafana and pick your Prometheus data source: calls, refusals, spend,
-  budgets, tokens, provider latency, fallbacks and calls in flight, filtered
-  by tenant, model and provider.
-
-- **Traces:** set
-  `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://collector:4318/v1/traces`
-  to send OpenTelemetry traces, sampled at 10% unless
-  `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` says otherwise. Each request's
-  span joins the client's trace when it sends `traceparent`, and has child
-  spans for the guards, the redaction scan, the budget, each audit write and
-  each provider attempt, with the GenAI token counts. Spans never carry
-  prompts or answers, and providers never receive `traceparent`.
-
-- **The admin token:** set `TOLLGATE_ADMIN_TOKEN` to a random string of at
-  least 32 characters, for example the output of `openssl rand -hex 32`.
-  - **Without it**, the admin API answers `503`.
-  - **Requests without the right token** get `401`. A web page cannot send it
-    on its own, so a browser cannot be used to call the admin API behind your
-    back. The console sends it from code you opened it with, and keeps it in
-    the tab only.
-- **Reload the config:**
-  `curl -X POST -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" http://127.0.0.1:8081/admin/v1/config/reload`.
-  A broken file returns `422` and leaves the running config in place. A
-  change to the `audit` section returns `409`, because it needs a restart.
-- **Usage and budgets:**
-  `curl -H "Authorization: Bearer $TOLLGATE_ADMIN_TOKEN" "http://127.0.0.1:8081/admin/v1/usage?from=2026-11-01&by=tenant"`
-  sums the audit trail: calls, refusals by code, tokens and cost, by
-  `tenant`, `model`, `key`, `user` or `day`. The numbers are the ones
-  `audit verify` vouches for. `java -jar tollgate.jar usage tollgate.yaml --by model`
-  prints the same table, and `/admin/v1/budgets` shows each budget's spent,
-  reserved and available amounts.
-  `java -jar tollgate.jar audit user tollgate.yaml <id>` prints the hash a user
-  ID is recorded under, to find that person's row in a report `by=user`.
-- **Audit modes:**
-  - In `sync` mode, the default, each record is fsynced before the request
-    moves on, and concurrent requests share fsyncs.
-  - `async` mode doesn't wait. It can lose the last records in a crash.
-  - If the trail cannot be written, requests are refused with `503`, never
-    sent unrecorded.
-- **Secrets** are only ever `${env:NAME}` references in the config file.
-
-## Roadmap
-
-| Release | Scope |
-|---|---|
-| **0.1.0** | Everything under "What works today" and the [console](#the-console) with four edits, with the core, provider, starter and client libraries on Maven Central, and the `tollgate-client` packages on PyPI and npm |
-| **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on |
-| **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
-| **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; the console's viewer token, pausing a tenant, more edits and approvals, and TLS on the admin port; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
-
-The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
+Who can connect, metrics, traces, the admin token, reloads, usage and budgets
+and audit modes are in [operating Tollgate](docs/operations.md). A
+[Grafana dashboard](docs/grafana/tollgate.json) is included.
 
 ## Building
 
@@ -658,26 +249,31 @@ checksum and installs the console's packages from the committed lockfile with
 ./mvnw -Psbom package                         # CycloneDX SBOM in target/bom.json
 ```
 
-To work on the console alone, you need Node 24; its checks take seconds:
+The core module depends only on the JDK and JSpecify, compiles for Java 21,
+and is mutation tested. The checks the build enforces are listed under the
+[quality bar](docs/DESIGN.md#12-quality-bar). Working on the console or the
+libraries is covered in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-```bash
-npm --prefix tollgate-console ci --ignore-scripts
-npm --prefix tollgate-console run check      # type-check and unit tests
-npm --prefix tollgate-console run build      # the files, and the 80 kB first-load limit
-```
+## Roadmap
 
-The core module depends only on the JDK, compiles for Java 21, and is
-mutation tested. The checks the build enforces are listed under the
-[quality bar](docs/DESIGN.md#12-quality-bar).
+| Release | Scope |
+|---|---|
+| **0.1.0** | Everything in [what works today](docs/features.md) and the [console](docs/console.md) with four edits, with the core, provider, starter and client libraries on Maven Central, and the `tollgate-client` packages on PyPI and npm |
+| **0.1.1** | The first performance report: microbenchmarks and load tests for each audit mode, with the hardware they ran on; a tested Open WebUI setup guide |
+| **Next** | The OpenAI Responses API and embeddings, so Codex works; MCP tool calls through Tollgate; GitHub Copilot and Gemini CLI |
+| **Later** | Output guards, name detection, CEL rules and webhook guards; Postgres and Redis storage; the console's viewer token, pausing a tenant, more edits and approvals, and TLS on the admin port; Azure OpenAI and Bedrock; a Helm chart and a Terraform example |
+
+The full plan, and the reasoning behind it, is in [the design](docs/DESIGN.md).
 
 ## Documentation
 
-- [Design](docs/DESIGN.md): architecture, request lifecycle, configuration and roadmap
-- [Architecture decision records](docs/adr/)
-- [The client libraries](#the-client-libraries)
+[docs/README.md](docs/README.md) lists everything. The main pages:
+
+- [What works today](docs/features.md) and [configuration](docs/configuration.md)
+- [Design](docs/DESIGN.md) and the [architecture decision records](docs/adr/README.md)
+- [Deploying](docs/deploy.md) and [operating](docs/operations.md)
+- [The client libraries](docs/client-libraries.md), [the starter](docs/spring-boot-starter.md) and [the console](docs/console.md)
 - [Claude Code through Tollgate](docs/clients/claude-code.md)
-- [Open WebUI through Tollgate](docs/clients/open-webui.md)
-- [The console](#the-console)
 - [Admin API contract](docs/api/admin-openapi.json)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
 
