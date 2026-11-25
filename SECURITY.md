@@ -49,3 +49,23 @@ workflow, with no stored token. Each has a record of where it was built.
 
 If a package doesn't point at this repository, don't install it and report it
 as above. The names `tollgate` on PyPI and npm belong to other projects.
+
+## Verifying a download
+
+Each GitHub release has the server jar, `tollgate-<version>.jar`, two SBOMs
+and `tollgate-<version>.sigstore.json`, the signed record of how they were
+built. With the [GitHub CLI](https://cli.github.com), in the folder you
+downloaded them to:
+
+```bash
+gh attestation verify tollgate-<version>.jar --owner Jamal-Akhras \
+  --bundle tollgate-<version>.sigstore.json
+```
+
+It names this repository and the release workflow when the file is the one
+that was built there. The same command checks the SBOM files. The container
+image has a record too:
+
+```bash
+gh attestation verify oci://ghcr.io/jamal-akhras/tollgate:<version> --owner Jamal-Akhras
+```

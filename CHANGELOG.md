@@ -7,8 +7,7 @@ versions may change the extension interfaces.
 
 ## [Unreleased]
 
-The first release of Tollgate, a policy, audit and budget gateway for LLM
-traffic.
+The first release of Tollgate, a policy and audit gateway for LLM traffic.
 
 ### Added
 
@@ -60,10 +59,6 @@ traffic.
   safeguards is redacted. A recorded session is replayed in the build, and
   [docs/clients/claude-code.md](docs/clients/claude-code.md) shows how to set
   it up.
-- Open WebUI works through Tollgate with the request review on. A recorded
-  session is replayed in the build, and
-  [docs/clients/open-webui.md](docs/clients/open-webui.md) shows how to set it
-  up.
 
 #### Tenants, policy and redaction
 
@@ -74,8 +69,9 @@ traffic.
   and each class goes only to the regions it allows.
 - `userHeader` on a tenant names the request header that says which user is
   calling ([ADR 0023](docs/adr/0023-attribute-calls-to-a-user.md)). Its value
-  is recorded as an HMAC and never sent to a provider. A config with a
-  `userHeader` and the audit trail off is rejected.
+  is recorded as an HMAC and never sent to a provider. Any client that can
+  send a header can name its user this way. A config with a `userHeader` and
+  the audit trail off is rejected.
 - A `tool-names` guard refuses a request that defines a tool with a listed
   name, or one missing from an `allow` list
   ([ADR 0024](docs/adr/0024-refuse-tools-by-name.md)). It checks tool
@@ -116,6 +112,8 @@ traffic.
   limit, a call's output cap is lowered to fit what is left, and
   `X-Tollgate-Output-Limited` says so. Amounts are integer nano-units, never
   floating point, and token costs round up.
+- A reload that changes a budget's period, or gives a tenant its first
+  budget, counts the spend again from the audit trail.
 - Budgets survive restarts. At startup, Tollgate replays the current period
   from the audit trail.
   - **Finished calls:** each is charged its settled cost.
@@ -181,23 +179,26 @@ traffic.
 #### Running it
 
 - `init`, which writes a working `tollgate.yaml` and a `tollgate.env` holding
-  the audit keys and an admin token. The secrets file is readable only by its
-  owner from the moment it exists, nothing is ever overwritten, and only the
-  tenant key is printed.
+  the audit keys, an admin token and `TOLLGATE_ADMIN_EDITS=file`, so the
+  console's edits work at once. Remove that line to keep the file read-only.
+  The tenant it creates has `userHeader: X-Tollgate-User`. The secrets file is
+  readable only by its owner from the moment it exists, nothing is ever
+  overwritten, and only the tenant key is printed.
 - `keys create`, which prints a new tenant key once with the config line that
   matches it.
 - The admin API on its own port, with a published OpenAPI contract checked in
   CI, and health probes on the management port.
 - A non-root container image on a distroless Java 25 base, published to
   `ghcr.io/jamal-akhras/tollgate` with a build provenance attestation, and the
-  server jar and an SBOM on each GitHub release, attested the same way.
+  server jar with an SBOM for the server and one for the console on each
+  GitHub release, attested the same way.
 - `tollgate-spring-boot-starter`, which runs the gateway inside a Spring Boot
   4.1 application on Spring MVC
   ([ADR 0021](docs/adr/0021-spring-boot-starter.md)). The server is built on
   it and adds the admin API, the CLI and the image.
-- `tollgate-core`, `tollgate-providers` and `tollgate-spring-boot-starter` on
-  Maven Central as `io.github.jamal-akhras`, with sources, Javadoc and
-  signatures.
+- `tollgate-core`, `tollgate-providers`, `tollgate-spring-boot-starter` and
+  `tollgate-client` on Maven Central as `io.github.jamal-akhras`, with
+  sources, Javadoc and signatures.
 - The log says which address each port listens on at startup, and how to
   accept other machines when only localhost can connect.
 - Startup problems, such as a missing or invalid config, an unset secret or an
@@ -241,7 +242,7 @@ traffic.
   - **Sign-in:** the console asks for the admin token and keeps it in the
     tab's `sessionStorage`. There is no cookie
     ([ADR 0026](docs/adr/0026-console-sign-in.md)).
-  - **Dark and light themes,** with system fonts.
+  - **Dark and light themes,** dark by default, with system fonts.
   - **A preview switch** in the top bar redraws the flow page as it would be
     without Tollgate. It changes nothing.
 - Live numbers without Prometheus
@@ -280,26 +281,6 @@ traffic.
     asks, and warns when a change widens what can happen.
   - **Off:** with edits off the routes answer `409` `edits_off`, and the
     console shows the YAML to write, with Reload.
-
-### Changed
-
-- `tollgate init` writes `userHeader: X-Tollgate-User` on the tenant it
-  creates, so a user sent in that header is recorded.
-- `tollgate init` writes `TOLLGATE_ADMIN_EDITS=file` into `tollgate.env`, so
-  the console's edits work in the quickstart. Remove the line to keep the file
-  read-only.
-- The Docker quickstart mounts the working folder, as you, instead of one
-  read-only file, so the console can replace `tollgate.yaml` and keep
-  `config-history/`. The systemd example says to drop the line, or to keep the
-  config where the service can write.
-- The admin API's browser note: a web page can't send the token on its own.
-  The console sends it from its own code, from the tab's `sessionStorage`.
-
-### Fixed
-
-- A budget's spend is counted again from the audit trail when a reload changes
-  its period or gives a tenant its first budget. Before, changing the period
-  set the spend to zero until the next restart.
 
 ### Security
 
@@ -357,8 +338,8 @@ traffic.
   - **Browsers:** a web page can't send the bearer token, so a page someone
     opens can't reach the admin API.
 - The gateway port listens only on `127.0.0.1` unless `TOLLGATE_ADDRESS` says
-  otherwise. The image listens on all of its own interfaces, and the README's
-  `docker run` publishes every port on the host's `127.0.0.1` only.
+  otherwise. The image listens on all of its own interfaces, and the
+  documented `docker run` publishes every port on the host's `127.0.0.1` only.
 - Audit trails are private on Linux and macOS: the directory is `0700` and its
   files `0600`.
 - A weekly workflow checks the distroless base image. When its digest has
@@ -367,3 +348,5 @@ traffic.
 - The build runs Error Prone, NullAway, Spotless, JaCoCo coverage floors, PIT
   mutation testing on core, CodeQL and OpenSSF Scorecard, pins every action to
   a commit, and produces a CycloneDX SBOM.
+
+[Unreleased]: https://github.com/Jamal-Akhras/tollgate/commits/main

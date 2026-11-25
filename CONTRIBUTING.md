@@ -1,6 +1,8 @@
 # Contributing
 
 Thanks for your interest in Tollgate. Issues and pull requests are welcome.
+Everyone taking part is expected to follow the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -14,9 +16,14 @@ format need a short design note in the issue, and lasting decisions get an
 You need JDK 25. Everything else comes through the Maven Wrapper.
 
 ```bash
-./mvnw verify          # what CI runs
+./mvnw verify          # the build and every check below
 ./mvnw spotless:apply  # fix formatting
 ```
+
+CI's main job runs the same checks with `./mvnw -Psbom install`, then tests the
+embeddable modules on Java 21 and builds the image. Other jobs run mutation
+testing on core, the console in a browser (Playwright), and the Python and
+TypeScript libraries.
 
 `verify` fails on:
 
