@@ -2,7 +2,50 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  height: 100%;
+  min-height: 560px;
   padding: var(--space-5) 28px;
+}
+
+.stage {
+  display: flex;
+  flex: 1;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.pan {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: auto;
+}
+
+.pan > * {
+  flex: 1 0 auto;
+}
+
+.diagram {
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.diagram::-webkit-scrollbar {
+  display: none;
+}
+
+.diagram > * {
+  min-width: 800px;
+}
+
+.pan[data-pannable='true'] {
+  cursor: grab;
+}
+
+.pan[data-dragging='true'] {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .page > :first-child {
@@ -30,6 +73,36 @@
   gap: var(--space-3);
 }
 
+.panel {
+  flex: none;
+  width: clamp(300px, 28%, 420px);
+  overflow: auto;
+}
+
 .panel:empty {
   display: none;
+}
+
+@media (max-width: 799px) {
+  .page {
+    height: auto;
+    min-height: 0;
+  }
+
+  .stage {
+    display: block;
+  }
+
+  .pan {
+    overflow: visible;
+  }
+
+  .diagram > * {
+    min-width: 0;
+  }
+
+  .panel {
+    width: auto;
+    margin-top: var(--space-4);
+  }
 }

@@ -542,10 +542,10 @@
     },
     "/admin/v1/live" : {
       "get" : {
-        "description" : "Totals for each 5 seconds, the calls of each tenant, model and provider and the verdicts of each guard over the last 15 minutes, the calls in flight to each provider, the calls refused by a rate limit for each tenant since the start, and the last seal. Counted from the audit trail since this instance started.",
+        "description" : "Totals for each 5, 15 or 60 seconds over the last 1 to 60 minutes. The sums, the latency by provider, tenant and model, and the calls of each tenant, model and provider and the verdicts of each guard all cover the same span: the last minutes minutes, the unfinished current minute included, clipped to the start of this instance. The sums are also given for the equal span just before it, when this instance was already running then. Also the calls in flight to each provider, the calls refused by a rate limit for each tenant since the start, and the last seal. Counted from the audit trail since this instance started, and lost on restart. The top-level percentiles cover the last 5 minutes.",
         "operationId" : "live",
         "parameters" : [ {
-          "description" : "How many minutes of 5-second totals to return, from 1 to 60",
+          "description" : "How many minutes to cover, from 1 to 60. Counts as the span above",
           "in" : "query",
           "name" : "minutes",
           "required" : false,
@@ -553,6 +553,17 @@
             "type" : "integer",
             "format" : "int32",
             "default" : 15
+          }
+        }, {
+          "description" : "Seconds in each bucket. A bucket is the sum of the 5-second ones from a multiple of the step, and its percentiles come from the summed histogram",
+          "in" : "query",
+          "name" : "step",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 5,
+            "enum" : [ 5, 15, 60 ]
           }
         } ],
         "responses" : {
@@ -574,7 +585,7 @@
                 }
               }
             },
-            "description" : "minutes is not between 1 and 60"
+            "description" : "minutes is not between 1 and 60, or step is not 5, 15 or 60"
           },
           "409" : {
             "content" : {
@@ -1103,6 +1114,16 @@
       "Bucket" : {
         "type" : "object",
         "properties" : {
+          "clientClosed" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Calls that ended because the client went away, a subset of failed"
+          },
+          "clientErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 400 to 499, a subset of sent"
+          },
           "cost" : {
             "type" : "object",
             "additionalProperties" : {
@@ -1136,6 +1157,11 @@
           "sent" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "serverErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 500 or above, a subset of sent"
           },
           "start" : {
             "type" : "integer",
@@ -1373,6 +1399,16 @@
       "Flow" : {
         "type" : "object",
         "properties" : {
+          "clientClosed" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Calls that ended because the client went away, a subset of failed"
+          },
+          "clientErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 400 to 499, a subset of sent"
+          },
           "cost" : {
             "type" : "object",
             "additionalProperties" : {
@@ -1427,6 +1463,11 @@
           "sent" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "serverErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 500 or above, a subset of sent"
           },
           "tenant" : {
             "type" : "string"
@@ -1596,6 +1637,29 @@
           }
         }
       },
+      "Latency" : {
+        "type" : "object",
+        "properties" : {
+          "models" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/Percentiles"
+            }
+          },
+          "providers" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/Percentiles"
+            }
+          },
+          "tenants" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/Percentiles"
+            }
+          }
+        }
+      },
       "LeafView" : {
         "type" : "object",
         "properties" : {
@@ -1670,6 +1734,9 @@
           "lastSeal" : {
             "$ref" : "#/components/schemas/SealView"
           },
+          "latency" : {
+            "$ref" : "#/components/schemas/Latency"
+          },
           "limited" : {
             "type" : "object",
             "additionalProperties" : {
@@ -1689,12 +1756,18 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "previous" : {
+            "$ref" : "#/components/schemas/Totals"
+          },
           "since" : {
             "type" : "string",
             "format" : "date-time"
           },
           "skipped" : {
             "type" : "boolean"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/Totals"
           }
         }
       },
@@ -1748,6 +1821,19 @@
           },
           "tokens" : {
             "$ref" : "#/components/schemas/Tokens"
+          }
+        }
+      },
+      "Percentiles" : {
+        "type" : "object",
+        "properties" : {
+          "p50Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p95Millis" : {
+            "type" : "integer",
+            "format" : "int64"
           }
         }
       },
@@ -2040,6 +2126,65 @@
           "output" : {
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "Totals" : {
+        "type" : "object",
+        "properties" : {
+          "clientClosed" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Calls that ended because the client went away, a subset of failed"
+          },
+          "clientErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 400 to 499, a subset of sent"
+          },
+          "cost" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "string"
+            }
+          },
+          "failed" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "inputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "outputTokens" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p50Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "p95Millis" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "refused" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "seconds" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Seconds the sums cover: for totals, the span's start or the instance's start up to now; for previous, minutes times 60"
+          },
+          "sent" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "serverErrors" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Responded calls with an upstream status of 500 or above, a subset of sent"
           }
         }
       },

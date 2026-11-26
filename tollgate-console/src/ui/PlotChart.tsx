@@ -1,41 +1,32 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { DataTable, type Column } from './DataTable';
 import { formatClock } from './format';
 import { drawPlot, type Plot, type PlotData } from './plot';
-import styles from './TimeSeries.module.css';
+import styles from './PlotChart.module.css';
+import { tokenValue, useTheme } from './theme';
 
-export type SeriesLine = { name: string; token: string; values: (number | null)[] };
+export type ChartLine = { name: string; token: string; values: (number | null)[] };
 
-type TimeSeriesProps = {
-  label: string;
+type PlotChartProps = {
+  title: string;
+  dataLabel: string;
   unit: string;
   window: string;
   x: number[];
-  lines: SeriesLine[];
+  lines: ChartLine[];
   format: (value: number) => string;
   stacked?: boolean;
+  bars?: boolean;
+  empty: string;
+  actions?: ComponentChildren;
 };
 
 type Moment = { time: number; values: (number | null)[] };
 
-const height = 180;
+const height = 280;
 
-function tokenValue(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
-function useTheme(): string {
-  const root = document.documentElement;
-  const [theme, setTheme] = useState(root.dataset.theme ?? '');
-  useEffect(() => {
-    const watch = new MutationObserver(() => setTheme(root.dataset.theme ?? ''));
-    watch.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => watch.disconnect();
-  }, [root]);
-  return theme;
-}
-
-function plotData(x: number[], lines: SeriesLine[]): PlotData {
+function plotData(x: number[], lines: ChartLine[]): PlotData {
   return {
     x,
     lines: lines.map((line) => ({
@@ -46,30 +37,47 @@ function plotData(x: number[], lines: SeriesLine[]): PlotData {
   };
 }
 
-export function TimeSeries({ label, unit, window, x, lines, format, stacked }: TimeSeriesProps) {
+export function PlotChart({
+  title,
+  dataLabel,
+  unit,
+  window,
+  x,
+  lines,
+  format,
+  stacked,
+  bars,
+  empty,
+  actions,
+}: PlotChartProps) {
   const box = useRef<HTMLDivElement>(null);
   const plot = useRef<Plot | null>(null);
   const latest = useRef({ x, lines });
   const formatter = useRef(format);
   const [shown, setShown] = useState(false);
+  const [hovered, setHovered] = useState<number | null>(null);
   const theme = useTheme();
-  const empty = x.length === 0;
+  const nothing = x.length === 0;
+  const names = lines.map((line) => line.name).join('|');
   latest.current = { x, lines };
   formatter.current = format;
 
   useEffect(() => {
     const parent = box.current;
-    if (!parent || empty) {
+    if (!parent || nothing) {
       return;
     }
     let stopped = false;
     const look = {
       stacked: !!stacked,
+      bars: !!bars,
+      unit,
       height,
       text: tokenValue('--text-muted'),
       grid: tokenValue('--border'),
       font: `12px ${tokenValue('--font-text') || 'sans-serif'}`,
       format: (value: number) => formatter.current(value),
+      onCursor: setHovered,
     };
     const first = plotData(latest.current.x, latest.current.lines);
     drawPlot(parent, first, look, parent.clientWidth || 600)
@@ -95,7 +103,7 @@ export function TimeSeries({ label, unit, window, x, lines, format, stacked }: T
       plot.current?.destroy();
       plot.current = null;
     };
-  }, [theme, empty, stacked]);
+  }, [theme, nothing, stacked, bars, unit, names]);
 
   useEffect(() => {
     plot.current?.setData(plotData(x, lines));
@@ -116,19 +124,44 @@ export function TimeSeries({ label, unit, window, x, lines, format, stacked }: T
       },
     })),
   ];
+  const at = hovered === null ? undefined : x[hovered];
 
   return (
-    <section class={styles.chart} aria-label={label}>
+    <section class={styles.chart} aria-label={title}>
       <header class={styles.head}>
-        <h2 class={styles.title}>{label}</h2>
-        <span class={styles.window}>
-          {unit}, {window}
-        </span>
+        <h2 class={styles.title}>{title}</h2>
+        {actions}
       </header>
-      {empty ? (
-        <p class={styles.empty}>No calls in this window.</p>
+      <div class={styles.legend}>
+        <ul class={styles.keys}>
+          {lines.map((line) => (
+            <li key={line.name} class={styles.key}>
+              <span class={styles.swatch} style={{ background: `var(${line.token})` }} />
+              {line.name}
+            </li>
+          ))}
+        </ul>
+        <span class={styles.readout}>
+          {at === undefined
+            ? `${unit}, ${window}`
+            : `${formatClock(at)} UTC: ${lines
+                .map((line) => {
+                  const value = hovered === null ? null : line.values[hovered];
+                  const text = value === null || value === undefined ? '–' : format(value);
+                  return `${line.name} ${text}`;
+                })
+                .join(', ')}`}
+        </span>
+      </div>
+      {nothing ? (
+        <p class={styles.empty}>{empty}</p>
       ) : (
-        <div class={styles.plot} ref={box} aria-hidden="true" />
+        <div
+          class={styles.plot}
+          ref={box}
+          aria-hidden="true"
+          onMouseLeave={() => setHovered(null)}
+        />
       )}
       <button
         type="button"
@@ -141,11 +174,11 @@ export function TimeSeries({ label, unit, window, x, lines, format, stacked }: T
       {shown && (
         <div class={styles.table}>
           <DataTable
-            label={`${label}, ${window}`}
+            label={`${dataLabel}, ${window}`}
             columns={columns}
             rows={moments}
             rowKey={(moment) => String(moment.time)}
-            empty="No calls in this window."
+            empty={empty}
           />
         </div>
       )}

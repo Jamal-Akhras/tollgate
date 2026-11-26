@@ -85,7 +85,9 @@ class LiveTailTest {
     }
 
     private long sent() {
-        return tail.current().flows().stream().mapToLong(Flow::sent).sum();
+        return LiveAnswer.of(tail.current(), 15, 5).flows().stream()
+                .mapToLong(Flow::sent)
+                .sum();
     }
 
     @Test
@@ -94,7 +96,7 @@ class LiveTailTest {
 
         tail.tick();
 
-        assertThat(tail.current().flows()).isEmpty();
+        assertThat(LiveAnswer.of(tail.current(), 15, 5).flows()).isEmpty();
         assertThat(tail.current().calls()).isEmpty();
     }
 
@@ -203,6 +205,6 @@ class LiveTailTest {
         new LiveTail(Optional::empty, CLOCK).tick();
         tail.tick();
 
-        assertThat(tail.current().flows()).isEmpty();
+        assertThat(LiveAnswer.of(tail.current(), 15, 5).flows()).isEmpty();
     }
 }

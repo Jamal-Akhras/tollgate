@@ -7,24 +7,38 @@ The console is a web app on the admin port. Start Tollgate, open
 
 ![The Flow page: tenants, the rules of their policy and the providers](images/console.png)
 
-- **Flow** draws each tenant, the rules of its policy and its providers.
-  Lines move while calls pass: green for calls sent, amber for fallbacks, red
-  for refusals. The switch in the top bar shows the picture as it would be
-  without Tollgate. It is a preview and changes nothing.
-- **Activity** lists the latest calls with each guard's verdict, and
-  **Metrics** charts up to the last hour. Both are counted from the audit trail by
-  one background reader, not from the request path, so they start empty after
-  a restart and need `audit.mode` on
+- **Flow** draws every tenant, the rules of the selected tenant's policy and
+  its providers. A line moves for anything that had calls in the last 15
+  minutes, and faster while calls are passing: green for calls sent, amber
+  for fallbacks, red for refusals. Calls, refusals, spend and latency stay at
+  the bottom of the page, and a diagram too large for the window is dragged.
+  The switch in the top bar shows the picture as it would be without
+  Tollgate. It is a preview and changes nothing.
+- **Activity** lists the latest calls with each guard's verdict.
+- **Metrics** covers the last 5, 15 or 60 minutes: calls, the share that
+  failed or was refused, spend and latency, each against the period before;
+  each provider's health; one chart of calls, spend, tokens or latency over
+  time; why calls were stopped, by reason and by guard; the tenants and
+  models behind the traffic; and how fast each budget is being spent. A call
+  is counted once for each provider it was sent to, so one rescued by a
+  fallback counts twice.
+- Flow, Activity and Metrics are counted from the audit trail by one
+  background reader, not from the request path, so they start empty after a
+  restart and need `audit.mode` on
   ([ADR 0027](adr/0027-live-data-for-the-console.md)).
 - **Usage** is the usage report, by tenant, model, key, user or day.
-- **Audit** shows sealed batches chained by their roots, a batch as its Merkle
-  tree, and a request's proof. The page hashes the record and walks the proof
-  itself, step by step, and a button verifies the whole trail
+- **Audit** lists the sealed batches, newest first, and says for each whether
+  it names the root of the batch before it. A row opens to the batch's
+  signature, its Merkle tree and the proof of any record in it. The page
+  hashes the record and walks the proof itself, step by step, and a button
+  verifies the whole trail
   ([ADR 0028](adr/0028-audit-trail-through-the-admin-api.md)).
 - **Config** shows the running config, with Reload. Detector terms and key
   hashes are never shown.
 
 ![The Activity page: each call with its result, tokens, cost and duration](images/console-activity.png)
+
+![The Metrics page: calls, failures, refusals, spend and latency, each provider's health, calls over time and why calls were stopped](images/console-metrics.png)
 
 The console is dark by default. The menu under the address in the top bar
 switches it to light or to the system's setting.

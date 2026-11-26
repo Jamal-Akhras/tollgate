@@ -120,6 +120,25 @@ test('refreshLoadsRightAway', async () => {
   expect(load).toHaveBeenCalledTimes(2);
 });
 
+test('aRefreshDuringARequestRunsRightAfterItSettles', async () => {
+  const finish: ((value: string) => void)[] = [];
+  const load = vi.fn().mockImplementation(() => new Promise<string>((done) => finish.push(done)));
+  const { result } = renderHook(() => usePoll(load, 60_000));
+  await tick(0);
+  act(() => result.current.refresh());
+  act(() => result.current.refresh());
+  expect(load).toHaveBeenCalledTimes(1);
+  finish[0]?.('first');
+  await tick(0);
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(result.current.data.value).toBe('first');
+  finish[1]?.('second');
+  await tick(0);
+  expect(result.current.data.value).toBe('second');
+  await tick(1000);
+  expect(load).toHaveBeenCalledTimes(2);
+});
+
 test('stopsWhenTheComponentUnmounts', async () => {
   const load = vi.fn().mockResolvedValue('x');
   const { unmount } = renderHook(() => usePoll(load, 1000));

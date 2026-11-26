@@ -34,7 +34,7 @@ record that amends another names it, and the other may not name it back.
 | [0024](0024-refuse-tools-by-name.md) | Refuse tools by name | Accepted | Yes |
 | [0025](0025-console-as-a-static-app.md) | The console is a static app on the admin port | Accepted, amends [ADR 0004](0004-studio-and-admin-api.md) | Yes: the `tollgate-console` module, served at `/console/` with its security headers. Browser tests run in CI, and Dependabot and CodeQL cover npm |
 | [0026](0026-console-sign-in.md) | Sign in to the console with the admin token | Accepted | Yes: the admin token, kept in the tab. The viewer token and `GET /admin/v1/session` come after 0.1.0 |
-| [0027](0027-live-data-for-the-console.md) | Live data for the console comes from the audit trail | Accepted, amends [ADR 0017](0017-metrics-traces-and-usage.md) | Yes: `GET /admin/v1/live` and `/admin/v1/activity` |
+| [0027](0027-live-data-for-the-console.md) | Live data for the console comes from the audit trail | Accepted, amended 2026-11-26, amends [ADR 0017](0017-metrics-traces-and-usage.md) | Yes: `GET /admin/v1/live` and `/admin/v1/activity` |
 | [0028](0028-audit-trail-through-the-admin-api.md) | Read and prove the audit trail through the admin API | Accepted, amends [ADR 0007](0007-audit-trail.md) | Yes: the audit routes and inclusion proofs. `audit prove` comes after |
 | [0029](0029-config-in-the-console.md) | The console shows the config, and changes it only by rewriting the file | Accepted, amended 2026-11-16, amends [ADR 0004](0004-studio-and-admin-api.md) | Yes: the config view and four edits (a guard's mode, a tenant's budget, create a key, revoke a key) when `TOLLGATE_ADMIN_EDITS=file` |
 | [0030](0030-pause-a-tenant.md) | Pause a tenant | Accepted | No; it is built after 0.1.0 |

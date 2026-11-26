@@ -4,7 +4,7 @@ import styles from './PageHeader.module.css';
 
 type PageHeaderProps = {
   title: string;
-  note?: string;
+  note?: ComponentChildren;
   error?: Error | null;
   updatedAt?: number | null;
   now?: number;

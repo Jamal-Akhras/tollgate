@@ -46,6 +46,10 @@ final class LiveRecords {
     }
 
     static Outcome outcome(String id, Instant time, Outcome.Result result, long millis, Money cost) {
-        return new Outcome(id, time, result, 200, new Usage(10, 5, 0, 0), cost, Duration.ofMillis(millis), null);
+        return outcome(id, time, result, 200, millis, cost);
+    }
+
+    static Outcome outcome(String id, Instant time, Outcome.Result result, int status, long millis, Money cost) {
+        return new Outcome(id, time, result, status, new Usage(10, 5, 0, 0), cost, Duration.ofMillis(millis), null);
     }
 }

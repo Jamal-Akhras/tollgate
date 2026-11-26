@@ -9,12 +9,14 @@ import {
   checksFor,
   previewProviders,
   providersFor,
+  refusals,
   tenantCalls,
   tenantCaption,
 } from '../../flow/describe';
 import { describeRule } from '../../flow/rule';
-import { navigate, route } from '../../router';
+import { href, navigate, route } from '../../router';
 import { usePreview } from '../../state/preview';
+import { useDragScroll } from '../../ui/useDragScroll';
 import { Banner } from '../../ui/Banner';
 import buttons from '../../ui/button.module.css';
 import { FlowCanvas } from '../../ui/FlowCanvas';
@@ -51,6 +53,7 @@ type DiagramProps = {
 function Diagram({ config, live, budgets, withTollgate, table, onChanged }: DiagramProps) {
   const [open, setOpen] = useState<{ tenant: string; id: string } | null>(null);
   const [snippet, setSnippet] = useState<Snippet | null>(null);
+  const pan = useDragScroll(!table);
   const tenants = [...config.tenants].sort(
     (a, b) => tenantCalls(live, b.name) - tenantCalls(live, a.name) || a.name.localeCompare(b.name),
   );
@@ -65,6 +68,7 @@ function Diagram({ config, live, budgets, withTollgate, table, onChanged }: Diag
     name: item.name,
     caption: tenantCaption(config, item),
     selected: item.name === selected,
+    linked: item.policy === tenant.policy,
   }));
   const checks = checksFor(config, selected, budgets, live);
   const own = providersFor(config, selected, live);
@@ -98,39 +102,55 @@ function Diagram({ config, live, budgets, withTollgate, table, onChanged }: Diag
           . This is a preview; nothing has changed.
         </Banner>
       )}
-      {table ? (
-        tables
-      ) : (
-        <FlowCanvas
-          tenants={nodes}
-          policy={tenant.policy}
-          checks={checks}
-          providers={providers}
-          flows={live?.flows.filter((flow) => flow.tenant === selected) ?? []}
-          guards={live?.guards.filter((guard) => guard.tenant === selected) ?? []}
-          now={live ? Date.parse(live.now) : Date.now()}
-          preview={!withTollgate}
-          openCheck={openId}
-          onCheck={(id) => setOpen(openId === id ? null : { tenant: selected, id })}
-          onSelect={choose}
-          legend={<Legend />}
-          fallback={tables}
-        />
-      )}
-      <div class={styles.panel}>
-        {rule && check ? (
-          <RuleCard
-            rule={rule}
-            config={config}
-            tenant={selected}
-            guard={check.guard}
-            onChange={setSnippet}
-            onChanged={onChanged}
-            onClose={() => setOpen(null)}
-          />
-        ) : (
-          noCalls && <FirstRun config={config} tenant={selected} />
-        )}
+      <div class={styles.stage}>
+        <div
+          class={table ? styles.pan : `${styles.pan} ${styles.diagram}`}
+          ref={pan.ref}
+          data-pannable={pan.pannable}
+          data-dragging={pan.dragging}
+          {...pan.handlers}
+        >
+          {table ? (
+            tables
+          ) : (
+            <FlowCanvas
+              tenants={nodes}
+              policy={tenant.policy}
+              checks={checks}
+              providers={providers}
+              refused={{
+                calls: (live?.flows ?? [])
+                  .filter((flow) => flow.tenant === selected)
+                  .reduce((sum, flow) => sum + refusals(flow), 0),
+                href: href('activity', { tenant: selected, result: 'refused' }),
+              }}
+              flows={live?.flows ?? []}
+              guards={live?.guards ?? []}
+              now={live ? Date.parse(live.now) : Date.now()}
+              preview={!withTollgate}
+              openCheck={openId}
+              onCheck={(id) => setOpen(openId === id ? null : { tenant: selected, id })}
+              onSelect={choose}
+              legend={<Legend />}
+              fallback={tables}
+            />
+          )}
+        </div>
+        <div class={styles.panel}>
+          {rule && check ? (
+            <RuleCard
+              rule={rule}
+              config={config}
+              tenant={selected}
+              guard={check.guard}
+              onChange={setSnippet}
+              onChanged={onChanged}
+              onClose={() => setOpen(null)}
+            />
+          ) : (
+            noCalls && <FirstRun config={config} tenant={selected} />
+          )}
+        </div>
       </div>
       {live && <StatTiles live={live} />}
       {snippet && (

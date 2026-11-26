@@ -1,12 +1,15 @@
 package io.github.jamalakhras.tollgate.server.admin;
 
 import io.github.jamalakhras.tollgate.gateway.Gateway;
+import io.github.jamalakhras.tollgate.server.admin.LiveAnswer.Answer;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Bucket;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.CallView;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Flow;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.GuardCount;
+import io.github.jamalakhras.tollgate.server.admin.LiveViews.Latency;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Live;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.SealView;
+import io.github.jamalakhras.tollgate.server.admin.LiveViews.Totals;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Metrics;
@@ -34,8 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = "/admin/v1", produces = MediaType.APPLICATION_JSON_VALUE)
 class LiveController {
 
-    private static final int BUCKETS_PER_MINUTE = 60 / LiveWindow.BUCKET_SECONDS;
-
     private final Gateway gateway;
     private final LiveTail tail;
 
@@ -47,43 +48,55 @@ class LiveController {
     @GetMapping("/live")
     @Operation(
             summary = "Show what is happening now",
-            description = "Totals for each 5 seconds, the calls of each tenant, model and provider and the verdicts of"
-                    + " each guard over the last 15 minutes, the calls in flight to each provider, the calls refused"
-                    + " by a rate limit for each tenant since the start, and the last seal. Counted from the audit"
-                    + " trail since this instance started.")
+            description = "Totals for each 5, 15 or 60 seconds over the last 1 to 60 minutes. The sums, the latency"
+                    + " by provider, tenant and model, and the calls of each tenant, model and provider and the"
+                    + " verdicts of each guard all cover the same span: the last minutes minutes, the unfinished"
+                    + " current minute included, clipped to the start of this instance. The sums are also given for"
+                    + " the equal span just before it, when this instance was already running then. Also the calls"
+                    + " in flight to each provider, the calls refused by a rate limit for each tenant since the"
+                    + " start, and the last seal. Counted from the audit trail since this instance started, and"
+                    + " lost on restart. The top-level percentiles cover the last 5 minutes.")
     @ApiResponse(responseCode = "200", description = "The live snapshot")
     @ApiResponse(
             responseCode = "400",
-            description = "minutes is not between 1 and 60",
+            description = "minutes is not between 1 and 60, or step is not 5, 15 or 60",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
     @ApiResponse(
             responseCode = "409",
             description = "The audit trail is off, so there is nothing to follow",
             content = @Content(schema = @Schema(implementation = AdminError.class)))
     LiveSnapshot live(
-            @Parameter(description = "How many minutes of 5-second totals to return, from 1 to 60")
+            @Parameter(description = "How many minutes to cover, from 1 to 60. Counts as the span above")
                     @RequestParam(defaultValue = "15")
-                    int minutes) {
+                    int minutes,
+            @Parameter(
+                            description = "Seconds in each bucket. A bucket is the sum of the 5-second ones from a"
+                                    + " multiple of the step, and its percentiles come from the summed histogram")
+                    @Schema(allowableValues = {"5", "15", "60"})
+                    @RequestParam(defaultValue = "5")
+                    int step) {
         requireAudit();
         if (minutes < 1 || minutes > 60) {
             throw AdminException.badQuery("minutes must be between 1 and 60, was " + minutes);
         }
+        if (step != 5 && step != 15 && step != 60) {
+            throw AdminException.badQuery("step must be 5, 15 or 60, was " + step);
+        }
         Live live = tail.current();
-        List<Bucket> all = live.buckets();
-        List<Bucket> buckets = all.subList(Math.max(0, all.size() - minutes * BUCKETS_PER_MINUTE), all.size());
-        Instant since = buckets.isEmpty()
-                ? live.since()
-                : Instant.ofEpochSecond(buckets.getFirst().start());
+        Answer answer = LiveAnswer.of(live, minutes, step);
         return new LiveSnapshot(
                 live.now(),
-                since,
+                answer.since(),
                 live.skipped(),
-                LiveWindow.BUCKET_SECONDS,
-                List.copyOf(buckets),
+                step,
+                answer.buckets(),
+                answer.totals(),
+                answer.previous(),
+                answer.latency(),
                 live.p50Millis(),
                 live.p95Millis(),
-                live.flows(),
-                live.guards(),
+                answer.flows(),
+                answer.guards(),
                 inFlight(),
                 limited(),
                 live.lastSeal());
@@ -150,6 +163,9 @@ class LiveController {
             boolean skipped,
             int bucketSeconds,
             List<Bucket> buckets,
+            Totals totals,
+            @Nullable Totals previous,
+            Latency latency,
             @Nullable Long p50Millis,
             @Nullable Long p95Millis,
             List<Flow> flows,

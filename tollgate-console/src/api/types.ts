@@ -111,6 +111,9 @@ export type Bucket = {
   sent: number;
   refused: number;
   failed: number;
+  clientErrors: number;
+  serverErrors: number;
+  clientClosed: number;
   inputTokens: number;
   outputTokens: number;
   cost: Record<string, string>;
@@ -125,6 +128,9 @@ export type Flow = {
   sent: number;
   refused: Record<string, number>;
   failed: number;
+  clientErrors: number;
+  serverErrors: number;
+  clientClosed: number;
   fallbacks: number;
   inputTokens: number;
   outputTokens: number;
@@ -144,12 +150,38 @@ export type GuardCount = {
   lastRefused: string | null;
 };
 
+export type Totals = {
+  sent: number;
+  refused: number;
+  failed: number;
+  clientErrors: number;
+  serverErrors: number;
+  clientClosed: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost: Record<string, string>;
+  seconds: number;
+  p50Millis: number | null;
+  p95Millis: number | null;
+};
+
+export type Percentiles = { p50Millis: number; p95Millis: number };
+
+export type Latency = {
+  providers: Record<string, Percentiles>;
+  tenants: Record<string, Percentiles>;
+  models: Record<string, Percentiles>;
+};
+
 export type LiveSnapshot = {
   now: string;
   since: string;
   skipped: boolean;
   bucketSeconds: number;
   buckets: Bucket[];
+  totals: Totals;
+  previous: Totals | null;
+  latency: Latency;
   p50Millis: number | null;
   p95Millis: number | null;
   flows: Flow[];

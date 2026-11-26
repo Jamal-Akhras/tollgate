@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/preact';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { configBusyFixture, liveBusyFixture } from '../api/fixtures';
 import { checksFor, providersFor } from '../flow/describe';
@@ -33,11 +33,16 @@ afterEach(() => {
 });
 
 const tenants = [
-  { name: 'support-bot', caption: '2 keys, internal', selected: false },
-  { name: 'research', caption: '1 key, restricted', selected: true },
+  { name: 'support-bot', caption: '2 keys, internal', selected: false, linked: false },
+  { name: 'research', caption: '1 key, restricted', selected: true, linked: true },
 ];
 
-type Extra = { preview?: boolean; openCheck?: string | null; onCheck?: (id: string) => void };
+type Extra = {
+  preview?: boolean;
+  openCheck?: string | null;
+  onCheck?: (id: string) => void;
+  refused?: number;
+};
 
 function canvas(onSelect = vi.fn(), extra: Extra = {}) {
   return render(
@@ -46,8 +51,9 @@ function canvas(onSelect = vi.fn(), extra: Extra = {}) {
       policy="strict"
       checks={checksFor(configBusyFixture, 'research', [], liveBusyFixture)}
       providers={providersFor(configBusyFixture, 'research', liveBusyFixture)}
-      flows={liveBusyFixture.flows.filter((flow) => flow.tenant === 'research')}
-      guards={liveBusyFixture.guards.filter((guard) => guard.tenant === 'research')}
+      refused={{ calls: extra.refused ?? 2, href: '#/activity?tenant=research&result=refused' }}
+      flows={liveBusyFixture.flows}
+      guards={liveBusyFixture.guards}
       now={Date.parse(liveBusyFixture.now)}
       preview={extra.preview ?? false}
       openCheck={extra.openCheck ?? null}
@@ -74,10 +80,36 @@ test('theLinesAreHiddenFromAssistiveTechnology', () => {
   expect(lines?.querySelectorAll('path[data-kind]').length).toBeGreaterThan(1);
 });
 
-test('aRefusalDrawsACrossAndTheWordRefused', () => {
+test('refusalsRunToARefusedCardThatCountsThemAndLinksToActivity', () => {
   const { container } = canvas();
   expect(container.querySelector('[data-kind="refused"]')).toBeTruthy();
-  expect(container.querySelector('svg text')?.textContent).toBe('refused');
+  const card = screen.getByRole('link', {
+    name: 'See the 2 calls refused in the last 15 minutes',
+  });
+  expect(card.getAttribute('href')).toBe('#/activity?tenant=research&result=refused');
+  expect(card.textContent).toContain('Refused');
+  expect(card.textContent).toContain('2 calls · last 15 minutes');
+  expect(card.style.top).toMatch(/px$/);
+});
+
+test('theRefusedCardSaysSoWhenNothingWasRefused', () => {
+  canvas(vi.fn(), { refused: 0 });
+  const card = screen.getByRole('link', {
+    name: 'See the 0 calls refused in the last 15 minutes',
+  });
+  expect(card.textContent).toContain('None in the last 15 minutes');
+});
+
+test('tenantsKeepTheirOrderAndOnlyThoseOnThisPolicyGetALine', () => {
+  const { container } = canvas();
+  const names = [...container.querySelectorAll('[data-tenant]')].map((button) =>
+    button.getAttribute('data-tenant'),
+  );
+  expect(names).toEqual(['support-bot', 'research']);
+  const bot = screen.getByRole('button', { name: /support-bot/ });
+  const research = screen.getByRole('button', { name: /research/ });
+  expect(within(bot).queryByTestId('stub')).toBeNull();
+  expect(within(research).getByTestId('stub')).toBeTruthy();
 });
 
 test('theSelectedTenantIsPressedAndTheOthersAreOutOfTheTabOrder', () => {

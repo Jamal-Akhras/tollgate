@@ -9,6 +9,8 @@ export default defineConfig({
     assetsInlineLimit: 0,
   },
   server: {
+    port: 5273,
+    strictPort: true,
     proxy: {
       '/admin': 'http://127.0.0.1:8081',
     },

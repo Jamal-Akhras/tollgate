@@ -95,17 +95,17 @@ test('anUnknownTenantHasNoChecksOrProviders', () => {
 test('providersAreTheOnesTheTenantsModelsServeWithCountsAndSpend', () => {
   const providers = providersFor(configBusyFixture, 'support-bot', liveBusyFixture);
   expect(providers.map((provider) => provider.name)).toEqual(['anthropic', 'ollama', 'openai']);
-  expect(providers.map((provider) => provider.calls)).toEqual([64, 11, 416]);
+  expect(providers.map((provider) => provider.calls)).toEqual([72, 150, 564]);
   expect(providers.every((provider) => provider.reachable && !provider.fallbackOnly)).toBe(true);
-  expect(providers[0]?.caption).toBe('us · 64 calls · $0.53');
-  expect(providers[1]?.caption).toBe('local · 11 calls · free · 1 in flight');
-  expect(providers[2]?.caption).toBe('us · 416 calls · $0.094 · 3 in flight');
+  expect(providers[0]?.caption).toBe('us · 72 calls · $0.14');
+  expect(providers[1]?.caption).toBe('local · 150 calls · free · 1 in flight');
+  expect(providers[2]?.caption).toBe('us · 564 calls · $0.094 · 3 in flight');
 });
 
 test('aTenantOnlyListsItsOwnProviders', () => {
   const providers = providersFor(configBusyFixture, 'research', liveBusyFixture);
   expect(providers.map((provider) => provider.name)).toEqual(['ollama']);
-  expect(providers[0]?.calls).toBe(38);
+  expect(providers[0]?.calls).toBe(60);
 });
 
 test('aProviderOutsideTheClassesRegionsIsNotReachableAndSaysWhy', () => {
@@ -138,7 +138,7 @@ test('aProviderReachedOnlyThroughFallbackIsMarkedAndFollowsTheChain', () => {
     ['ollama', true],
     ['openai', true],
   ]);
-  expect(providers[1]?.caption).toBe('local · 5 calls · free · fallback · 1 in flight');
+  expect(providers[1]?.caption).toBe('local · 16 calls · free · fallback · 1 in flight');
 });
 
 test('aMonitoredDataClassGuardReachesEveryProvider', () => {
@@ -174,8 +174,8 @@ test('moneyIsSummedWithoutRounding', () => {
 });
 
 test('tenantCallsCountSentFailedAndRefused', () => {
-  expect(tenantCalls(liveBusyFixture, 'support-bot')).toBe(503);
-  expect(tenantCalls(liveBusyFixture, 'research')).toBe(40);
+  expect(tenantCalls(liveBusyFixture, 'support-bot')).toBe(825);
+  expect(tenantCalls(liveBusyFixture, 'research')).toBe(85);
   expect(tenantCalls(null, 'research')).toBe(0);
 });
 

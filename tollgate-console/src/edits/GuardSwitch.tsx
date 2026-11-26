@@ -15,6 +15,7 @@ type GuardSwitchProps = {
   policy: string;
   index: number;
   onChanged: () => void;
+  small?: boolean;
 };
 
 function dialogFor(config: ConfigView, policy: string, type: string, mode: GuardMode['mode']) {
@@ -52,7 +53,7 @@ function dialogFor(config: ConfigView, policy: string, type: string, mode: Guard
   };
 }
 
-export function GuardSwitch({ config, policy, index, onChanged }: GuardSwitchProps) {
+export function GuardSwitch({ config, policy, index, onChanged, small }: GuardSwitchProps) {
   const [asking, setAsking] = useState(false);
   const guard = config.policies.find((item) => item.name === policy)?.guards[index];
   if (!guard) {
@@ -69,6 +70,7 @@ export function GuardSwitch({ config, policy, index, onChanged }: GuardSwitchPro
         checked={enforcing}
         onWord="Enforcing"
         offWord="Monitoring"
+        small={small}
         onChange={() => setAsking(true)}
       />
       {asking && editsOn(config) && (

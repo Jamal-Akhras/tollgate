@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ApiError, get } from '../../api/client';
-import type { BatchDetail } from '../../api/types';
+import type { BatchDetail, LeafView } from '../../api/types';
 import { canHash } from '../../merkle/proof';
 import { levels, shape, type TreeNode } from '../../merkle/tree';
 import { navigate, route } from '../../router';
@@ -18,7 +18,13 @@ import styles from './Batch.module.css';
 import { useLoaded } from './useLoaded';
 import { BackToAudit, Waiting } from './Waiting';
 
-function Sealed({ batch }: { batch: BatchDetail }) {
+type SealedProps = {
+  batch: BatchDetail;
+  selected: number | undefined;
+  onChoose: (leaf: LeafView) => void;
+};
+
+export function Sealed({ batch, selected, onChoose }: SealedProps) {
   const [nodes, setNodes] = useState<TreeNode[] | null>(null);
   const hashes = canHash();
   const leafHashes = batch.leaves.map((leaf) => leaf.leafHash);
@@ -37,8 +43,6 @@ function Sealed({ batch }: { batch: BatchDetail }) {
 
   const top = nodes?.at(-1);
   const recomputed = hashes && top ? top.hash : null;
-  const asked = route.value.query.leaf;
-  const selected = asked ? Number(asked) : NaN;
   const now = Date.now();
 
   return (
@@ -104,11 +108,11 @@ function Sealed({ batch }: { batch: BatchDetail }) {
           leaves={batch.leaves}
           nodes={nodes}
           selected={
-            Number.isInteger(selected) && selected >= 0 && selected < batch.leaves.length
+            selected !== undefined && selected >= 0 && selected < batch.leaves.length
               ? selected
               : undefined
           }
-          onChoose={(leaf) => navigate(`audit/records/${leaf.id}`)}
+          onChoose={onChoose}
         />
       )}
     </>
@@ -123,6 +127,8 @@ function BatchPage({ number }: { number: string }) {
   const off = isAuditOff(error);
   const missing = error instanceof ApiError && error.status === 404;
   const failed = error && !off && !missing;
+  const asked = route.value.query.leaf;
+  const selected = asked && Number.isInteger(Number(asked)) ? Number(asked) : undefined;
 
   return (
     <div class={styles.page}>
@@ -134,7 +140,13 @@ function BatchPage({ number }: { number: string }) {
       )}
       {failed && <RetryBanner error={error} onRetry={retry} />}
       {!data && !error && <Waiting height="200px" busy={busy} />}
-      {data && <Sealed batch={data} />}
+      {data && (
+        <Sealed
+          batch={data}
+          selected={selected}
+          onChoose={(leaf) => navigate(`audit/records/${leaf.id}`)}
+        />
+      )}
     </div>
   );
 }

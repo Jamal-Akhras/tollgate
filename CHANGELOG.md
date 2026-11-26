@@ -245,13 +245,23 @@ The first release of Tollgate, a policy and audit gateway for LLM traffic.
   - **Dark and light themes,** dark by default, with system fonts.
   - **A preview switch** in the top bar redraws the flow page as it would be
     without Tollgate. It changes nothing.
+  - **Flow** draws every tenant, the selected tenant's policy and its
+    providers, with a line for anything that had calls in the last 15 minutes
+    and a card that counts the refused ones.
+  - **Metrics** covers the last 5, 15 or 60 minutes: calls, the share that
+    failed or was refused, spend and latency against the period before, each
+    provider's health, one chart over time, why calls were stopped, the
+    tenants and models behind the traffic, and how fast each budget is spent.
 - Live numbers without Prometheus
   ([ADR 0027](docs/adr/0027-live-data-for-the-console.md)). One background
   reader follows the audit trail's newest file, off the request path, and
   `GET /admin/v1/live` and `GET /admin/v1/activity` answer from what it keeps:
-  an hour of 5-second totals, 15 minutes of counts for each tenant, model,
-  provider and guard, and the latest 200 calls. Both answer `409` `audit_off`
-  with the trail off.
+  two hours of 5-second totals, an hour of counts for each tenant, model,
+  provider and guard, and the latest 200 calls. `/live` takes a window of 1 to
+  60 minutes and buckets of 5, 15 or 60 seconds, and gives the window's totals
+  beside those of the window before, provider errors and stopped streams
+  apart from other failures, and latency by provider, tenant and model. Both
+  answer `409` `audit_off` with the trail off.
 - The audit trail through the admin API
   ([ADR 0028](docs/adr/0028-audit-trail-through-the-admin-api.md)):
   `GET /admin/v1/audit`, `/audit/batches`, `/audit/batches/{batch}`,

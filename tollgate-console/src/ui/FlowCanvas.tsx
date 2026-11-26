@@ -3,19 +3,21 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Flow, GuardCount } from '../api/types';
 import type { Check, ProviderNode } from '../flow/describe';
 import { layout, type Rect } from '../flow/layout';
+import { formatCount } from './format';
 import { linesFor } from '../flow/paths';
 import styles from './FlowCanvas.module.css';
-import { Cloud, Key, Server, Shield } from './icons';
+import { Cloud, Cross, Key, Server, Shield } from './icons';
 import { NodeCard } from './NodeCard';
 import { Pill } from './Pill';
 
-export type TenantNode = { name: string; caption: string; selected: boolean };
+export type TenantNode = { name: string; caption: string; selected: boolean; linked: boolean };
 
 type FlowCanvasProps = {
   tenants: TenantNode[];
   policy: string;
   checks: Check[];
   providers: ProviderNode[];
+  refused: { calls: number; href: string };
   flows: Flow[];
   guards: GuardCount[];
   now: number;
@@ -64,6 +66,7 @@ export function FlowCanvas({
   policy,
   checks,
   providers,
+  refused,
   flows,
   guards,
   now,
@@ -77,9 +80,11 @@ export function FlowCanvas({
   const { element, width } = useWidth();
   const [filter, setFilter] = useState('');
   const needle = filter.trim().toLowerCase();
-  const visible = tenants
-    .filter((tenant) => tenant.selected || tenant.name.toLowerCase().includes(needle))
-    .sort((a, b) => Number(b.selected) - Number(a.selected));
+  const [scrolled, setScrolled] = useState(0);
+  const visible = tenants.filter(
+    (tenant) => tenant.selected || tenant.name.toLowerCase().includes(needle),
+  );
+  const selected = visible.find((tenant) => tenant.selected)?.name;
   const drawing = layout(width, {
     tenants: tenants.length,
     checks: checks.length,
@@ -91,13 +96,50 @@ export function FlowCanvas({
     first && last
       ? { x: first.x - 3, y: first.y - 3, w: first.w + 11, h: last.y + last.h - first.y + 6 }
       : undefined;
+  const step = first ? (drawing?.tenants[1]?.y ?? first.y + first.h) - first.y : 0;
+  const origins =
+    first && column
+      ? visible
+          .map((tenant, index) => ({
+            name: tenant.name,
+            selected: tenant.selected,
+            linked: tenant.linked,
+            rect: { ...first, y: first.y + index * step - scrolled },
+          }))
+          .filter(
+            ({ rect, linked }) =>
+              linked &&
+              rect.y + rect.h / 2 >= column.y &&
+              rect.y + rect.h / 2 <= column.y + column.h,
+          )
+      : [];
   const lines = drawing
     ? linesFor(
         drawing,
-        { flows, providers: providers.map((provider) => provider.name), checks, guards, preview },
+        {
+          tenants: origins,
+          selected: selected ?? '',
+          flows,
+          providers: providers.map((provider) => provider.name),
+          checks,
+          guards,
+          preview,
+        },
         now,
       )
     : [];
+  const scrolls = Boolean(drawing?.filter);
+
+  useEffect(() => {
+    if (scrolls && selected) {
+      element.current
+        ?.querySelectorAll<HTMLElement>('[data-tenant]')
+        .forEach(
+          (button) =>
+            button.dataset.tenant === selected && button.scrollIntoView?.({ block: 'nearest' }),
+        );
+    }
+  }, [scrolls, selected]);
 
   function onKeyDown(event: KeyboardEvent, index: number) {
     const step = steps[event.key];
@@ -132,41 +174,42 @@ export function FlowCanvas({
                   d={line.d}
                   data-kind={line.kind}
                   data-moving={line.moving}
-                  class={`${styles.line} ${styles[line.kind]} ${line.moving ? styles.moving : ''}`}
+                  class={[
+                    styles.line,
+                    styles[line.kind],
+                    line.moving ? styles.moving : '',
+                    line.fast ? styles.fast : '',
+                    line.faint ? styles.faint : '',
+                  ].join(' ')}
                 />
-                {line.moving && line.kind !== 'refused' && (
+                {line.fast && !line.faint && line.kind !== 'refused' && (
                   <circle class={styles.liveDot} cx={line.from.x} cy={line.from.y} r="3" />
-                )}
-                {line.end && (
-                  <g transform={`translate(${line.end.x} ${line.end.y})`}>
-                    <path class={styles.cross} d="M -5 -5 L 5 5 M 5 -5 L -5 5" />
-                    <text class={styles.word} x="0" y="-12">
-                      refused
-                    </text>
-                  </g>
                 )}
               </g>
             ))}
           </svg>
           {column && (
-            <div class={styles.column} style={place(column)}>
-              {tenants.filter((tenant) => visible.includes(tenant)).map((tenant) => (
+            <div
+              class={styles.column}
+              style={place(column)}
+              onScroll={(event) => setScrolled(event.currentTarget.scrollTop)}
+            >
+              {visible.map((tenant, index) => (
                 <button
                   key={tenant.name}
                   type="button"
                   data-tenant={tenant.name}
                   class={styles.tenant}
-                  style={{ order: visible.indexOf(tenant) }}
                   aria-pressed={tenant.selected}
                   tabIndex={tenant.selected ? 0 : -1}
                   onClick={() => onSelect(tenant.name)}
-                  onKeyDown={(event) => onKeyDown(event, visible.indexOf(tenant))}
+                  onKeyDown={(event) => onKeyDown(event, index)}
                 >
                   <NodeCard
                     icon={<Key />}
                     title={tenant.name}
                     caption={tenant.caption}
-                    stub={tenant.selected ? 'right' : undefined}
+                    stub={tenant.linked ? 'right' : undefined}
                     off={!tenant.selected}
                   />
                 </button>
@@ -223,6 +266,24 @@ export function FlowCanvas({
               )
             );
           })}
+          <a
+            class={`${styles.refused} ${refused.calls > 0 ? styles.refusing : ''}`}
+            style={place(drawing.refused)}
+            href={refused.href}
+            aria-label={`See the ${formatCount(refused.calls)} calls refused in the last 15 minutes`}
+          >
+            <NodeCard
+              icon={<Cross />}
+              title="Refused"
+              caption={
+                refused.calls === 0
+                  ? 'None in the last 15 minutes'
+                  : `${formatCount(refused.calls)} ${refused.calls === 1 ? 'call' : 'calls'} · last 15 minutes`
+              }
+              stub="left"
+              off={refused.calls === 0 || preview}
+            />
+          </a>
         </div>
       )}
       {drawing && <div class={styles.legend}>{legend}</div>}

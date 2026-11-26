@@ -33,8 +33,8 @@ test('theChecksTableListsTheSelectedTenantsChecksWithTheirCounts', () => {
   const checks = screen.getByRole('table', { name: 'Checks for research' });
   const size = within(checks).getByText('request-size').closest('tr')!;
   expect(size.textContent).toContain('64 KB');
-  expect(size.textContent).toContain('38');
-  expect(size.textContent).toContain('2');
+  expect(size.textContent).toContain('60');
+  expect(size.textContent).toContain('5');
   expect(within(checks).getByText('Signed audit trail')).toBeTruthy();
 });
 

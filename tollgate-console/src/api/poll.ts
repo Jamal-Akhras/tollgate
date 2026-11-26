@@ -30,6 +30,7 @@ export function usePoll<T>(
   useEffect(() => {
     let stopped = false;
     let running = false;
+    let queued = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     function schedule(millis: number) {
@@ -69,7 +70,10 @@ export function usePoll<T>(
         }
       } finally {
         running = false;
-        if (!stopped) {
+        if (queued && !stopped) {
+          queued = false;
+          void run();
+        } else if (!stopped) {
           schedule(next);
         }
       }
@@ -81,7 +85,13 @@ export function usePoll<T>(
       }
     }
 
-    again.current = () => void run();
+    again.current = () => {
+      if (running) {
+        queued = true;
+      } else {
+        void run();
+      }
+    };
     document.addEventListener('visibilitychange', shown);
     shown();
     return () => {

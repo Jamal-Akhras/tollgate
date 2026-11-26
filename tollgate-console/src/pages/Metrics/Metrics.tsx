@@ -1,157 +1,90 @@
+import { useEffect, useRef } from 'preact/hooks';
 import { get } from '../../api/client';
 import { usePoll } from '../../api/poll';
 import type { BudgetState, LiveSnapshot } from '../../api/types';
-import { navigate, route } from '../../router';
+import { href, navigate, route } from '../../router';
 import { Banner } from '../../ui/Banner';
-import buttons from '../../ui/button.module.css';
-import { formatCount, formatDecimal } from '../../ui/format';
-import { Meter } from '../../ui/Meter';
-import { moneyText } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
 import { RetryBanner } from '../../ui/RetryBanner';
 import { Segmented } from '../../ui/Segmented';
 import { Skeleton } from '../../ui/Skeleton';
-import { TimeSeries } from '../../ui/TimeSeries';
 import { auditOffText, isAuditOff } from '../auditOff';
+import { useConfig } from '../useConfig';
+import { Budgets } from './Budgets';
+import { Drivers } from './Drivers';
 import styles from './Metrics.module.css';
-import { chartsFor } from './series';
+import { Overtime } from './Overtime';
+import { Providers } from './Providers';
+import { Stopped } from './Stopped';
+import { Tiles } from './Tiles';
+import { stepFor, windowFrom, windows } from './windows';
 
-const windows = [5, 15, 60];
-const defaultWindow = 15;
-const note = 'Since this instance started, at most one hour. For longer periods see Usage.';
+type Answer = { minutes: number; live: LiveSnapshot };
 
 const options = windows.map((minutes) => ({ value: String(minutes), label: `${minutes} min` }));
 
-function windowFrom(query: string | undefined): number {
-  const minutes = Number(query);
-  return windows.includes(minutes) ? minutes : defaultWindow;
-}
+const tileSlots = ['calls', 'failed', 'refused', 'spend', 'latency'];
 
-function money(budget: BudgetState) {
-  return (n: number) =>
-    moneyText({ amount: String(n), currency: budget.currency, short: true });
-}
-
-function spendFormat(value: number): string {
-  return String(Math.round(value * 1_000_000) / 1_000_000);
-}
-
-function Budgets({ budgets }: { budgets: BudgetState[] }) {
+function Loading() {
   return (
-    <section class={styles.panel} aria-label="Budgets">
-      <h2 class={styles.heading}>Budgets</h2>
-      {budgets.length === 0 && <p class={styles.muted}>No budgets are set.</p>}
-      {budgets.map((budget) => (
-        <div key={budget.tenant} class={styles.budget}>
-          <Meter
-            label={`${budget.tenant} · ${budget.period}`}
-            value={Number(budget.spent)}
-            limit={Number(budget.limit)}
-            format={money(budget)}
-          />
-          <p class={styles.muted}>
-            Reserved {moneyText({ amount: budget.reserved, currency: budget.currency })}, available{' '}
-            {moneyText({ amount: budget.available, currency: budget.currency })}
-          </p>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function InFlight({ live }: { live: LiveSnapshot }) {
-  const providers = Object.entries(live.inFlight).sort(([a], [b]) => a.localeCompare(b));
-  return (
-    <section class={styles.panel} aria-label="Calls in flight">
-      <h2 class={styles.heading}>Calls in flight now</h2>
-      {providers.length === 0 && <p class={styles.muted}>Nothing is in flight.</p>}
-      <ul class={styles.list}>
-        {providers.map(([provider, count]) => (
-          <li key={provider} class={styles.row}>
-            <span>{provider}</span>
-            <span class={styles.count}>{formatCount(count)}</span>
-          </li>
+    <div class={styles.loading} aria-busy="true">
+      <div class={styles.tiles}>
+        {tileSlots.map((slot) => (
+          <Skeleton key={slot} height="150px" />
         ))}
-      </ul>
-    </section>
-  );
-}
-
-function Panels({ minutes }: { minutes: number }) {
-  const live = usePoll(() => get<LiveSnapshot>('/live', { minutes }), 5000);
-  const budgets = usePoll(() => get<BudgetState[]>('/budgets'), 30_000);
-  const snapshot = live.data.value;
-  const error = live.error.value;
-  const span = `last ${minutes} minutes`;
-
-  if (isAuditOff(error)) {
-    return <Banner kind="info">{auditOffText}</Banner>;
-  }
-  const charts = snapshot ? chartsFor(snapshot) : null;
-  return (
-    <>
-      {error && (
-        <RetryBanner error={error} onRetry={live.refresh} />
-      )}
-      {snapshot?.skipped && <Banner kind="info">Busy: the live view skipped some records</Banner>}
-      {!charts && !error && (
-        <div class={styles.loading} aria-busy="true">
-          <Skeleton height="220px" />
-          <Skeleton height="220px" />
-        </div>
-      )}
-      {charts && snapshot && (
-        <>
-          <div class={styles.charts}>
-            <TimeSeries
-              label="Calls per second"
-              unit="calls/s"
-              window={span}
-              x={charts.calls.x}
-              lines={charts.calls.lines}
-              format={formatDecimal}
-              stacked
-            />
-            <TimeSeries
-              label="Tokens per second"
-              unit="tokens/s"
-              window={span}
-              x={charts.tokens.x}
-              lines={charts.tokens.lines}
-              format={formatDecimal}
-            />
-            <TimeSeries
-              label="Spend per minute"
-              unit="per minute"
-              window={span}
-              x={charts.spend.x}
-              lines={charts.spend.lines}
-              format={spendFormat}
-            />
-            <TimeSeries
-              label="Latency"
-              unit="ms"
-              window={span}
-              x={charts.latency.x}
-              lines={charts.latency.lines}
-              format={formatDecimal}
-            />
-          </div>
-          <div class={styles.below}>
-            <Budgets budgets={budgets.data.value ?? []} />
-            <InFlight live={snapshot} />
-          </div>
-        </>
-      )}
-    </>
+      </div>
+      <Skeleton height="360px" />
+    </div>
   );
 }
 
 export function Metrics() {
   const minutes = windowFrom(route.value.query.minutes);
+  const live = usePoll<Answer>(
+    () =>
+      get<LiveSnapshot>('/live', { minutes, step: stepFor(minutes) }).then((snapshot) => ({
+        minutes,
+        live: snapshot,
+      })),
+    5000,
+  );
+  const budgets = usePoll(() => get<BudgetState[]>('/budgets'), 30_000);
+  const { config } = useConfig();
+
+  const shownWindow = useRef(minutes);
+  useEffect(() => {
+    if (shownWindow.current !== minutes) {
+      shownWindow.current = minutes;
+      live.refresh();
+    }
+  }, [minutes]);
+
+  const error = live.error.value;
+  const auditOff = isAuditOff(error);
+  const answer = auditOff ? null : live.data.value;
+  const updating = answer !== null && error === null;
+  const providers = config?.providers.map((provider) => provider.name) ?? [];
+
   return (
     <div class={styles.page}>
-      <PageHeader title="Metrics" note={note}>
+      <PageHeader
+        title="Metrics"
+        note={
+          <>
+            Since this instance started, at most one hour. For longer periods see{' '}
+            <a href={href('usage')}>Usage</a>.
+          </>
+        }
+        error={auditOff ? null : error}
+        updatedAt={live.updatedAt.value}
+        now={Date.now()}
+      >
+        {updating && (
+          <span class={styles.live}>
+            <span class={styles.dot} />
+            Live
+          </span>
+        )}
         <Segmented
           label="Window"
           options={options}
@@ -159,7 +92,31 @@ export function Metrics() {
           onChange={(value) => navigate('metrics', { minutes: value })}
         />
       </PageHeader>
-      <Panels key={minutes} minutes={minutes} />
+      {auditOff && <Banner kind="info">{auditOffText}</Banner>}
+      {!auditOff && error && <RetryBanner error={error} onRetry={live.refresh} />}
+      {answer?.live.skipped && (
+        <Banner kind="info">Busy: the live view skipped some records</Banner>
+      )}
+      {!auditOff && !answer && !error && <Loading />}
+      {answer && (
+        <>
+          <Tiles live={answer.live} minutes={answer.minutes} />
+          <Providers live={answer.live} configured={providers} />
+          <Overtime live={answer.live} minutes={answer.minutes} />
+          <Stopped live={answer.live} />
+          <Drivers live={answer.live} />
+          <Budgets
+            budgets={budgets.data.value}
+            error={budgets.error.value}
+            onRetry={budgets.refresh}
+            live={answer.live}
+          />
+          <p class={styles.footer}>
+            Longer periods are in <a href={href('usage')}>Usage</a>. Prometheus metrics are on the
+            management port; a Grafana dashboard is in docs/grafana.
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -3,9 +3,16 @@ package io.github.jamalakhras.tollgate.server.admin;
 import io.github.jamalakhras.tollgate.core.audit.Seal;
 import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.gateway.audit.UsageReport;
+import io.github.jamalakhras.tollgate.server.admin.LiveData.BucketData;
+import io.github.jamalakhras.tollgate.server.admin.LiveData.FlowData;
+import io.github.jamalakhras.tollgate.server.admin.LiveData.FlowKey;
+import io.github.jamalakhras.tollgate.server.admin.LiveData.GuardData;
+import io.github.jamalakhras.tollgate.server.admin.LiveData.GuardKey;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import org.jspecify.annotations.Nullable;
 
 final class LiveViews {
@@ -26,11 +33,51 @@ final class LiveViews {
             long sent,
             long refused,
             long failed,
+
+            @Schema(description = "Responded calls with an upstream status of 400 to 499, a subset of sent")
+            long clientErrors,
+
+            @Schema(description = "Responded calls with an upstream status of 500 or above, a subset of sent")
+            long serverErrors,
+
+            @Schema(description = "Calls that ended because the client went away, a subset of failed")
+            long clientClosed,
+
             long inputTokens,
             long outputTokens,
             Map<String, String> cost,
             @Nullable Long p50Millis,
             @Nullable Long p95Millis) {}
+
+    record Totals(
+            @Schema(
+                    description =
+                            "Seconds the sums cover: for totals, the span's start or the instance's start up to now; for previous, minutes times 60")
+            long seconds,
+
+            long sent,
+            long refused,
+            long failed,
+
+            @Schema(description = "Responded calls with an upstream status of 400 to 499, a subset of sent")
+            long clientErrors,
+
+            @Schema(description = "Responded calls with an upstream status of 500 or above, a subset of sent")
+            long serverErrors,
+
+            @Schema(description = "Calls that ended because the client went away, a subset of failed")
+            long clientClosed,
+
+            long inputTokens,
+            long outputTokens,
+            Map<String, String> cost,
+            @Nullable Long p50Millis,
+            @Nullable Long p95Millis) {}
+
+    record Percentiles(long p50Millis, long p95Millis) {}
+
+    record Latency(
+            Map<String, Percentiles> providers, Map<String, Percentiles> tenants, Map<String, Percentiles> models) {}
 
     record Flow(
             String tenant,
@@ -39,6 +86,16 @@ final class LiveViews {
             long sent,
             Map<String, Long> refused,
             long failed,
+
+            @Schema(description = "Responded calls with an upstream status of 400 to 499, a subset of sent")
+            long clientErrors,
+
+            @Schema(description = "Responded calls with an upstream status of 500 or above, a subset of sent")
+            long serverErrors,
+
+            @Schema(description = "Calls that ended because the client went away, a subset of failed")
+            long clientClosed,
+
             long fallbacks,
             long inputTokens,
             long outputTokens,
@@ -100,11 +157,11 @@ final class LiveViews {
             Instant now,
             Instant since,
             boolean skipped,
-            List<Bucket> buckets,
+            NavigableMap<Long, BucketData> buckets,
+            NavigableMap<Long, Map<FlowKey, FlowData>> flows,
+            NavigableMap<Long, Map<GuardKey, GuardData>> guards,
             @Nullable Long p50Millis,
             @Nullable Long p95Millis,
-            List<Flow> flows,
-            List<GuardCount> guards,
             List<CallView> calls,
             @Nullable SealView lastSeal) {}
 }

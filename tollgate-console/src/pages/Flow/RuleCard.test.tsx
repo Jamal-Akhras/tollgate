@@ -46,9 +46,9 @@ function row(label: string): string {
 test('anEnforcedGuardShowsItsTotalsSettingsAndAnEnforceSwitch', () => {
   card('guard-0');
   const region = screen.getByRole('region', { name: 'Rule data-class' });
-  expect(region.textContent).toContain('495 calls in the last 15 minutes');
-  expect(row('Allowed')).toBe('486');
-  expect(row('Refused')).toBe('9');
+  expect(region.textContent).toContain('825 calls in the last 15 minutes');
+  expect(row('Allowed')).toBe('789');
+  expect(row('Refused')).toBe('36');
   expect(row('Would have refused (monitor)')).toBe('0');
   expect(row('Regions for internal')).toBe('us, local');
   const toggle = screen.getByRole('switch', { name: 'Enforce data-class' });

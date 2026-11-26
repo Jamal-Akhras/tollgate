@@ -1,7 +1,70 @@
 # ADR 0027: Live data for the console comes from the audit trail
 
-Date: 2026-11-16 · Status: Accepted, amends
+Date: 2026-11-16 · Status: Accepted, amended 2026-11-26, amends
 [ADR 0017](0017-metrics-traces-and-usage.md)
+
+## Amendment (2026-11-26)
+
+The first version fed the flow page and its 5-second totals. The metrics page
+needs longer windows, error classes, a comparison with the window before and
+latency by provider, tenant and model, and it needs them from the same reader.
+What changed:
+
+- **`GET /admin/v1/live` takes `step`,** 5, 15 or 60 seconds, 5 by default.
+  Anything else answers `400`. A bucket is the sum of the 5-second ones,
+  aligned to multiples of the step in epoch seconds, and its percentiles come
+  from the summed histogram, not from the smaller percentiles.
+  `bucketSeconds` shows the step.
+- **Calls answered with an upstream status of 400 to 499 or 500 and above are
+  counted** in `clientErrors` and `serverErrors`, on each bucket and each
+  flow. They are subsets of `sent`, which keeps its meaning.
+- **The per-flow and per-guard counts follow `minutes`** instead of always
+  covering 15, and they are kept for 60 minutes instead of 15. With the
+  default `minutes=15` the answer is what it was.
+- **Three fields are added to the snapshot:** `totals` for the window,
+  `previous` for the window of equal length just before it (null unless this
+  instance was already running at its start), and `latency`, the p50 and p95
+  of responded calls by provider, tenant and model. A group's percentiles
+  come from its own summed histogram, because percentiles can't be added up.
+  The top-level `p50Millis` and `p95Millis` stay the last 5 minutes.
+- **The 5-second totals are kept for 120 minutes,** 1,440 entries instead of
+  720, so that `previous` can be served for a 60-minute window.
+- **Each flow-minute carries a 40-step latency histogram** for the grouped
+  percentiles. It is allocated only once the flow has a responded call.
+- **The sums move from the reader to the request.** The reader still reads
+  the trail once and publishes an immutable snapshot each second, but the
+  snapshot now holds the 5-second and per-minute counts, and a request sums
+  the ones inside its window. That is at most 1,440 buckets and the flows of
+  60 minutes, and a request never changes the snapshot. The counts a snapshot
+  shares with the reader are copied before the reader changes them again.
+- **The memory bound grows with the longer keeping, and the cap on
+  combinations falls from 2,000 to 500 a minute** for flows and for guards,
+  with the overflow still summed under `other`. At 500 combinations for 60
+  minutes, with every combination answering in every minute, a flow-minute is
+  about 856 bytes with its histogram and a guard-minute about 220, which is
+  roughly 33 MB at the bound. These are estimates, not measurements. Under
+  steady traffic the 1,440 buckets add about 0.9 MB; a gateway with a few
+  tenants, models and providers keeps little more than that.
+- **Three things are deliberately not there.** Time to first byte and the
+  state of the circuit breaker are not in the audit record. Rate-limit
+  refusals are never audited (ADR 0015), so `limited` stays a count for each
+  tenant since the start and has no bucket.
+- **The meters read are two, not three.** Calls in flight and rate-limit
+  refusals are read, once for each request; `tollgate.providers.busy` was never
+  read. The sentence under "What the audit trail doesn't hold" now says what
+  the code does.
+- **Round two, after review.** `totals`, `flows`, `guards` and `latency` cover
+  one span: the last `minutes` minute slots, the unfinished current minute
+  included, clipped to the instance's start. `totals` is the exact sum of the
+  5-second buckets in that span whatever `step` is, and `previous` is the
+  `minutes` complete slots before it. `totals` and `previous` carry `seconds`,
+  how long the sums cover, because the current minute is unfinished and any
+  comparison or rate must be over `seconds`. A new `clientClosed` count on
+  buckets, flows and totals is the calls that ended because the client went
+  away, a subset of `failed`, which keeps its meaning. The cap on
+  combinations is 500, as above.
+
+Everything else stands as first accepted.
 
 ## Context
 
@@ -15,8 +78,9 @@ The numbers have to come from inside the process, under three rules:
 
 - **A request must never wait for the console.** Nothing on the request
   path may block, lock or allocate for it.
-- **Its cost must be bounded** whatever the traffic and however many
-  browsers are open.
+- **Its cost must be bounded** whatever the traffic. A request sums the
+  published snapshot inside its window, so each open browser costs one such
+  bounded sum for each poll, and none of them reads the trail.
 - **The privacy rules don't bend.** No prompts or answers, and no user IDs
   (ADRs 0007, 0017, 0023).
 
@@ -50,36 +114,39 @@ and it has no content in it by design.
 
 | Kept | Size | Bound |
 |---|---|---|
-| Totals for each 5 seconds: calls sent, refused and failed, tokens in and out, cost, a 40-step latency histogram | the last hour, 720 entries | fixed |
-| Per tenant, model and provider, for each minute: calls, refusals by code, failures, fallback attempts, tokens, cost, values redacted | the last 15 minutes | 2,000 combinations; more are summed under `other` |
-| Per tenant and guard, for each minute: allowed, refused, would have refused | the last 15 minutes | 2,000 combinations |
+| Totals for each 5 seconds: calls sent, refused and failed, sent calls answered with a 4xx or a 5xx, tokens in and out, cost, a 40-step latency histogram | the last 2 hours, 1,440 entries | fixed |
+| Per tenant, model and provider, for each minute: calls, calls answered with a 4xx or a 5xx, refusals by code, failures, fallback attempts, tokens, cost, values redacted, a 40-step latency histogram | the last hour | 500 combinations; more are summed under `other` |
+| Per tenant and guard, for each minute: allowed, refused, would have refused | the last hour | 500 combinations |
 | The most recent calls, each with its steps and outcome | 200 | fixed |
 | The last seal | 1 | fixed |
 
-It is a few megabytes at the bounds and is lost on restart. History is the
-audit trail's job, through the usage report.
+It is lost on restart. The 5-second totals are about a megabyte. The counts
+for each flow and guard depend on how many combinations are used, and are
+about 33 MB at the bounds (an estimate). History is the audit trail's job, through the
+usage report.
 
 ### Two endpoints
 
-- **`GET /admin/v1/live?minutes=15`** returns one snapshot: the 5-second
-  totals for the last 1 to 60 minutes, the per-flow and per-guard totals of
-  the last 15 minutes with what happened in the last 10 seconds, calls in
-  flight to each provider, rate-limit refusals for each tenant since the
-  start, and the last seal.
+- **`GET /admin/v1/live?minutes=15&step=5`** returns one snapshot: totals for
+  each 5, 15 or 60 seconds over the last 1 to 60 minutes, sums for that
+  window and the one before it, latency by provider, tenant and model, the
+  per-flow and per-guard totals of the same minutes with what happened in the
+  last 10 seconds, calls in flight to each provider, rate-limit refusals for
+  each tenant since the start, and the last seal.
 - **`GET /admin/v1/activity?limit=50`** returns the most recent calls,
   newest first: the fields of the intent and the outcome, without the HMACs.
 - **The reader publishes an immutable snapshot each second.** Requests only
-  read it. Ten open consoles cost the same aggregation as one.
+  read it and sum the part inside their window. Ten open consoles cost ten
+  such sums, each bounded as above, and still no second pass over the trail.
 - **With the audit trail off both answer `409` `audit_off`,** like the usage
   report.
 
 ### What the audit trail doesn't hold
 
-Three numbers are read from the meters that already exist, when a snapshot
-is built: calls in flight (`tollgate.providers.in_flight`), rate-limit
-refusals (`tollgate.limits.refused`) and busy providers
-(`tollgate.providers.busy`). A rate-limited call is refused before the body
-is read and is never audited (ADR 0015), so the trail can't count it.
+Two numbers are read from the meters that already exist, once for each
+request: calls in flight (`tollgate.providers.in_flight`) and rate-limit
+refusals (`tollgate.limits.refused`). A rate-limited call is refused before
+the body is read and is never audited (ADR 0015), so the trail can't count it.
 
 ### The browser asks; the server doesn't push
 
@@ -90,10 +157,11 @@ is read and is never audited (ADR 0015), so the trail can't count it.
 
 ### What drives the moving lines
 
-A line from a tenant through its policy to a provider moves while that flow
-has calls in the snapshot's last 10 seconds. It is green for calls sent,
+A line from a tenant through its policy to a provider is drawn for every flow
+with calls in the window. It moves slowly, and faster while the flow had calls
+in the last 10 seconds. It is green for calls sent,
 amber for fallback attempts and red, ending at the guard, for refusals. The
-movement is a CSS animation; the data only switches it on and off. The
+movement is a CSS animation; the data only sets its speed. The
 picture is at most 3 seconds behind: a second for the trail's flush, and up
 to two for the poll.
 
@@ -143,7 +211,8 @@ to two for the poll.
 - **With `audit.mode: off` the console has no live view,** only config and
   budgets.
 - **The live view starts empty after a restart** and never shows more than
-  an hour. "Today" and "7 days" come from the usage report.
+  an hour, plus the hour before it for comparison. "Today" and "7 days" come
+  from the usage report.
 - **A call refused for a rate limit shows only as a count,** not as a line
   in the activity list.
 - **In asynchronous audit mode** the console is as late as the audit queue.

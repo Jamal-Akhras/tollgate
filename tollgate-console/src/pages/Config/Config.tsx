@@ -25,9 +25,9 @@ import {
   type Snippet,
 } from '../../edits/snippets';
 import { href } from '../../router';
-import { Badge } from '../../ui/Badge';
 import { Banner } from '../../ui/Banner';
 import { DataTable, type Column } from '../../ui/DataTable';
+import { formatBytes } from '../../ui/format';
 import { Hash } from '../../ui/Hash';
 import { Money } from '../../ui/Money';
 import { PageHeader } from '../../ui/PageHeader';
@@ -251,10 +251,10 @@ function Keys({ config, change, onChanged }: SectionProps & { onChanged: () => v
 
 function settings(guard: GuardView): string {
   const parts = [
-    guard.maxBytes !== null && `max ${guard.maxBytes} bytes`,
-    guard.regions && `regions ${describe(guard.regions)}`,
-    guard.allow && `allow ${guard.allow.join(', ')}`,
-    guard.refuse && `refuse ${guard.refuse.join(', ')}`,
+    guard.maxBytes !== null && `up to ${formatBytes(guard.maxBytes)}`,
+    guard.regions && (Object.keys(guard.regions).length > 0 ? describe(guard.regions) : 'no regions'),
+    guard.allow?.length && `allows ${guard.allow.join(', ')}`,
+    guard.refuse?.length && `refuses ${guard.refuse.join(', ')}`,
   ].filter(Boolean);
   return parts.join('; ');
 }
@@ -281,11 +281,17 @@ function Guards({
   return (
     <ol class={styles.guards}>
       {policy.guards.map((guard, index) => (
-        <li key={index}>
-          <span class={styles.mono}>{guard.type}</span>{' '}
-          <Badge kind={guard.mode === 'monitor' ? 'monitor' : 'enforce'} />{' '}
-          <GuardSwitch config={config} policy={policy.name} index={index} onChanged={onChanged} />
-          {settings(guard) && <span class={styles.settings}> {settings(guard)}</span>}
+        <li key={index} class={styles.guard}>
+          <span class={styles.order}>{index + 1}.</span>
+          <span class={styles.mono}>{guard.type}</span>
+          <GuardSwitch
+            config={config}
+            policy={policy.name}
+            index={index}
+            onChanged={onChanged}
+            small
+          />
+          {settings(guard) && <span class={styles.settings}>{settings(guard)}</span>}
         </li>
       ))}
     </ol>

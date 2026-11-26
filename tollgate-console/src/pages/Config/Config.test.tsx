@@ -61,8 +61,8 @@ test('rendersTheBusyConfigWithAMonitoredGuard', async () => {
   send.mockResolvedValue(answer(200, configBusyFixture));
   open();
   const policies = within(await screen.findByRole('region', { name: 'Policies' }));
-  expect(policies.getAllByText('monitor')).toHaveLength(1);
-  expect(policies.getAllByText('enforce')).toHaveLength(3);
+  expect(policies.getAllByText('Monitoring')).toHaveLength(1);
+  expect(policies.getAllByText('Enforcing')).toHaveLength(3);
   const tenants = within(screen.getByRole('region', { name: 'Tenants' }));
   expect(tenants.getByText('support-bot').getAttribute('href')).toBe('#/flow?tenant=support-bot');
 });

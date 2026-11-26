@@ -11,6 +11,7 @@ export type Layout = {
   policy: Rect;
   pills: Rect[];
   providers: Rect[];
+  refused: Rect;
 };
 
 type Band = {
@@ -31,6 +32,8 @@ const visibleTenants = 8;
 const filterHeight = 36;
 const tenantHeight = 72;
 const providerHeight = 96;
+const refusedHeight = 72;
+const refusedGap = 28;
 const nodeGap = 16;
 const pillHeight = 36;
 const pillGap = 10;
@@ -71,8 +74,11 @@ export function layout(width: number, counts: Counts): Layout | null {
 
   const scrolls = counts.tenants > visibleTenants;
   const filterRoom = scrolls ? filterHeight + nodeGap / 2 : 0;
-  const firstTenant = Math.max(sizes.pad + filterRoom, middle - tenantHeight / 2);
   const shown = Math.min(counts.tenants, visibleTenants);
+  const firstTenant = Math.max(
+    sizes.pad + filterRoom,
+    middle - stack(shown, tenantHeight, nodeGap) / 2,
+  );
   const tenants = Array.from({ length: shown }, (_, index) => ({
     x: tenantX,
     y: firstTenant + index * (tenantHeight + nodeGap),
@@ -84,21 +90,36 @@ export function layout(width: number, counts: Counts): Layout | null {
     ? { x: tenantX, y: firstTenant - filterRoom, w: sizes.tenant, h: filterHeight }
     : null;
 
-  const firstProvider = Math.max(
-    sizes.pad,
-    middle - stack(counts.providers, providerHeight, nodeGap) / 2,
-  );
+  const providerStack = stack(counts.providers, providerHeight, nodeGap);
+  const above = providerStack === 0 ? 0 : providerStack + refusedGap;
+  const firstProvider = Math.max(sizes.pad, middle - (above + refusedHeight) / 2);
   const providers = Array.from({ length: counts.providers }, (_, index) => ({
     x: providerX,
     y: firstProvider + index * (providerHeight + nodeGap),
     w: sizes.provider,
     h: providerHeight,
   }));
+  const refused = {
+    x: providerX,
+    y: firstProvider + above,
+    w: sizes.provider,
+    h: refusedHeight,
+  };
 
   const bottom = Math.max(
     policy.y + policy.h,
+    refused.y + refused.h,
     ...tenants.map((rect) => rect.y + rect.h),
-    ...providers.map((rect) => rect.y + rect.h),
   );
-  return { band, width, height: bottom + sizes.pad, tenants, filter, policy, pills, providers };
+  return {
+    band,
+    width,
+    height: bottom + sizes.pad,
+    tenants,
+    filter,
+    policy,
+    pills,
+    providers,
+    refused,
+  };
 }

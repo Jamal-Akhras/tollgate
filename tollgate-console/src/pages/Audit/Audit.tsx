@@ -50,7 +50,7 @@ export function Audit() {
               <dd>{status.mode}</dd>
             </div>
             <div>
-              <dt>Key ID</dt>
+              <dt>Signing key ID</dt>
               <dd>
                 <Hash value={status.keyId} />
               </dd>

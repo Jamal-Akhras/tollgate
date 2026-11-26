@@ -15,7 +15,7 @@ function inside(inner: Rect, outer: Rect): boolean {
 }
 
 function topLevel(result: Layout): Rect[] {
-  return [...result.tenants, result.policy, ...result.providers];
+  return [...result.tenants, result.policy, ...result.providers, result.refused];
 }
 
 const widths = [800, 1000, 1039, 1040, 1200, 1600];
@@ -63,6 +63,27 @@ test('nothingOverlapsAndEverythingFitsTheWidthInEveryBand', () => {
       });
     }
   }
+});
+
+test('theTenantsAreCentredOnThePolicyBox', () => {
+  const result = layout(1400, counts[1]!)!;
+  const first = result.tenants[0]!;
+  const last = result.tenants[result.tenants.length - 1]!;
+  const middle = result.policy.y + result.policy.h / 2;
+  expect((first.y + last.y + last.h) / 2).toBe(middle);
+});
+
+test('theRefusedCardSitsUnderTheProvidersInTheirColumn', () => {
+  const result = layout(1400, { tenants: 3, checks: 8, providers: 2 })!;
+  const last = result.providers[result.providers.length - 1]!;
+  expect(result.refused.x).toBe(last.x);
+  expect(result.refused.w).toBe(last.w);
+  expect(result.refused.y).toBeGreaterThan(last.y + last.h);
+  const first = result.providers[0]!;
+  const middle = result.policy.y + result.policy.h / 2;
+  expect((first.y + result.refused.y + result.refused.h) / 2).toBe(middle);
+  const alone = layout(1000, { tenants: 0, checks: 0, providers: 0 })!;
+  expect(alone.refused.h).toBeGreaterThan(0);
 });
 
 test('columnsRunLeftToRight', () => {

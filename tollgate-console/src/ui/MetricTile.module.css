@@ -1,0 +1,56 @@
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-item);
+}
+
+.caption {
+  font-size: var(--size-caption);
+  color: var(--text-muted);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  min-height: 2.6em;
+  font-size: var(--size-caption);
+  color: var(--text-subtle);
+}
+
+.change {
+  min-height: 1.4em;
+  font-size: var(--size-detail);
+  color: var(--text-muted);
+}
+
+.bad {
+  color: var(--danger);
+}
+
+.spark {
+  width: 100%;
+  height: 28px;
+  margin-top: auto;
+  color: var(--accent);
+}
+
+.sparkDanger {
+  color: var(--danger);
+}
+
+.spark polyline {
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

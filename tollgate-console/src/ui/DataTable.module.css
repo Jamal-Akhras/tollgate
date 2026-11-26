@@ -49,6 +49,7 @@
 }
 
 .empty {
+  padding: var(--space-3) var(--space-4);
   background: var(--surface);
   border: 1px dashed var(--border-dashed);
   border-radius: var(--radius-card);

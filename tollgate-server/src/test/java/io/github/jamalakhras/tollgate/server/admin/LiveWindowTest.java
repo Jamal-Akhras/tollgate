@@ -10,10 +10,14 @@ import io.github.jamalakhras.tollgate.core.money.Money;
 import io.github.jamalakhras.tollgate.core.policy.Decision;
 import io.github.jamalakhras.tollgate.core.policy.GuardStep;
 import io.github.jamalakhras.tollgate.core.policy.Refusal;
+import io.github.jamalakhras.tollgate.server.admin.LiveAnswer.Answer;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Bucket;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Flow;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.GuardCount;
+import io.github.jamalakhras.tollgate.server.admin.LiveViews.Latency;
 import io.github.jamalakhras.tollgate.server.admin.LiveViews.Live;
+import io.github.jamalakhras.tollgate.server.admin.LiveViews.Percentiles;
+import io.github.jamalakhras.tollgate.server.admin.LiveViews.Totals;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Currency;
@@ -49,13 +53,17 @@ class LiveWindowTest {
         return Decision.deny(refusal, "no");
     }
 
+    private static Answer answer(Live live) {
+        return LiveAnswer.of(live, 15, 5);
+    }
+
     private static Flow onlyFlow(Live live) {
-        assertThat(live.flows()).hasSize(1);
-        return live.flows().getFirst();
+        assertThat(answer(live).flows()).hasSize(1);
+        return answer(live).flows().getFirst();
     }
 
     private static long sent(Live live) {
-        return live.buckets().stream().mapToLong(Bucket::sent).sum();
+        return answer(live).buckets().stream().mapToLong(Bucket::sent).sum();
     }
 
     @Test
@@ -74,7 +82,7 @@ class LiveWindowTest {
         assertThat(flow.outputTokens()).isEqualTo(5);
         assertThat(flow.cost()).containsExactly(Map.entry("USD", "0.5"));
         assertThat(flow.lastSent()).isEqualTo(T.plusSeconds(1));
-        Bucket bucket = live.buckets().getLast();
+        Bucket bucket = answer(live).buckets().getLast();
         assertThat(bucket.start()).isEqualTo(T.getEpochSecond());
         assertThat(bucket.sent()).isEqualTo(1);
         assertThat(bucket.inputTokens()).isEqualTo(10);
@@ -91,12 +99,12 @@ class LiveWindowTest {
 
         assertThat(onlyFlow(live).refused()).containsExactly(Map.entry("policy_denied", 1L));
         assertThat(onlyFlow(live).lastRefused()).isEqualTo(T);
-        GuardCount guard = live.guards().getFirst();
+        GuardCount guard = answer(live).guards().getFirst();
         assertThat(guard.guard()).isEqualTo("tool_names");
         assertThat(guard.refused()).isEqualTo(1);
         assertThat(guard.allowed()).isZero();
         assertThat(guard.lastRefused()).isEqualTo(T);
-        assertThat(live.buckets().getLast().refused()).isEqualTo(1);
+        assertThat(answer(live).buckets().getLast().refused()).isEqualTo(1);
     }
 
     @Test
@@ -106,11 +114,11 @@ class LiveWindowTest {
 
         Live live = window.snapshot(T);
 
-        GuardCount guard = live.guards().getFirst();
+        GuardCount guard = answer(live).guards().getFirst();
         assertThat(guard.monitored()).isEqualTo(1);
         assertThat(guard.refused()).isZero();
         assertThat(guard.lastRefused()).isNull();
-        assertThat(live.buckets().getLast().refused()).isZero();
+        assertThat(answer(live).buckets().getLast().refused()).isZero();
     }
 
     @Test
@@ -121,7 +129,7 @@ class LiveWindowTest {
         Live live = window.snapshot(T);
 
         assertThat(onlyFlow(live).refused()).containsExactly(Map.entry("budget_exceeded", 1L));
-        GuardCount guard = live.guards().getFirst();
+        GuardCount guard = answer(live).guards().getFirst();
         assertThat(guard.allowed()).isEqualTo(1);
         assertThat(guard.refused()).isZero();
         assertThat(guard.lastRefused()).isNull();
@@ -145,9 +153,9 @@ class LiveWindowTest {
 
         Live live = window.snapshot(T);
 
-        assertThat(live.flows()).isEmpty();
-        assertThat(live.buckets().getLast().sent()).isZero();
-        assertThat(live.buckets().getLast().failed()).isZero();
+        assertThat(answer(live).flows()).isEmpty();
+        assertThat(answer(live).buckets().getLast().sent()).isZero();
+        assertThat(answer(live).buckets().getLast().failed()).isZero();
         assertThat(live.calls().getFirst().outcome()).isNotNull();
     }
 
@@ -163,7 +171,7 @@ class LiveWindowTest {
         assertThat(flow.sent()).isZero();
         assertThat(flow.inputTokens()).isZero();
         assertThat(flow.cost()).containsEntry("USD", "0.5");
-        assertThat(live.buckets().getLast().failed()).isEqualTo(1);
+        assertThat(answer(live).buckets().getLast().failed()).isEqualTo(1);
         assertThat(live.p50Millis()).isNull();
     }
 
@@ -184,22 +192,38 @@ class LiveWindowTest {
 
         Live live = window.snapshot(T);
 
-        assertThat(live.flows()).isEmpty();
+        assertThat(answer(live).flows()).isEmpty();
         assertThat(sent(live)).isZero();
         assertThat(live.p50Millis()).isNull();
     }
 
     @Test
-    void flowsAreForgottenAfterFifteenMinutesWhileBucketsStayForTheHour() {
+    void flowsAndBucketsFollowTheRequestedMinutes() {
         window.add(allowed("c1", T));
         window.add(outcome("c1", T, Outcome.Result.RESPONDED, 100));
-
         Live later = window.snapshot(T.plus(Duration.ofMinutes(16)));
 
-        assertThat(later.flows()).isEmpty();
-        assertThat(sent(later)).isEqualTo(1);
+        assertThat(LiveAnswer.of(later, 15, 5).flows()).isEmpty();
+        assertThat(LiveAnswer.of(later, 15, 5).totals().sent()).isZero();
+        assertThat(LiveAnswer.of(later, 20, 5).flows()).hasSize(1);
+        assertThat(LiveAnswer.of(later, 20, 5).totals().sent()).isEqualTo(1);
         assertThat(later.p50Millis()).isNull();
-        assertThat(sent(window.snapshot(T.plus(Duration.ofMinutes(61))))).isZero();
+    }
+
+    @Test
+    void flowsAndGuardsAreKeptForAnHourAndBucketsForTwo() {
+        window.add(intent("c1", T, "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("c1", T, Outcome.Result.RESPONDED, 100));
+
+        Live almost = window.snapshot(T.plus(Duration.ofMinutes(59)));
+        Live gone = window.snapshot(T.plus(Duration.ofMinutes(61)));
+
+        assertThat(LiveAnswer.of(almost, 60, 5).flows()).hasSize(1);
+        assertThat(LiveAnswer.of(almost, 60, 5).guards()).hasSize(1);
+        assertThat(LiveAnswer.of(gone, 60, 5).flows()).isEmpty();
+        assertThat(LiveAnswer.of(gone, 60, 5).totals().sent()).isZero();
+        assertThat(Objects.requireNonNull(LiveAnswer.of(gone, 60, 5).previous()).sent())
+                .isEqualTo(1);
     }
 
     @Test
@@ -233,76 +257,81 @@ class LiveWindowTest {
     }
 
     @Test
-    void bucketsAreFiveSecondsOldestFirstAndNeverMoreThan720() {
+    void bucketsAreFiveSecondsOldestFirstAndAnHourHasNoMoreThan720() {
         window.add(allowed("c1", T));
 
-        Live live = window.snapshot(T.plusSeconds(3));
+        Answer hour = LiveAnswer.of(window.snapshot(T.plusSeconds(3)), 60, 5);
 
-        assertThat(live.buckets()).hasSize(720);
-        assertThat(live.buckets().getLast().start()).isEqualTo(T.getEpochSecond());
-        assertThat(live.buckets().getFirst().start()).isEqualTo(T.getEpochSecond() - 719 * 5);
-        assertThat(live.buckets().stream().allMatch(bucket -> bucket.start() % 5 == 0))
+        assertThat(hour.buckets()).hasSize(720);
+        assertThat(hour.buckets().getLast().start()).isEqualTo(T.getEpochSecond());
+        assertThat(hour.buckets().getFirst().start()).isEqualTo(T.getEpochSecond() - 719 * 5);
+        assertThat(hour.buckets().stream().allMatch(bucket -> bucket.start() % 5 == 0))
                 .isTrue();
+        assertThat(hour.since()).isEqualTo(Instant.ofEpochSecond(T.getEpochSecond() - 719 * 5));
+        assertThat(answer(window.snapshot(T)).buckets()).hasSize(180);
     }
 
     @Test
     void bucketsStartAtTheWindowStartWhenItIsRecent() {
         LiveWindow fresh = new LiveWindow(T.minusSeconds(12));
 
-        Live live = fresh.snapshot(T);
+        Answer answer = answer(fresh.snapshot(T));
 
-        assertThat(live.since()).isEqualTo(T.minusSeconds(12));
-        assertThat(live.buckets())
+        assertThat(answer.since()).isEqualTo(T.minusSeconds(15));
+        assertThat(answer.buckets())
                 .extracting(Bucket::start)
                 .containsExactly(
                         T.getEpochSecond() - 15, T.getEpochSecond() - 10, T.getEpochSecond() - 5, T.getEpochSecond());
     }
 
     @Test
-    void aRecordOlderThanTheHourChangesNothing() {
+    void aRecordOlderThanTwoHoursChangesNothingButOneInsideCounts() {
+        Decision denial = deny(Refusal.POLICY_DENIED);
         window.add(allowed("c1", T));
-        window.add(allowed("old", T.minus(Duration.ofHours(2))));
-        window.add(outcome("old", T.minus(Duration.ofHours(2)), Outcome.Result.RESPONDED, 10));
+        window.add(intent("old", T.minus(Duration.ofHours(2)), "app", List.of(), denial));
+        window.add(intent("inside", T.minus(Duration.ofMinutes(119)), "app", List.of(), denial));
 
         Live live = window.snapshot(T);
 
-        assertThat(live.calls()).hasSize(1);
-        assertThat(sent(live)).isZero();
+        assertThat(live.calls()).extracting(LiveViews.CallView::id).containsExactly("inside", "c1");
+        assertThat(live.buckets()).hasSize(1);
+        assertThat(live.buckets().firstKey())
+                .isEqualTo(T.minus(Duration.ofMinutes(119)).getEpochSecond());
     }
 
     @Test
     void flowsBeyondTheKeyLimitAreCountedUnderOther() {
-        for (int i = 0; i < 2100; i++) {
+        for (int i = 0; i < 600; i++) {
             window.add(intent("c" + i, T, "t%04d".formatted(i), List.of(), deny(Refusal.POLICY_DENIED)));
         }
 
         Live live = window.snapshot(T);
 
-        assertThat(live.flows()).hasSize(2000);
-        Flow other = live.flows().stream()
+        assertThat(answer(live).flows()).hasSize(500);
+        Flow other = answer(live).flows().stream()
                 .filter(flow -> flow.tenant().equals("other"))
                 .findFirst()
                 .orElseThrow();
         assertThat(other.model()).isEqualTo("other");
         assertThat(other.provider()).isEqualTo("other");
         assertThat(other.refused()).containsExactly(Map.entry("policy_denied", 101L));
-        assertThat(live.flows().stream()
+        assertThat(answer(live).flows().stream()
                         .mapToLong(flow -> flow.refused().get("policy_denied"))
                         .sum())
-                .isEqualTo(2100);
+                .isEqualTo(600);
     }
 
     @Test
     void guardCountsBeyondTheKeyLimitAreCountedUnderOther() {
-        for (int i = 0; i < 2100; i++) {
+        for (int i = 0; i < 600; i++) {
             window.add(intent(
                     "c" + i, T, "app", List.of(step("g%04d".formatted(i), Decision.ALLOW, false)), Decision.ALLOW));
         }
 
         Live live = window.snapshot(T);
 
-        assertThat(live.guards()).hasSize(2000);
-        GuardCount other = live.guards().stream()
+        assertThat(answer(live).guards()).hasSize(500);
+        GuardCount other = answer(live).guards().stream()
                 .filter(guard -> guard.guard().equals("other"))
                 .findFirst()
                 .orElseThrow();
@@ -392,6 +421,329 @@ class LiveWindowTest {
         window.add(intent("c1", T, "zeta", List.of(), deny(Refusal.POLICY_DENIED)));
         window.add(intent("c2", T, "alpha", List.of(), deny(Refusal.POLICY_DENIED)));
 
-        assertThat(window.snapshot(T).flows()).extracting(Flow::tenant).containsExactly("alpha", "zeta");
+        assertThat(answer(window.snapshot(T)).flows()).extracting(Flow::tenant).containsExactly("alpha", "zeta");
+    }
+
+    private static Outcome outcome(String id, Instant time, int status, long millis) {
+        return LiveRecords.outcome(id, time, Outcome.Result.RESPONDED, status, millis, new Money(500_000_000, USD));
+    }
+
+    private void respond(String id, Instant time, int status, long millis) {
+        window.add(allowed(id, time));
+        window.add(outcome(id, time, status, millis));
+    }
+
+    @Test
+    void statusClassesAreCountedOnBucketsAndFlowsAsSubsetsOfSent() {
+        respond("a", T, 200, 10);
+        respond("b", T, 429, 10);
+        respond("c", T, 404, 10);
+        respond("d", T, 503, 10);
+        window.add(allowed("e", T));
+        window.add(LiveRecords.outcome("e", T, Outcome.Result.TIMED_OUT, 504, 10, new Money(0, USD)));
+
+        Live live = window.snapshot(T);
+
+        Bucket bucket = answer(live).buckets().getLast();
+        assertThat(bucket.sent()).isEqualTo(4);
+        assertThat(bucket.clientErrors()).isEqualTo(2);
+        assertThat(bucket.serverErrors()).isEqualTo(1);
+        assertThat(bucket.failed()).isEqualTo(1);
+        Flow flow = onlyFlow(live);
+        assertThat(flow.sent()).isEqualTo(4);
+        assertThat(flow.clientErrors()).isEqualTo(2);
+        assertThat(flow.serverErrors()).isEqualTo(1);
+        assertThat(answer(live).totals().clientErrors()).isEqualTo(2);
+        assertThat(answer(live).totals().serverErrors()).isEqualTo(1);
+    }
+
+    @Test
+    void aCoarserBucketIsTheSumOfTheFiveSecondOnesFromAMultipleOfTheStep() {
+        respond("a", T.plusSeconds(1), 200, 10);
+        respond("b", T.plusSeconds(7), 500, 10);
+        respond("c", T.plusSeconds(14), 200, 10);
+        respond("d", T.plusSeconds(16), 200, 10);
+        Live live = window.snapshot(T.plusSeconds(20));
+
+        List<Bucket> fifteen = LiveAnswer.of(live, 1, 15).buckets();
+
+        assertThat(fifteen)
+                .extracting(Bucket::start)
+                .containsExactly(
+                        T.getEpochSecond() - 30, T.getEpochSecond() - 15, T.getEpochSecond(), T.getEpochSecond() + 15);
+        assertThat(fifteen).extracting(Bucket::sent).containsExactly(0L, 0L, 3L, 1L);
+        assertThat(fifteen).extracting(Bucket::serverErrors).containsExactly(0L, 0L, 1L, 0L);
+        assertThat(fifteen.get(2).cost()).containsEntry("USD", "1.5");
+        assertThat(fifteen.get(2).inputTokens()).isEqualTo(30);
+        List<Bucket> minute = LiveAnswer.of(live, 3, 60).buckets();
+        assertThat(minute)
+                .extracting(Bucket::start)
+                .containsExactly(T.getEpochSecond() - 120, T.getEpochSecond() - 60, T.getEpochSecond());
+        assertThat(minute.getLast().sent()).isEqualTo(4);
+    }
+
+    @Test
+    void aCoarserBucketTakesItsPercentilesFromTheSummedHistogram() {
+        for (int i = 0; i < 90; i++) {
+            respond("a" + i, T.plusSeconds(1), 200, 10);
+        }
+        for (int i = 0; i < 10; i++) {
+            respond("b" + i, T.plusSeconds(6), 200, 1000);
+        }
+        Live live = window.snapshot(T.plusSeconds(10));
+
+        List<Bucket> fives = LiveAnswer.of(live, 1, 5).buckets();
+        Bucket summed = LiveAnswer.of(live, 1, 15).buckets().getLast();
+
+        assertThat(fives.get(fives.size() - 3).p95Millis()).isEqualTo(16L);
+        assertThat(fives.get(fives.size() - 2).p95Millis()).isEqualTo(1024L);
+        assertThat(summed.p50Millis()).isEqualTo(16L);
+        assertThat(summed.p95Millis()).isEqualTo(1024L);
+        assertThat(summed.sent()).isEqualTo(100);
+    }
+
+    @Test
+    void theFirstCoarseBucketIsPartialAtTheInstanceStart() {
+        LiveWindow fresh = new LiveWindow(T.plusSeconds(40));
+        fresh.add(allowed("a", T.plusSeconds(41)));
+        fresh.add(outcome("a", T.plusSeconds(41), Outcome.Result.RESPONDED, 10));
+
+        Answer answer = LiveAnswer.of(fresh.snapshot(T.plusSeconds(100)), 15, 60);
+
+        assertThat(answer.buckets())
+                .extracting(Bucket::start)
+                .containsExactly(T.getEpochSecond(), T.getEpochSecond() + 60);
+        assertThat(answer.buckets().getFirst().sent()).isEqualTo(1);
+        assertThat(answer.since()).isEqualTo(T);
+    }
+
+    @Test
+    void flowsAndGuardsCoverTheRequestedMinutes() {
+        window.add(intent("old", T, "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("old", T, Outcome.Result.RESPONDED, 10));
+        window.add(
+                intent("new", T.plusSeconds(300), "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("new", T.plusSeconds(300), Outcome.Result.RESPONDED, 10));
+        Live live = window.snapshot(T.plusSeconds(330));
+
+        Answer one = LiveAnswer.of(live, 1, 5);
+        Answer six = LiveAnswer.of(live, 6, 5);
+
+        assertThat(one.flows()).extracting(Flow::sent).containsExactly(1L);
+        assertThat(one.guards()).extracting(GuardCount::allowed).containsExactly(1L);
+        assertThat(six.flows()).extracting(Flow::sent).containsExactly(2L);
+        assertThat(six.guards()).extracting(GuardCount::allowed).containsExactly(2L);
+        assertThat(LiveAnswer.of(live, 60, 5).flows()).extracting(Flow::sent).containsExactly(2L);
+    }
+
+    @Test
+    void totalsSumTheSpanAndPreviousTheMinutesBeforeIt() {
+        respond("a", T.minusSeconds(130), 200, 10);
+        respond("b", T.minusSeconds(70), 429, 100);
+        respond("c", T.minusSeconds(10), 200, 100);
+        respond("d", T, 500, 1000);
+        window.add(intent("r", T, "app", List.of(), deny(Refusal.POLICY_DENIED)));
+        Live live = window.snapshot(T.plusSeconds(1));
+
+        Answer answer = LiveAnswer.of(live, 2, 5);
+
+        Totals totals = answer.totals();
+        assertThat(totals.seconds()).isEqualTo(61);
+        assertThat(totals.sent()).isEqualTo(2);
+        assertThat(totals.refused()).isEqualTo(1);
+        assertThat(totals.clientErrors()).isZero();
+        assertThat(totals.serverErrors()).isEqualTo(1);
+        assertThat(totals.inputTokens()).isEqualTo(20);
+        assertThat(totals.outputTokens()).isEqualTo(10);
+        assertThat(totals.cost()).containsExactly(Map.entry("USD", "1"));
+        assertThat(totals.p50Millis()).isEqualTo(128L);
+        assertThat(totals.p95Millis()).isEqualTo(1024L);
+        Totals previous = Objects.requireNonNull(answer.previous());
+        assertThat(previous.seconds()).isEqualTo(120);
+        assertThat(previous.sent()).isEqualTo(2);
+        assertThat(previous.clientErrors()).isEqualTo(1);
+        assertThat(previous.p50Millis()).isEqualTo(16L);
+    }
+
+    @Test
+    void previousIsNullUntilTheInstanceWasRunningAtTheStartOfTheEarlierSpan() {
+        LiveWindow young = new LiveWindow(T.minusSeconds(30));
+
+        assertThat(LiveAnswer.of(young.snapshot(T), 1, 5).previous()).isNull();
+        assertThat(LiveAnswer.of(young.snapshot(T.plusSeconds(30)), 1, 5).previous())
+                .isNull();
+        assertThat(LiveAnswer.of(young.snapshot(T.plusSeconds(60)), 1, 5).previous())
+                .isNotNull();
+        assertThat(LiveAnswer.of(young.snapshot(T.plusSeconds(60)), 2, 5).previous())
+                .isNull();
+    }
+
+    @Test
+    void latencyIsGroupedByProviderTenantAndModelFromTheirOwnHistograms() {
+        window.add(intent("a", T, "alpha", List.of(), Decision.ALLOW));
+        window.add(outcome("a", T, Outcome.Result.RESPONDED, 10));
+        window.add(intent("b", T, "beta", List.of(), Decision.ALLOW));
+        window.add(outcome("b", T, Outcome.Result.RESPONDED, 1000));
+        window.add(intent("c", T, "beta", List.of(), deny(Refusal.POLICY_DENIED)));
+        window.add(intent("d", T, "gamma", List.of(), Decision.ALLOW));
+        window.add(outcome("d", T, Outcome.Result.TIMED_OUT, 5000));
+
+        Latency latency = answer(window.snapshot(T)).latency();
+
+        assertThat(latency.tenants()).containsOnlyKeys("alpha", "beta");
+        assertThat(latency.tenants().get("alpha")).isEqualTo(new Percentiles(16, 16));
+        assertThat(latency.tenants().get("beta")).isEqualTo(new Percentiles(1024, 1024));
+        assertThat(latency.providers()).containsOnlyKeys("ollama");
+        assertThat(latency.providers().get("ollama")).isEqualTo(new Percentiles(16, 1024));
+        assertThat(latency.models()).containsOnlyKeys("qwen3");
+    }
+
+    @Test
+    void theTopLevelPercentilesStayTheLastFiveMinutes() {
+        respond("a", T.minusSeconds(400), 200, 1000);
+        respond("b", T.minusSeconds(10), 200, 10);
+        Live live = window.snapshot(T);
+
+        assertThat(live.p50Millis()).isEqualTo(16L);
+        assertThat(live.p95Millis()).isEqualTo(16L);
+        assertThat(answer(live).totals().p95Millis()).isEqualTo(1024L);
+    }
+
+    @Test
+    void aLateRecordForAnEarlierMinuteStillCountsAfterASnapshot() {
+        respond("a", T.plusSeconds(70), 200, 10);
+        window.snapshot(T.plusSeconds(80));
+        respond("b", T.plusSeconds(10), 200, 10);
+
+        Live live = window.snapshot(T.plusSeconds(81));
+
+        assertThat(onlyFlow(live).sent()).isEqualTo(2);
+        assertThat(answer(live).totals().sent()).isEqualTo(2);
+    }
+
+    @Test
+    void aPublishedSnapshotDoesNotChangeWhenTheReaderAddsMore() {
+        window.add(intent("c1", T, "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("c1", T, Outcome.Result.RESPONDED, 100));
+        Live first = window.snapshot(T.plusSeconds(1));
+        Answer before = LiveAnswer.of(first, 15, 5);
+        Answer beforeMinutes = LiveAnswer.of(first, 15, 60);
+
+        window.add(intent("c2", T, "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("c2", T, 503, 2000));
+
+        assertThat(LiveAnswer.of(first, 15, 5)).isEqualTo(before);
+        assertThat(LiveAnswer.of(first, 15, 60)).isEqualTo(beforeMinutes);
+        Answer after = LiveAnswer.of(window.snapshot(T.plusSeconds(2)), 15, 5);
+        assertThat(after.totals().sent()).isEqualTo(2);
+        assertThat(after.totals().serverErrors()).isEqualTo(1);
+        assertThat(after.flows().getFirst().sent()).isEqualTo(2);
+        assertThat(after.guards().getFirst().allowed()).isEqualTo(2);
+        assertThat(before.totals().sent()).isEqualTo(1);
+        assertThat(before.flows().getFirst().sent()).isEqualTo(1);
+        assertThat(before.guards().getFirst().allowed()).isEqualTo(1);
+    }
+
+    @Test
+    void oldMinutesAndBucketsAreEvictedWhenALaterRecordArrives() {
+        window.add(intent("c1", T, "app", List.of(step("size", Decision.ALLOW, false)), Decision.ALLOW));
+        window.add(outcome("c1", T, Outcome.Result.RESPONDED, 100));
+        Instant later = T.plus(Duration.ofHours(3));
+        assertThat(window.snapshot(T).buckets()).containsKey(T.getEpochSecond());
+
+        window.add(allowed("c2", later));
+        Live live = window.snapshot(later);
+
+        assertThat(live.buckets()).doesNotContainKey(T.getEpochSecond());
+        assertThat(live.flows()).doesNotContainKey(T.getEpochSecond() / 60);
+        assertThat(live.guards()).doesNotContainKey(T.getEpochSecond() / 60);
+        assertThat(LiveAnswer.of(live, 60, 5).totals().sent()).isZero();
+        assertThat(Objects.requireNonNull(LiveAnswer.of(live, 60, 5).previous()).sent())
+                .isZero();
+    }
+
+    @Test
+    void previousServesAFullHourOfMinutesWithMinuteSteps() {
+        respond("a", T.minus(Duration.ofMinutes(90)), 200, 10);
+        Live live = window.snapshot(T.plusSeconds(30));
+
+        Answer answer = LiveAnswer.of(live, 60, 60);
+
+        assertThat(answer.buckets()).hasSize(60);
+        assertThat(answer.totals().sent()).isZero();
+        assertThat(answer.totals().seconds()).isEqualTo(59 * 60 + 30);
+        Totals previous = Objects.requireNonNull(answer.previous());
+        assertThat(previous.sent()).isEqualTo(1);
+        assertThat(previous.seconds()).isEqualTo(3600);
+    }
+
+    @Test
+    void aClockThatMovesBackwardsGivesNoBucketsAndNoPrevious() {
+        LiveWindow fresh = new LiveWindow(T);
+        fresh.add(allowed("a", T));
+        fresh.add(outcome("a", T, Outcome.Result.RESPONDED, 10));
+
+        Answer answer = answer(fresh.snapshot(T.minusSeconds(100)));
+
+        assertThat(answer.buckets()).isEmpty();
+        assertThat(answer.previous()).isNull();
+        assertThat(answer.totals().seconds()).isZero();
+    }
+
+    @Test
+    void totalsAndFlowsCoverTheSameSpanWhateverTheStep() {
+        respond("a", T.minusSeconds(100), 200, 10);
+        respond("b", T.minusSeconds(50), 429, 10);
+        respond("c", T.minusSeconds(5), 503, 10);
+        respond("d", T.plusSeconds(1), 200, 10);
+        Live live = window.snapshot(T.plusSeconds(2));
+
+        for (int step : new int[] {5, 15, 60}) {
+            Answer answer = LiveAnswer.of(live, 2, step);
+            assertThat(answer.totals().sent()).isEqualTo(3);
+            assertThat(answer.flows().stream().mapToLong(Flow::sent).sum())
+                    .isEqualTo(answer.totals().sent());
+            assertThat(answer.flows().stream().mapToLong(Flow::clientErrors).sum())
+                    .isEqualTo(answer.totals().clientErrors());
+            assertThat(answer.flows().stream().mapToLong(Flow::serverErrors).sum())
+                    .isEqualTo(answer.totals().serverErrors());
+            assertThat(answer.totals().seconds()).isEqualTo(62);
+        }
+    }
+
+    @Test
+    void secondsAreTheSpanForAYoungInstanceAndAFullWindow() {
+        LiveWindow young = new LiveWindow(T.minusSeconds(20));
+
+        assertThat(LiveAnswer.of(young.snapshot(T.plusSeconds(10)), 5, 15)
+                        .totals()
+                        .seconds())
+                .isEqualTo(30);
+        assertThat(LiveAnswer.of(window.snapshot(T.plusSeconds(10)), 5, 15)
+                        .totals()
+                        .seconds())
+                .isEqualTo(4 * 60 + 10);
+        assertThat(Objects.requireNonNull(LiveAnswer.of(window.snapshot(T.plusSeconds(10)), 5, 15)
+                                .previous())
+                        .seconds())
+                .isEqualTo(300);
+    }
+
+    @Test
+    void clientClosedIsASubsetOfFailed() {
+        window.add(allowed("a", T));
+        window.add(LiveRecords.outcome("a", T, Outcome.Result.CLIENT_CLOSED, 200, 10, new Money(0, USD)));
+        window.add(allowed("b", T));
+        window.add(LiveRecords.outcome("b", T, Outcome.Result.TIMED_OUT, 504, 10, new Money(0, USD)));
+        Live live = window.snapshot(T);
+
+        Bucket bucket = answer(live).buckets().getLast();
+        assertThat(bucket.failed()).isEqualTo(2);
+        assertThat(bucket.clientClosed()).isEqualTo(1);
+        assertThat(bucket.sent()).isZero();
+        assertThat(onlyFlow(live).failed()).isEqualTo(2);
+        assertThat(onlyFlow(live).clientClosed()).isEqualTo(1);
+        assertThat(answer(live).totals().failed()).isEqualTo(2);
+        assertThat(answer(live).totals().clientClosed()).isEqualTo(1);
     }
 }

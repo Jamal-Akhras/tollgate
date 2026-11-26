@@ -341,15 +341,17 @@ against the code in CI, so other tools can build on the same contract.
 What is built:
 
 - **Pages:** Flow, Activity, Metrics, Usage, Audit and Config. Flow draws
-  tenants, their rules and providers, with lines that move while calls flow. A
+  tenants, their rules and providers, with a moving line for anything that
+  had calls in the last 15 minutes and a card that counts the refused ones. A
   top-bar switch redraws it as it would be without Tollgate; it is a labelled
-  preview and changes nothing. Dark and light themes, system fonts.
+  preview and changes nothing. Metrics covers the last 5, 15 or 60 minutes.
+  Dark and light themes, system fonts.
 - **Sign-in:** the admin token, typed on the first screen and kept in the
   tab's `sessionStorage`. There is no cookie and no session, so a page from
   another site can't act for you
   ([ADR 0026](adr/0026-console-sign-in.md)).
 - **Live numbers:** one background thread follows the newest audit file,
-  at most 4 MB a pass, and keeps an hour of 5-second totals, 15 minutes of
+  at most 4 MB a pass, and keeps two hours of 5-second totals, an hour of
   per-tenant, model, provider and guard counts, and the 200 latest calls. It
   is not on the request path, and the console polls it through
   `GET /admin/v1/live` and `/admin/v1/activity`. History comes from the usage

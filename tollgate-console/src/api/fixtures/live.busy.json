@@ -1,92 +1,113 @@
 {
-  "now": "2026-11-16T10:00:00Z",
-  "since": "2026-11-16T09:45:00Z",
+  "now": "2026-11-16T10:00:57Z",
+  "since": "2026-11-16T09:46:00Z",
   "skipped": false,
   "bucketSeconds": 5,
   "buckets": [
     {
-      "start": 1794822305,
+      "start": 1794822360,
       "sent": 8,
       "refused": 2,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4472,
       "outputTokens": 2376,
       "cost": {
         "USD": "0.002096"
       },
-      "p50Millis": 485,
-      "p95Millis": 1181
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822310,
+      "start": 1794822365,
       "sent": 8,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7392,
       "outputTokens": 2456,
       "cost": {
         "USD": "0.002582"
       },
-      "p50Millis": 493,
-      "p95Millis": 1796
+      "p50Millis": 512,
+      "p95Millis": 2048
     },
     {
-      "start": 1794822315,
+      "start": 1794822370,
       "sent": 3,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2256,
       "outputTokens": 801,
       "cost": {
         "USD": "0.000819"
       },
-      "p50Millis": 432,
-      "p95Millis": 1290
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822320,
+      "start": 1794822375,
       "sent": 2,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
       "inputTokens": 972,
       "outputTokens": 564,
       "cost": {
         "USD": "0.000484"
       },
-      "p50Millis": 602,
-      "p95Millis": 1694
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822325,
+      "start": 1794822380,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3510,
       "outputTokens": 1320,
       "cost": {
         "USD": "0.001318"
       },
-      "p50Millis": 615,
-      "p95Millis": 1761
+      "p50Millis": 512,
+      "p95Millis": 2048
     },
     {
-      "start": 1794822330,
+      "start": 1794822385,
       "sent": 9,
       "refused": 1,
       "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7452,
       "outputTokens": 1638,
       "cost": {
         "USD": "0.002101"
       },
-      "p50Millis": 395,
-      "p95Millis": 1164
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822335,
+      "start": 1794822390,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -94,23 +115,29 @@
       "p95Millis": null
     },
     {
-      "start": 1794822340,
+      "start": 1794822395,
       "sent": 3,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 1950,
       "outputTokens": 654,
       "cost": {
         "USD": "0.000685"
       },
-      "p50Millis": 485,
-      "p95Millis": 1084
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822345,
+      "start": 1794822400,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -118,199 +145,75 @@
       "p95Millis": null
     },
     {
-      "start": 1794822350,
+      "start": 1794822405,
       "sent": 8,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4488,
       "outputTokens": 2216,
       "cost": {
         "USD": "0.002003"
       },
-      "p50Millis": 481,
-      "p95Millis": 990
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822355,
+      "start": 1794822410,
       "sent": 6,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 5184,
       "outputTokens": 1134,
       "cost": {
         "USD": "0.001458"
       },
-      "p50Millis": 585,
-      "p95Millis": 1426
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822360,
+      "start": 1794822415,
       "sent": 8,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7288,
       "outputTokens": 1096,
       "cost": {
         "USD": "0.001751"
       },
-      "p50Millis": 604,
-      "p95Millis": 1292
-    },
-    {
-      "start": 1794822365,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822370,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822375,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3960,
-      "outputTokens": 1620,
-      "cost": {
-        "USD": "0.001566"
-      },
-      "p50Millis": 388,
-      "p95Millis": 1695
-    },
-    {
-      "start": 1794822380,
-      "sent": 10,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 7880,
-      "outputTokens": 2880,
-      "cost": {
-        "USD": "0.00291"
-      },
-      "p50Millis": 491,
-      "p95Millis": 1067
-    },
-    {
-      "start": 1794822385,
-      "sent": 2,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 1238,
-      "outputTokens": 534,
-      "cost": {
-        "USD": "0.000506"
-      },
-      "p50Millis": 677,
-      "p95Millis": 1070
-    },
-    {
-      "start": 1794822390,
-      "sent": 6,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2604,
-      "outputTokens": 1938,
-      "cost": {
-        "USD": "0.001553"
-      },
-      "p50Millis": 450,
-      "p95Millis": 1297
-    },
-    {
-      "start": 1794822395,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3760,
-      "outputTokens": 3144,
-      "cost": {
-        "USD": "0.00245"
-      },
-      "p50Millis": 405,
-      "p95Millis": 1428
-    },
-    {
-      "start": 1794822400,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 6093,
-      "outputTokens": 1800,
-      "cost": {
-        "USD": "0.001994"
-      },
-      "p50Millis": 482,
-      "p95Millis": 1513
-    },
-    {
-      "start": 1794822405,
-      "sent": 2,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1520,
-      "outputTokens": 696,
-      "cost": {
-        "USD": "0.000646"
-      },
-      "p50Millis": 539,
-      "p95Millis": 1159
-    },
-    {
-      "start": 1794822410,
-      "sent": 10,
-      "refused": 0,
-      "failed": 1,
-      "inputTokens": 5950,
-      "outputTokens": 2750,
-      "cost": {
-        "USD": "0.002543"
-      },
-      "p50Millis": 397,
-      "p95Millis": 1371
-    },
-    {
-      "start": 1794822415,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822420,
-      "sent": 10,
-      "refused": 2,
+      "sent": 0,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 6580,
-      "outputTokens": 4000,
-      "cost": {
-        "USD": "0.003387"
-      },
-      "p50Millis": 453,
-      "p95Millis": 1022
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
     },
     {
       "start": 1794822425,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -320,481 +223,531 @@
     {
       "start": 1794822430,
       "sent": 4,
-      "refused": 2,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 3236,
-      "outputTokens": 1588,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3960,
+      "outputTokens": 1620,
       "cost": {
-        "USD": "0.001438"
+        "USD": "0.001566"
       },
-      "p50Millis": 510,
-      "p95Millis": 953
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822435,
-      "sent": 0,
-      "refused": 0,
+      "sent": 10,
+      "refused": 2,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7880,
+      "outputTokens": 2880,
+      "cost": {
+        "USD": "0.00291"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822440,
       "sent": 2,
-      "refused": 0,
+      "refused": 2,
       "failed": 0,
-      "inputTokens": 1146,
-      "outputTokens": 476,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1238,
+      "outputTokens": 534,
       "cost": {
-        "USD": "0.000458"
+        "USD": "0.000506"
       },
-      "p50Millis": 550,
-      "p95Millis": 1675
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
       "start": 1794822445,
-      "sent": 0,
+      "sent": 6,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2604,
+      "outputTokens": 1938,
+      "cost": {
+        "USD": "0.001553"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822450,
-      "sent": 2,
-      "refused": 1,
+      "sent": 8,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 1498,
-      "outputTokens": 724,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3760,
+      "outputTokens": 3144,
       "cost": {
-        "USD": "0.000659"
+        "USD": "0.00245"
       },
-      "p50Millis": 587,
-      "p95Millis": 1559
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822455,
-      "sent": 7,
-      "refused": 1,
+      "sent": 9,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 5131,
-      "outputTokens": 1610,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6093,
+      "outputTokens": 1800,
       "cost": {
-        "USD": "0.001736"
+        "USD": "0.001994"
       },
-      "p50Millis": 640,
-      "p95Millis": 1644
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822460,
       "sent": 2,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1520,
+      "outputTokens": 696,
+      "cost": {
+        "USD": "0.000646"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822465,
+      "sent": 10,
+      "refused": 0,
+      "failed": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 1,
+      "inputTokens": 5950,
+      "outputTokens": 2750,
+      "cost": {
+        "USD": "0.002543"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822470,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822475,
+      "sent": 10,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6580,
+      "outputTokens": 4000,
+      "cost": {
+        "USD": "0.003387"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822480,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822485,
+      "sent": 4,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3236,
+      "outputTokens": 1588,
+      "cost": {
+        "USD": "0.001438"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822490,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822495,
+      "sent": 2,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1146,
+      "outputTokens": 476,
+      "cost": {
+        "USD": "0.000458"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822500,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822505,
+      "sent": 2,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1498,
+      "outputTokens": 724,
+      "cost": {
+        "USD": "0.000659"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822510,
+      "sent": 7,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 5131,
+      "outputTokens": 1610,
+      "cost": {
+        "USD": "0.001736"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822515,
+      "sent": 2,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 1892,
       "outputTokens": 710,
       "cost": {
         "USD": "0.00071"
       },
-      "p50Millis": 465,
-      "p95Millis": 1777
+      "p50Millis": 512,
+      "p95Millis": 2048
     },
     {
-      "start": 1794822465,
+      "start": 1794822520,
       "sent": 10,
       "refused": 2,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 6480,
       "outputTokens": 3130,
       "cost": {
         "USD": "0.00285"
       },
-      "p50Millis": 598,
-      "p95Millis": 1663
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822470,
+      "start": 1794822525,
       "sent": 4,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2536,
       "outputTokens": 1336,
       "cost": {
         "USD": "0.001182"
       },
-      "p50Millis": 632,
-      "p95Millis": 1267
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822475,
+      "start": 1794822530,
       "sent": 8,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7064,
       "outputTokens": 1376,
       "cost": {
         "USD": "0.001885"
       },
-      "p50Millis": 644,
-      "p95Millis": 1586
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822480,
+      "start": 1794822535,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2930,
       "outputTokens": 1265,
       "cost": {
         "USD": "0.001198"
       },
-      "p50Millis": 448,
-      "p95Millis": 1525
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822485,
+      "start": 1794822540,
       "sent": 9,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3771,
       "outputTokens": 2718,
       "cost": {
         "USD": "0.002196"
       },
-      "p50Millis": 639,
-      "p95Millis": 1058
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822490,
+      "start": 1794822545,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4415,
       "outputTokens": 1145,
       "cost": {
         "USD": "0.001349"
       },
-      "p50Millis": 384,
-      "p95Millis": 1274
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822495,
+      "start": 1794822550,
       "sent": 6,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4932,
       "outputTokens": 858,
       "cost": {
         "USD": "0.001255"
       },
-      "p50Millis": 547,
-      "p95Millis": 1328
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822500,
+      "start": 1794822555,
       "sent": 3,
       "refused": 1,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2760,
       "outputTokens": 621,
       "cost": {
         "USD": "0.000787"
       },
-      "p50Millis": 510,
-      "p95Millis": 1063
-    },
-    {
-      "start": 1794822505,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 6864,
-      "outputTokens": 3272,
-      "cost": {
-        "USD": "0.002993"
-      },
-      "p50Millis": 421,
-      "p95Millis": 1517
-    },
-    {
-      "start": 1794822510,
-      "sent": 5,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 2520,
-      "outputTokens": 1325,
-      "cost": {
-        "USD": "0.001173"
-      },
-      "p50Millis": 452,
-      "p95Millis": 1265
-    },
-    {
-      "start": 1794822515,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1652,
-      "outputTokens": 832,
-      "cost": {
-        "USD": "0.000747"
-      },
-      "p50Millis": 612,
-      "p95Millis": 1327
-    },
-    {
-      "start": 1794822520,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5432,
-      "outputTokens": 2359,
-      "cost": {
-        "USD": "0.00223"
-      },
-      "p50Millis": 536,
-      "p95Millis": 928
-    },
-    {
-      "start": 1794822525,
-      "sent": 10,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 6500,
-      "outputTokens": 2020,
-      "cost": {
-        "USD": "0.002187"
-      },
-      "p50Millis": 633,
-      "p95Millis": 1650
-    },
-    {
-      "start": 1794822530,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2224,
-      "outputTokens": 856,
-      "cost": {
-        "USD": "0.000847"
-      },
-      "p50Millis": 491,
-      "p95Millis": 937
-    },
-    {
-      "start": 1794822535,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4445,
-      "outputTokens": 1253,
-      "cost": {
-        "USD": "0.001419"
-      },
       "p50Millis": 512,
-      "p95Millis": 924
-    },
-    {
-      "start": 1794822540,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822545,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822550,
-      "sent": 4,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 2220,
-      "outputTokens": 1064,
-      "cost": {
-        "USD": "0.000971"
-      },
-      "p50Millis": 595,
-      "p95Millis": 1208
-    },
-    {
-      "start": 1794822555,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3773,
-      "outputTokens": 1309,
-      "cost": {
-        "USD": "0.001351"
-      },
-      "p50Millis": 587,
-      "p95Millis": 1733
+      "p95Millis": 1024
     },
     {
       "start": 1794822560,
       "sent": 8,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 5496,
-      "outputTokens": 2952,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6864,
+      "outputTokens": 3272,
       "cost": {
-        "USD": "0.002596"
+        "USD": "0.002993"
       },
-      "p50Millis": 483,
-      "p95Millis": 1079
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822565,
-      "sent": 8,
-      "refused": 0,
+      "sent": 5,
+      "refused": 2,
       "failed": 0,
-      "inputTokens": 6192,
-      "outputTokens": 3184,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2520,
+      "outputTokens": 1325,
       "cost": {
-        "USD": "0.002839"
+        "USD": "0.001173"
       },
-      "p50Millis": 434,
-      "p95Millis": 1665
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822570,
       "sent": 4,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2856,
-      "outputTokens": 1256,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1652,
+      "outputTokens": 832,
       "cost": {
-        "USD": "0.001182"
+        "USD": "0.000747"
       },
-      "p50Millis": 416,
-      "p95Millis": 1078
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822575,
-      "sent": 8,
-      "refused": 2,
+      "sent": 7,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 3728,
-      "outputTokens": 2168,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5432,
+      "outputTokens": 2359,
       "cost": {
-        "USD": "0.00186"
+        "USD": "0.00223"
       },
-      "p50Millis": 507,
-      "p95Millis": 1533
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822580,
-      "sent": 6,
+      "sent": 10,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 4830,
-      "outputTokens": 1932,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6500,
+      "outputTokens": 2020,
       "cost": {
-        "USD": "0.001884"
+        "USD": "0.002187"
       },
-      "p50Millis": 413,
-      "p95Millis": 1623
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
       "start": 1794822585,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1299,
-      "outputTokens": 468,
-      "cost": {
-        "USD": "0.000476"
-      },
-      "p50Millis": 408,
-      "p95Millis": 1700
-    },
-    {
-      "start": 1794822590,
       "sent": 4,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2064,
-      "outputTokens": 708,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2224,
+      "outputTokens": 856,
       "cost": {
-        "USD": "0.000734"
+        "USD": "0.000847"
       },
-      "p50Millis": 570,
-      "p95Millis": 1006
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822590,
+      "sent": 7,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4445,
+      "outputTokens": 1253,
+      "cost": {
+        "USD": "0.001419"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822595,
-      "sent": 10,
-      "refused": 0,
-      "failed": 1,
-      "inputTokens": 9960,
-      "outputTokens": 2230,
-      "cost": {
-        "USD": "0.002832"
-      },
-      "p50Millis": 646,
-      "p95Millis": 1633
-    },
-    {
-      "start": 1794822600,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 7216,
-      "outputTokens": 3352,
-      "cost": {
-        "USD": "0.003094"
-      },
-      "p50Millis": 592,
-      "p95Millis": 1573
-    },
-    {
-      "start": 1794822605,
-      "sent": 3,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 2826,
-      "outputTokens": 1017,
-      "cost": {
-        "USD": "0.001034"
-      },
-      "p50Millis": 524,
-      "p95Millis": 1707
-    },
-    {
-      "start": 1794822610,
-      "sent": 5,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 4445,
-      "outputTokens": 1780,
-      "cost": {
-        "USD": "0.001735"
-      },
-      "p50Millis": 663,
-      "p95Millis": 1750
-    },
-    {
-      "start": 1794822615,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -802,140 +755,235 @@
       "p95Millis": null
     },
     {
-      "start": 1794822620,
-      "sent": 5,
+      "start": 1794822600,
+      "sent": 0,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2305,
-      "outputTokens": 1490,
-      "cost": {
-        "USD": "0.00124"
-      },
-      "p50Millis": 472,
-      "p95Millis": 1688
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
     },
     {
-      "start": 1794822625,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3536,
-      "outputTokens": 2536,
-      "cost": {
-        "USD": "0.002052"
-      },
-      "p50Millis": 678,
-      "p95Millis": 1538
-    },
-    {
-      "start": 1794822630,
-      "sent": 5,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2430,
-      "outputTokens": 1285,
-      "cost": {
-        "USD": "0.001136"
-      },
-      "p50Millis": 467,
-      "p95Millis": 1018
-    },
-    {
-      "start": 1794822635,
+      "start": 1794822605,
       "sent": 4,
       "refused": 2,
       "failed": 0,
-      "inputTokens": 2552,
-      "outputTokens": 1272,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2220,
+      "outputTokens": 1064,
       "cost": {
-        "USD": "0.001146"
+        "USD": "0.000971"
       },
-      "p50Millis": 384,
-      "p95Millis": 1375
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822610,
+      "sent": 7,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3773,
+      "outputTokens": 1309,
+      "cost": {
+        "USD": "0.001351"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822615,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 5496,
+      "outputTokens": 2952,
+      "cost": {
+        "USD": "0.002596"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822620,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6192,
+      "outputTokens": 3184,
+      "cost": {
+        "USD": "0.002839"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822625,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2856,
+      "outputTokens": 1256,
+      "cost": {
+        "USD": "0.001182"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822630,
+      "sent": 8,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3728,
+      "outputTokens": 2168,
+      "cost": {
+        "USD": "0.00186"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822635,
+      "sent": 6,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4830,
+      "outputTokens": 1932,
+      "cost": {
+        "USD": "0.001884"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822640,
-      "sent": 10,
+      "sent": 3,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 5920,
-      "outputTokens": 2830,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1299,
+      "outputTokens": 468,
       "cost": {
-        "USD": "0.002586"
+        "USD": "0.000476"
       },
-      "p50Millis": 625,
-      "p95Millis": 1783
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822645,
-      "sent": 9,
-      "refused": 2,
+      "sent": 4,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 7551,
-      "outputTokens": 1836,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2064,
+      "outputTokens": 708,
       "cost": {
-        "USD": "0.002234"
+        "USD": "0.000734"
       },
-      "p50Millis": 535,
-      "p95Millis": 1426
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822650,
       "sent": 10,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 6620,
-      "outputTokens": 3750,
+      "refused": 0,
+      "failed": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 9960,
+      "outputTokens": 2230,
       "cost": {
-        "USD": "0.003243"
+        "USD": "0.002832"
       },
-      "p50Millis": 541,
-      "p95Millis": 901
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
       "start": 1794822655,
-      "sent": 2,
+      "sent": 8,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 1910,
-      "outputTokens": 622,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7216,
+      "outputTokens": 3352,
       "cost": {
-        "USD": "0.00066"
+        "USD": "0.003094"
       },
-      "p50Millis": 659,
-      "p95Millis": 1010
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822660,
-      "sent": 9,
+      "sent": 3,
       "refused": 1,
       "failed": 0,
-      "inputTokens": 7587,
-      "outputTokens": 2781,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2826,
+      "outputTokens": 1017,
       "cost": {
-        "USD": "0.002807"
+        "USD": "0.001034"
       },
-      "p50Millis": 602,
-      "p95Millis": 924
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822665,
       "sent": 5,
-      "refused": 0,
+      "refused": 1,
       "failed": 0,
-      "inputTokens": 3550,
-      "outputTokens": 1720,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4445,
+      "outputTokens": 1780,
       "cost": {
-        "USD": "0.001564"
+        "USD": "0.001735"
       },
-      "p50Millis": 408,
-      "p95Millis": 1003
+      "p50Millis": 724,
+      "p95Millis": 2048
     },
     {
       "start": 1794822670,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -944,133 +992,172 @@
     },
     {
       "start": 1794822675,
-      "sent": 0,
+      "sent": 5,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2305,
+      "outputTokens": 1490,
+      "cost": {
+        "USD": "0.00124"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822680,
-      "sent": 7,
-      "refused": 2,
-      "failed": 1,
-      "inputTokens": 6573,
-      "outputTokens": 2156,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3536,
+      "outputTokens": 2536,
       "cost": {
-        "USD": "0.00228"
+        "USD": "0.002052"
       },
-      "p50Millis": 539,
-      "p95Millis": 1027
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
       "start": 1794822685,
-      "sent": 0,
+      "sent": 5,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2430,
+      "outputTokens": 1285,
+      "cost": {
+        "USD": "0.001136"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822690,
-      "sent": 3,
-      "refused": 0,
-      "failed": 1,
-      "inputTokens": 2685,
-      "outputTokens": 528,
+      "sent": 4,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2552,
+      "outputTokens": 1272,
       "cost": {
-        "USD": "0.00072"
+        "USD": "0.001146"
       },
-      "p50Millis": 641,
-      "p95Millis": 1018
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
       "start": 1794822695,
       "sent": 10,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 9450,
-      "outputTokens": 2580,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5920,
+      "outputTokens": 2830,
       "cost": {
-        "USD": "0.002965"
+        "USD": "0.002586"
       },
-      "p50Millis": 518,
-      "p95Millis": 1691
+      "p50Millis": 724,
+      "p95Millis": 2048
     },
     {
       "start": 1794822700,
-      "sent": 5,
-      "refused": 1,
+      "sent": 9,
+      "refused": 2,
       "failed": 0,
-      "inputTokens": 4030,
-      "outputTokens": 1865,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7551,
+      "outputTokens": 1836,
       "cost": {
-        "USD": "0.001723"
+        "USD": "0.002234"
       },
-      "p50Millis": 485,
-      "p95Millis": 926
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822705,
-      "sent": 3,
-      "refused": 0,
+      "sent": 10,
+      "refused": 2,
       "failed": 0,
-      "inputTokens": 1728,
-      "outputTokens": 1113,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6620,
+      "outputTokens": 3750,
       "cost": {
-        "USD": "0.000927"
+        "USD": "0.003243"
       },
-      "p50Millis": 439,
-      "p95Millis": 1468
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822710,
-      "sent": 0,
+      "sent": 2,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1910,
+      "outputTokens": 622,
+      "cost": {
+        "USD": "0.00066"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
       "start": 1794822715,
-      "sent": 5,
-      "refused": 0,
-      "failed": 1,
-      "inputTokens": 4130,
-      "outputTokens": 1575,
+      "sent": 9,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 7587,
+      "outputTokens": 2781,
       "cost": {
-        "USD": "0.001564"
+        "USD": "0.002807"
       },
-      "p50Millis": 486,
-      "p95Millis": 1482
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822720,
       "sent": 5,
-      "refused": 2,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 4910,
-      "outputTokens": 1320,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3550,
+      "outputTokens": 1720,
       "cost": {
-        "USD": "0.001528"
+        "USD": "0.001564"
       },
-      "p50Millis": 434,
-      "p95Millis": 1727
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
       "start": 1794822725,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -1079,126 +1166,324 @@
     },
     {
       "start": 1794822730,
-      "sent": 4,
+      "sent": 0,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2672,
-      "outputTokens": 1584,
-      "cost": {
-        "USD": "0.001351"
-      },
-      "p50Millis": 409,
-      "p95Millis": 1467
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
     },
     {
       "start": 1794822735,
-      "sent": 9,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 3762,
-      "outputTokens": 3690,
+      "sent": 7,
+      "refused": 2,
+      "failed": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 6573,
+      "outputTokens": 2156,
       "cost": {
-        "USD": "0.002778"
+        "USD": "0.00228"
       },
-      "p50Millis": 452,
-      "p95Millis": 1035
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822740,
-      "sent": 7,
-      "refused": 1,
+      "sent": 0,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 3864,
-      "outputTokens": 896,
-      "cost": {
-        "USD": "0.001117"
-      },
-      "p50Millis": 485,
-      "p95Millis": 1668
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
     },
     {
       "start": 1794822745,
-      "sent": 2,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 1100,
-      "outputTokens": 732,
-      "cost": {
-        "USD": "0.000604"
-      },
-      "p50Millis": 574,
-      "p95Millis": 1666
-    },
-    {
-      "start": 1794822750,
       "sent": 3,
       "refused": 0,
       "failed": 1,
-      "inputTokens": 1407,
-      "outputTokens": 480,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2685,
+      "outputTokens": 528,
       "cost": {
-        "USD": "0.000499"
+        "USD": "0.00072"
       },
-      "p50Millis": 397,
-      "p95Millis": 1267
+      "p50Millis": 724,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822750,
+      "sent": 10,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 9450,
+      "outputTokens": 2580,
+      "cost": {
+        "USD": "0.002965"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822755,
-      "sent": 7,
-      "refused": 2,
+      "sent": 5,
+      "refused": 1,
       "failed": 0,
-      "inputTokens": 5299,
-      "outputTokens": 2002,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4030,
+      "outputTokens": 1865,
       "cost": {
-        "USD": "0.001996"
+        "USD": "0.001723"
       },
-      "p50Millis": 472,
-      "p95Millis": 1033
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822760,
       "sent": 3,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1728,
+      "outputTokens": 1113,
+      "cost": {
+        "USD": "0.000927"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822765,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822770,
+      "sent": 5,
+      "refused": 0,
+      "failed": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4130,
+      "outputTokens": 1575,
+      "cost": {
+        "USD": "0.001564"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822775,
+      "sent": 5,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4910,
+      "outputTokens": 1320,
+      "cost": {
+        "USD": "0.001528"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822780,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822785,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2672,
+      "outputTokens": 1584,
+      "cost": {
+        "USD": "0.001351"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822790,
+      "sent": 9,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3762,
+      "outputTokens": 3690,
+      "cost": {
+        "USD": "0.002778"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822795,
+      "sent": 7,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3864,
+      "outputTokens": 896,
+      "cost": {
+        "USD": "0.001117"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822800,
+      "sent": 2,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1100,
+      "outputTokens": 732,
+      "cost": {
+        "USD": "0.000604"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822805,
+      "sent": 3,
+      "refused": 0,
+      "failed": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 1,
+      "inputTokens": 1407,
+      "outputTokens": 480,
+      "cost": {
+        "USD": "0.000499"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822810,
+      "sent": 7,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5299,
+      "outputTokens": 2002,
+      "cost": {
+        "USD": "0.001996"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822815,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 1662,
       "outputTokens": 807,
       "cost": {
         "USD": "0.000733"
       },
-      "p50Millis": 467,
-      "p95Millis": 1345
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822765,
+      "start": 1794822820,
       "sent": 2,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 826,
       "outputTokens": 466,
       "cost": {
         "USD": "0.000403"
       },
-      "p50Millis": 671,
-      "p95Millis": 1397
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822770,
+      "start": 1794822825,
       "sent": 8,
       "refused": 2,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7320,
       "outputTokens": 2288,
       "cost": {
         "USD": "0.002471"
       },
-      "p50Millis": 429,
-      "p95Millis": 1517
+      "p50Millis": 362,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822775,
+      "start": 1794822830,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -1206,225 +1491,109 @@
       "p95Millis": null
     },
     {
-      "start": 1794822780,
+      "start": 1794822835,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2475,
       "outputTokens": 1715,
       "cost": {
         "USD": "0.0014"
       },
-      "p50Millis": 428,
-      "p95Millis": 1784
+      "p50Millis": 362,
+      "p95Millis": 2048
     },
     {
-      "start": 1794822785,
+      "start": 1794822840,
       "sent": 6,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
       "inputTokens": 4770,
       "outputTokens": 1548,
       "cost": {
         "USD": "0.001644"
       },
-      "p50Millis": 632,
-      "p95Millis": 1354
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822790,
+      "start": 1794822845,
       "sent": 7,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3297,
       "outputTokens": 2464,
       "cost": {
         "USD": "0.001973"
       },
-      "p50Millis": 427,
-      "p95Millis": 957
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822795,
+      "start": 1794822850,
       "sent": 3,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2598,
       "outputTokens": 567,
       "cost": {
         "USD": "0.00073"
       },
-      "p50Millis": 620,
-      "p95Millis": 1744
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822800,
+      "start": 1794822855,
       "sent": 6,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4536,
       "outputTokens": 1830,
       "cost": {
         "USD": "0.001778"
       },
-      "p50Millis": 514,
-      "p95Millis": 1731
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822805,
+      "start": 1794822860,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3080,
       "outputTokens": 1185,
       "cost": {
         "USD": "0.001173"
       },
-      "p50Millis": 554,
-      "p95Millis": 1731
-    },
-    {
-      "start": 1794822810,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822815,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2696,
-      "outputTokens": 928,
-      "cost": {
-        "USD": "0.000961"
-      },
-      "p50Millis": 484,
-      "p95Millis": 920
-    },
-    {
-      "start": 1794822820,
-      "sent": 6,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3228,
-      "outputTokens": 1848,
-      "cost": {
-        "USD": "0.001593"
-      },
-      "p50Millis": 476,
-      "p95Millis": 1638
-    },
-    {
-      "start": 1794822825,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1239,
-      "outputTokens": 1044,
-      "cost": {
-        "USD": "0.000812"
-      },
-      "p50Millis": 597,
-      "p95Millis": 1683
-    },
-    {
-      "start": 1794822830,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 7596,
-      "outputTokens": 3483,
-      "cost": {
-        "USD": "0.003229"
-      },
-      "p50Millis": 382,
-      "p95Millis": 931
-    },
-    {
-      "start": 1794822835,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 8406,
-      "outputTokens": 3654,
-      "cost": {
-        "USD": "0.003453"
-      },
-      "p50Millis": 638,
-      "p95Millis": 1734
-    },
-    {
-      "start": 1794822840,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822845,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 7456,
-      "outputTokens": 2576,
-      "cost": {
-        "USD": "0.002664"
-      },
-      "p50Millis": 659,
-      "p95Millis": 1378
-    },
-    {
-      "start": 1794822850,
-      "sent": 4,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 3528,
-      "outputTokens": 1408,
-      "cost": {
-        "USD": "0.001374"
-      },
-      "p50Millis": 544,
-      "p95Millis": 900
-    },
-    {
-      "start": 1794822855,
-      "sent": 5,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 4040,
-      "outputTokens": 1815,
-      "cost": {
-        "USD": "0.001695"
-      },
-      "p50Millis": 574,
-      "p95Millis": 1142
-    },
-    {
-      "start": 1794822860,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822865,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -1433,402 +1602,498 @@
     },
     {
       "start": 1794822870,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2696,
+      "outputTokens": 928,
+      "cost": {
+        "USD": "0.000961"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822875,
+      "sent": 6,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3228,
+      "outputTokens": 1848,
+      "cost": {
+        "USD": "0.001593"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822880,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1239,
+      "outputTokens": 1044,
+      "cost": {
+        "USD": "0.000812"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822885,
+      "sent": 9,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7596,
+      "outputTokens": 3483,
+      "cost": {
+        "USD": "0.003229"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822890,
+      "sent": 9,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 8406,
+      "outputTokens": 3654,
+      "cost": {
+        "USD": "0.003453"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822895,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822900,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7456,
+      "outputTokens": 2576,
+      "cost": {
+        "USD": "0.002664"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822905,
+      "sent": 4,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3528,
+      "outputTokens": 1408,
+      "cost": {
+        "USD": "0.001374"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822910,
+      "sent": 5,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4040,
+      "outputTokens": 1815,
+      "cost": {
+        "USD": "0.001695"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822915,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822920,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794822925,
       "sent": 7,
       "refused": 1,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 5677,
       "outputTokens": 840,
       "cost": {
         "USD": "0.001356"
       },
-      "p50Millis": 412,
-      "p95Millis": 1183
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822875,
+      "start": 1794822930,
       "sent": 9,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 6822,
       "outputTokens": 2700,
       "cost": {
         "USD": "0.002643"
       },
-      "p50Millis": 486,
-      "p95Millis": 1033
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822880,
+      "start": 1794822935,
       "sent": 2,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 1896,
       "outputTokens": 254,
       "cost": {
         "USD": "0.000437"
       },
-      "p50Millis": 665,
-      "p95Millis": 1038
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
-      "start": 1794822885,
+      "start": 1794822940,
       "sent": 8,
       "refused": 2,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 7832,
       "outputTokens": 1184,
       "cost": {
         "USD": "0.001885"
       },
-      "p50Millis": 645,
-      "p95Millis": 1246
+      "p50Millis": 724,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822890,
+      "start": 1794822945,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3740,
       "outputTokens": 1685,
       "cost": {
         "USD": "0.001572"
       },
-      "p50Millis": 578,
-      "p95Millis": 1383
-    },
-    {
-      "start": 1794822895,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1660,
-      "outputTokens": 1296,
-      "cost": {
-        "USD": "0.001027"
-      },
-      "p50Millis": 482,
-      "p95Millis": 907
-    },
-    {
-      "start": 1794822900,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822905,
-      "sent": 5,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2390,
-      "outputTokens": 760,
-      "cost": {
-        "USD": "0.000814"
-      },
-      "p50Millis": 486,
-      "p95Millis": 1617
-    },
-    {
-      "start": 1794822910,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1818,
-      "outputTokens": 696,
-      "cost": {
-        "USD": "0.00069"
-      },
-      "p50Millis": 544,
-      "p95Millis": 1526
-    },
-    {
-      "start": 1794822915,
-      "sent": 10,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 8520,
-      "outputTokens": 3290,
-      "cost": {
-        "USD": "0.003252"
-      },
-      "p50Millis": 433,
-      "p95Millis": 1271
-    },
-    {
-      "start": 1794822920,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1827,
-      "outputTokens": 1083,
-      "cost": {
-        "USD": "0.000924"
-      },
-      "p50Millis": 527,
-      "p95Millis": 1668
-    },
-    {
-      "start": 1794822925,
-      "sent": 4,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 3136,
-      "outputTokens": 748,
-      "cost": {
-        "USD": "0.000919"
-      },
-      "p50Millis": 380,
-      "p95Millis": 906
-    },
-    {
-      "start": 1794822930,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2091,
-      "outputTokens": 585,
-      "cost": {
-        "USD": "0.000665"
-      },
-      "p50Millis": 489,
-      "p95Millis": 1567
-    },
-    {
-      "start": 1794822935,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2092,
-      "outputTokens": 536,
-      "cost": {
-        "USD": "0.000635"
-      },
-      "p50Millis": 383,
-      "p95Millis": 1753
-    },
-    {
-      "start": 1794822940,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822945,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2949,
-      "outputTokens": 477,
-      "cost": {
-        "USD": "0.000729"
-      },
-      "p50Millis": 448,
-      "p95Millis": 1589
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794822950,
       "sent": 4,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2412,
-      "outputTokens": 704,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1660,
+      "outputTokens": 1296,
       "cost": {
-        "USD": "0.000784"
+        "USD": "0.001027"
       },
-      "p50Millis": 399,
-      "p95Millis": 1795
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794822955,
-      "sent": 10,
-      "refused": 2,
+      "sent": 0,
+      "refused": 0,
       "failed": 0,
-      "inputTokens": 7740,
-      "outputTokens": 4150,
-      "cost": {
-        "USD": "0.003651"
-      },
-      "p50Millis": 430,
-      "p95Millis": 1450
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
     },
     {
       "start": 1794822960,
       "sent": 5,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 2390,
+      "outputTokens": 760,
+      "cost": {
+        "USD": "0.000814"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822965,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1818,
+      "outputTokens": 696,
+      "cost": {
+        "USD": "0.00069"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822970,
+      "sent": 10,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 8520,
+      "outputTokens": 3290,
+      "cost": {
+        "USD": "0.003252"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822975,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1827,
+      "outputTokens": 1083,
+      "cost": {
+        "USD": "0.000924"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822980,
+      "sent": 4,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3136,
+      "outputTokens": 748,
+      "cost": {
+        "USD": "0.000919"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794822985,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2091,
+      "outputTokens": 585,
+      "cost": {
+        "USD": "0.000665"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794822990,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2092,
+      "outputTokens": 536,
+      "cost": {
+        "USD": "0.000635"
+      },
+      "p50Millis": 362,
+      "p95Millis": 2048
+    },
+    {
+      "start": 1794822995,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823000,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2949,
+      "outputTokens": 477,
+      "cost": {
+        "USD": "0.000729"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823005,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2412,
+      "outputTokens": 704,
+      "cost": {
+        "USD": "0.000784"
+      },
+      "p50Millis": 362,
+      "p95Millis": 2048
+    },
+    {
+      "start": 1794823010,
+      "sent": 10,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7740,
+      "outputTokens": 4150,
+      "cost": {
+        "USD": "0.003651"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823015,
+      "sent": 5,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2375,
       "outputTokens": 660,
       "cost": {
         "USD": "0.000752"
       },
-      "p50Millis": 450,
-      "p95Millis": 1646
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
-      "start": 1794822965,
+      "start": 1794823020,
       "sent": 9,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 6030,
       "outputTokens": 2709,
       "cost": {
         "USD": "0.00253"
       },
-      "p50Millis": 597,
-      "p95Millis": 1371
-    },
-    {
-      "start": 1794822970,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794822975,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4732,
-      "outputTokens": 1008,
-      "cost": {
-        "USD": "0.001315"
-      },
-      "p50Millis": 557,
-      "p95Millis": 1760
-    },
-    {
-      "start": 1794822980,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 3773,
-      "outputTokens": 987,
-      "cost": {
-        "USD": "0.001158"
-      },
-      "p50Millis": 463,
-      "p95Millis": 963
-    },
-    {
-      "start": 1794822985,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4185,
-      "outputTokens": 1791,
-      "cost": {
-        "USD": "0.001702"
-      },
-      "p50Millis": 469,
-      "p95Millis": 968
-    },
-    {
-      "start": 1794822990,
-      "sent": 10,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 9270,
-      "outputTokens": 2890,
-      "cost": {
-        "USD": "0.003124"
-      },
-      "p50Millis": 607,
-      "p95Millis": 1098
-    },
-    {
-      "start": 1794822995,
-      "sent": 3,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 2634,
-      "outputTokens": 1176,
-      "cost": {
-        "USD": "0.001101"
-      },
-      "p50Millis": 626,
-      "p95Millis": 1139
-    },
-    {
-      "start": 1794823000,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794823005,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 7416,
-      "outputTokens": 2439,
-      "cost": {
-        "USD": "0.002576"
-      },
-      "p50Millis": 511,
-      "p95Millis": 1462
-    },
-    {
-      "start": 1794823010,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794823015,
-      "sent": 3,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 1278,
-      "outputTokens": 474,
-      "cost": {
-        "USD": "0.000476"
-      },
-      "p50Millis": 466,
-      "p95Millis": 1260
-    },
-    {
-      "start": 1794823020,
-      "sent": 6,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2934,
-      "outputTokens": 1806,
-      "cost": {
-        "USD": "0.001524"
-      },
-      "p50Millis": 504,
-      "p95Millis": 1394
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794823025,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -1837,22 +2102,92 @@
     },
     {
       "start": 1794823030,
-      "sent": 5,
+      "sent": 7,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2625,
-      "outputTokens": 1740,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4732,
+      "outputTokens": 1008,
       "cost": {
-        "USD": "0.001438"
+        "USD": "0.001315"
       },
-      "p50Millis": 394,
-      "p95Millis": 1388
+      "p50Millis": 512,
+      "p95Millis": 2048
     },
     {
       "start": 1794823035,
+      "sent": 7,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 3773,
+      "outputTokens": 987,
+      "cost": {
+        "USD": "0.001158"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823040,
+      "sent": 9,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4185,
+      "outputTokens": 1791,
+      "cost": {
+        "USD": "0.001702"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823045,
+      "sent": 10,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 9270,
+      "outputTokens": 2890,
+      "cost": {
+        "USD": "0.003124"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823050,
+      "sent": 3,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2634,
+      "outputTokens": 1176,
+      "cost": {
+        "USD": "0.001101"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823055,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -1860,394 +2195,407 @@
       "p95Millis": null
     },
     {
-      "start": 1794823040,
+      "start": 1794823060,
+      "sent": 9,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7416,
+      "outputTokens": 2439,
+      "cost": {
+        "USD": "0.002576"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823065,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823070,
+      "sent": 3,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1278,
+      "outputTokens": 474,
+      "cost": {
+        "USD": "0.000476"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823075,
+      "sent": 6,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 2934,
+      "outputTokens": 1806,
+      "cost": {
+        "USD": "0.001524"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823080,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823085,
+      "sent": 5,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2625,
+      "outputTokens": 1740,
+      "cost": {
+        "USD": "0.001438"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823090,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823095,
       "sent": 8,
       "refused": 1,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 3856,
       "outputTokens": 2240,
       "cost": {
         "USD": "0.001922"
       },
-      "p50Millis": 629,
-      "p95Millis": 1216
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
-      "start": 1794823045,
+      "start": 1794823100,
       "sent": 3,
       "refused": 1,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 2235,
       "outputTokens": 864,
       "cost": {
         "USD": "0.000854"
       },
-      "p50Millis": 388,
-      "p95Millis": 1153
-    },
-    {
-      "start": 1794823050,
-      "sent": 10,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5840,
-      "outputTokens": 2140,
-      "cost": {
-        "USD": "0.00216"
-      },
-      "p50Millis": 668,
-      "p95Millis": 1117
-    },
-    {
-      "start": 1794823055,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2232,
-      "outputTokens": 699,
-      "cost": {
-        "USD": "0.000754"
-      },
-      "p50Millis": 451,
-      "p95Millis": 1156
-    },
-    {
-      "start": 1794823060,
-      "sent": 4,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 2452,
-      "outputTokens": 736,
-      "cost": {
-        "USD": "0.000809"
-      },
-      "p50Millis": 452,
-      "p95Millis": 1098
-    },
-    {
-      "start": 1794823065,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5440,
-      "outputTokens": 1416,
-      "cost": {
-        "USD": "0.001666"
-      },
-      "p50Millis": 542,
-      "p95Millis": 1173
-    },
-    {
-      "start": 1794823070,
-      "sent": 2,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1846,
-      "outputTokens": 794,
-      "cost": {
-        "USD": "0.000753"
-      },
-      "p50Millis": 577,
-      "p95Millis": 958
-    },
-    {
-      "start": 1794823075,
-      "sent": 10,
-      "refused": 2,
-      "failed": 0,
-      "inputTokens": 9550,
-      "outputTokens": 1390,
-      "cost": {
-        "USD": "0.002266"
-      },
-      "p50Millis": 601,
-      "p95Millis": 1789
-    },
-    {
-      "start": 1794823080,
-      "sent": 8,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5944,
-      "outputTokens": 2920,
-      "cost": {
-        "USD": "0.002644"
-      },
-      "p50Millis": 610,
-      "p95Millis": 954
-    },
-    {
-      "start": 1794823085,
-      "sent": 4,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1716,
-      "outputTokens": 1244,
-      "cost": {
-        "USD": "0.001004"
-      },
-      "p50Millis": 450,
-      "p95Millis": 1775
-    },
-    {
-      "start": 1794823090,
-      "sent": 2,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 908,
-      "outputTokens": 600,
-      "cost": {
-        "USD": "0.000496"
-      },
-      "p50Millis": 571,
-      "p95Millis": 990
-    },
-    {
-      "start": 1794823095,
-      "sent": 2,
-      "refused": 1,
-      "failed": 0,
-      "inputTokens": 1252,
-      "outputTokens": 810,
-      "cost": {
-        "USD": "0.000674"
-      },
-      "p50Millis": 392,
-      "p95Millis": 1330
-    },
-    {
-      "start": 1794823100,
-      "sent": 10,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4080,
-      "outputTokens": 1260,
-      "cost": {
-        "USD": "0.001368"
-      },
-      "p50Millis": 564,
-      "p95Millis": 1432
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
       "start": 1794823105,
       "sent": 10,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5840,
+      "outputTokens": 2140,
+      "cost": {
+        "USD": "0.00216"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823110,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2232,
+      "outputTokens": 699,
+      "cost": {
+        "USD": "0.000754"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823115,
+      "sent": 4,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2452,
+      "outputTokens": 736,
+      "cost": {
+        "USD": "0.000809"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823120,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5440,
+      "outputTokens": 1416,
+      "cost": {
+        "USD": "0.001666"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823125,
+      "sent": 2,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1846,
+      "outputTokens": 794,
+      "cost": {
+        "USD": "0.000753"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823130,
+      "sent": 10,
+      "refused": 2,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 9550,
+      "outputTokens": 1390,
+      "cost": {
+        "USD": "0.002266"
+      },
+      "p50Millis": 512,
+      "p95Millis": 2048
+    },
+    {
+      "start": 1794823135,
+      "sent": 8,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5944,
+      "outputTokens": 2920,
+      "cost": {
+        "USD": "0.002644"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823140,
+      "sent": 4,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1716,
+      "outputTokens": 1244,
+      "cost": {
+        "USD": "0.001004"
+      },
+      "p50Millis": 512,
+      "p95Millis": 2048
+    },
+    {
+      "start": 1794823145,
+      "sent": 2,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 908,
+      "outputTokens": 600,
+      "cost": {
+        "USD": "0.000496"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823150,
+      "sent": 2,
+      "refused": 1,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1252,
+      "outputTokens": 810,
+      "cost": {
+        "USD": "0.000674"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823155,
+      "sent": 10,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4080,
+      "outputTokens": 1260,
+      "cost": {
+        "USD": "0.001368"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823160,
+      "sent": 10,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 5860,
       "outputTokens": 1930,
       "cost": {
         "USD": "0.002037"
       },
-      "p50Millis": 656,
-      "p95Millis": 1176
-    },
-    {
-      "start": 1794823110,
-      "sent": 5,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4200,
-      "outputTokens": 1505,
-      "cost": {
-        "USD": "0.001533"
-      },
-      "p50Millis": 522,
-      "p95Millis": 1232
-    },
-    {
-      "start": 1794823115,
-      "sent": 5,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4745,
-      "outputTokens": 2055,
-      "cost": {
-        "USD": "0.001945"
-      },
-      "p50Millis": 498,
-      "p95Millis": 1742
-    },
-    {
-      "start": 1794823120,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5684,
-      "outputTokens": 2408,
-      "cost": {
-        "USD": "0.002297"
-      },
-      "p50Millis": 575,
-      "p95Millis": 1669
-    },
-    {
-      "start": 1794823125,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2460,
-      "outputTokens": 1089,
-      "cost": {
-        "USD": "0.001022"
-      },
-      "p50Millis": 494,
-      "p95Millis": 1578
-    },
-    {
-      "start": 1794823130,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794823135,
-      "sent": 9,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 7794,
-      "outputTokens": 1791,
-      "cost": {
-        "USD": "0.002244"
-      },
-      "p50Millis": 661,
-      "p95Millis": 1183
-    },
-    {
-      "start": 1794823140,
-      "sent": 0,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
-    },
-    {
-      "start": 1794823145,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2955,
-      "outputTokens": 450,
-      "cost": {
-        "USD": "0.000713"
-      },
-      "p50Millis": 581,
-      "p95Millis": 1058
-    },
-    {
-      "start": 1794823150,
-      "sent": 7,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 5579,
-      "outputTokens": 2646,
-      "cost": {
-        "USD": "0.002424"
-      },
-      "p50Millis": 488,
-      "p95Millis": 1308
-    },
-    {
-      "start": 1794823155,
-      "sent": 2,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 1438,
-      "outputTokens": 290,
-      "cost": {
-        "USD": "0.00039"
-      },
-      "p50Millis": 633,
-      "p95Millis": 1383
-    },
-    {
-      "start": 1794823160,
-      "sent": 6,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 4086,
-      "outputTokens": 798,
-      "cost": {
-        "USD": "0.001092"
-      },
-      "p50Millis": 553,
-      "p95Millis": 1290
+      "p50Millis": 724,
+      "p95Millis": 1024
     },
     {
       "start": 1794823165,
       "sent": 5,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 4155,
-      "outputTokens": 1170,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4200,
+      "outputTokens": 1505,
       "cost": {
-        "USD": "0.001325"
+        "USD": "0.001533"
       },
-      "p50Millis": 532,
-      "p95Millis": 924
+      "p50Millis": 512,
+      "p95Millis": 1024
     },
     {
       "start": 1794823170,
-      "sent": 3,
+      "sent": 5,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 2376,
-      "outputTokens": 1152,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4745,
+      "outputTokens": 2055,
       "cost": {
-        "USD": "0.001048"
+        "USD": "0.001945"
       },
-      "p50Millis": 432,
-      "p95Millis": 1007
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794823175,
-      "sent": 0,
+      "sent": 7,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "cost": {},
-      "p50Millis": null,
-      "p95Millis": null
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5684,
+      "outputTokens": 2408,
+      "cost": {
+        "USD": "0.002297"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794823180,
       "sent": 3,
       "refused": 0,
       "failed": 0,
-      "inputTokens": 1302,
-      "outputTokens": 654,
+      "clientErrors": 0,
+      "serverErrors": 1,
+      "clientClosed": 0,
+      "inputTokens": 2460,
+      "outputTokens": 1089,
       "cost": {
-        "USD": "0.000588"
+        "USD": "0.001022"
       },
-      "p50Millis": 614,
-      "p95Millis": 1547
+      "p50Millis": 512,
+      "p95Millis": 1448
     },
     {
       "start": 1794823185,
-      "sent": 3,
-      "refused": 0,
-      "failed": 0,
-      "inputTokens": 2205,
-      "outputTokens": 507,
-      "cost": {
-        "USD": "0.000635"
-      },
-      "p50Millis": 387,
-      "p95Millis": 952
-    },
-    {
-      "start": 1794823190,
       "sent": 0,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 0,
       "outputTokens": 0,
       "cost": {},
@@ -2255,89 +2603,368 @@
       "p95Millis": null
     },
     {
+      "start": 1794823190,
+      "sent": 9,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 7794,
+      "outputTokens": 1791,
+      "cost": {
+        "USD": "0.002244"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1024
+    },
+    {
       "start": 1794823195,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823200,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2955,
+      "outputTokens": 450,
+      "cost": {
+        "USD": "0.000713"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823205,
+      "sent": 7,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 5579,
+      "outputTokens": 2646,
+      "cost": {
+        "USD": "0.002424"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823210,
+      "sent": 2,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1438,
+      "outputTokens": 290,
+      "cost": {
+        "USD": "0.00039"
+      },
+      "p50Millis": 724,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823215,
+      "sent": 6,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4086,
+      "outputTokens": 798,
+      "cost": {
+        "USD": "0.001092"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823220,
+      "sent": 5,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 4155,
+      "outputTokens": 1170,
+      "cost": {
+        "USD": "0.001325"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823225,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2376,
+      "outputTokens": 1152,
+      "cost": {
+        "USD": "0.001048"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823230,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823235,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 1302,
+      "outputTokens": 654,
+      "cost": {
+        "USD": "0.000588"
+      },
+      "p50Millis": 512,
+      "p95Millis": 1448
+    },
+    {
+      "start": 1794823240,
+      "sent": 3,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 2205,
+      "outputTokens": 507,
+      "cost": {
+        "USD": "0.000635"
+      },
+      "p50Millis": 362,
+      "p95Millis": 1024
+    },
+    {
+      "start": 1794823245,
+      "sent": 0,
+      "refused": 0,
+      "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cost": {},
+      "p50Millis": null,
+      "p95Millis": null
+    },
+    {
+      "start": 1794823250,
       "sent": 10,
       "refused": 0,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 4430,
       "outputTokens": 3520,
       "cost": {
         "USD": "0.002776"
       },
-      "p50Millis": 389,
-      "p95Millis": 1043
+      "p50Millis": 362,
+      "p95Millis": 1024
     },
     {
-      "start": 1794823200,
+      "start": 1794823255,
       "sent": 3,
       "refused": 2,
       "failed": 0,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "inputTokens": 1479,
       "outputTokens": 1104,
       "cost": {
         "USD": "0.000884"
       },
-      "p50Millis": 452,
-      "p95Millis": 1272
+      "p50Millis": 512,
+      "p95Millis": 1448
     }
   ],
-  "p50Millis": 541,
-  "p95Millis": 1480,
+  "totals": {
+    "sent": 856,
+    "refused": 64,
+    "failed": 6,
+    "clientErrors": 13,
+    "serverErrors": 8,
+    "clientClosed": 2,
+    "inputTokens": 601159,
+    "outputTokens": 235630,
+    "cost": {
+      "USD": "0.231547"
+    },
+    "seconds": 897,
+    "p50Millis": 512,
+    "p95Millis": 1448
+  },
+  "previous": {
+    "sent": 702,
+    "refused": 41,
+    "failed": 9,
+    "clientErrors": 11,
+    "serverErrors": 4,
+    "clientClosed": 2,
+    "inputTokens": 371400,
+    "outputTokens": 139200,
+    "cost": {
+      "USD": "0.5124"
+    },
+    "seconds": 900,
+    "p50Millis": 512,
+    "p95Millis": 1448
+  },
+  "latency": {
+    "providers": {
+      "openai": {
+        "p50Millis": 512,
+        "p95Millis": 1448
+      },
+      "ollama": {
+        "p50Millis": 362,
+        "p95Millis": 1024
+      },
+      "anthropic": {
+        "p50Millis": 1024,
+        "p95Millis": 2048
+      }
+    },
+    "tenants": {
+      "support-bot": {
+        "p50Millis": 512,
+        "p95Millis": 1448
+      },
+      "research": {
+        "p50Millis": 362,
+        "p95Millis": 1024
+      },
+      "my-app": {
+        "p50Millis": 362,
+        "p95Millis": 1024
+      }
+    },
+    "models": {
+      "gpt-fast": {
+        "p50Millis": 512,
+        "p95Millis": 1448
+      },
+      "qwen3": {
+        "p50Millis": 362,
+        "p95Millis": 1024
+      },
+      "claude-sonnet": {
+        "p50Millis": 1024,
+        "p95Millis": 2048
+      }
+    }
+  },
+  "p50Millis": 512,
+  "p95Millis": 1448,
   "flows": [
     {
       "tenant": "support-bot",
       "model": "gpt-fast",
       "provider": "openai",
-      "sent": 412,
+      "sent": 560,
+      "clientErrors": 6,
+      "serverErrors": 5,
+      "clientClosed": 1,
       "refused": {
-        "data_class": 9,
+        "data_class": 30,
         "tool_not_allowed": 3
       },
       "failed": 4,
-      "fallbacks": 11,
-      "inputTokens": 231400,
-      "outputTokens": 98200,
+      "fallbacks": 0,
+      "inputTokens": 351000,
+      "outputTokens": 138000,
       "cost": {
         "USD": "0.0936"
       },
       "redacted": 27,
-      "lastSent": "2026-11-16T09:59:58Z",
-      "lastRefused": "2026-11-16T09:59:29Z",
-      "lastFallback": "2026-11-16T09:58:25Z"
+      "lastSent": "2026-11-16T10:00:51Z",
+      "lastRefused": "2026-11-16T10:00:20Z",
+      "lastFallback": null
     },
     {
       "tenant": "support-bot",
       "model": "qwen3",
       "provider": "ollama",
-      "sent": 11,
-      "refused": {},
+      "sent": 150,
+      "clientErrors": 1,
+      "serverErrors": 0,
+      "clientClosed": 0,
+      "refused": {
+        "data_class": 6
+      },
       "failed": 0,
-      "fallbacks": 0,
-      "inputTokens": 5200,
-      "outputTokens": 2400,
+      "fallbacks": 11,
+      "inputTokens": 90000,
+      "outputTokens": 36000,
       "cost": {
         "USD": "0"
       },
       "redacted": 1,
-      "lastSent": "2026-11-16T09:58:25Z",
-      "lastRefused": null,
-      "lastFallback": null
+      "lastSent": "2026-11-16T10:00:41Z",
+      "lastRefused": "2026-11-16T09:59:29Z",
+      "lastFallback": "2026-11-16T09:58:25Z"
     },
     {
       "tenant": "support-bot",
       "model": "claude-sonnet",
       "provider": "anthropic",
-      "sent": 63,
+      "sent": 70,
+      "clientErrors": 2,
+      "serverErrors": 3,
+      "clientClosed": 1,
       "refused": {},
-      "failed": 1,
+      "failed": 2,
       "fallbacks": 0,
       "inputTokens": 61000,
       "outputTokens": 22800,
       "cost": {
-        "USD": "0.525"
+        "USD": "0.137947"
       },
       "redacted": 5,
-      "lastSent": "2026-11-16T09:59:52Z",
+      "lastSent": "2026-11-16T10:00:44Z",
       "lastRefused": null,
       "lastFallback": null
     },
@@ -2345,14 +2972,18 @@
       "tenant": "research",
       "model": "qwen3",
       "provider": "ollama",
-      "sent": 38,
+      "sent": 60,
+      "clientErrors": 4,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "refused": {
-        "body_too_large": 2
+        "body_too_large": 5,
+        "data_class": 20
       },
       "failed": 0,
       "fallbacks": 0,
-      "inputTokens": 40100,
-      "outputTokens": 17900,
+      "inputTokens": 80000,
+      "outputTokens": 30000,
       "cost": {
         "USD": "0"
       },
@@ -2365,12 +2996,15 @@
       "tenant": "my-app",
       "model": "qwen3",
       "provider": "ollama",
-      "sent": 5,
+      "sent": 16,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "clientClosed": 0,
       "refused": {},
       "failed": 0,
       "fallbacks": 0,
-      "inputTokens": 900,
-      "outputTokens": 620,
+      "inputTokens": 19159,
+      "outputTokens": 8830,
       "cost": {
         "USD": "0"
       },
@@ -2384,15 +3018,15 @@
     {
       "tenant": "support-bot",
       "guard": "data-class",
-      "allowed": 486,
-      "refused": 9,
+      "allowed": 789,
+      "refused": 36,
       "monitored": 0,
-      "lastRefused": "2026-11-16T09:59:29Z"
+      "lastRefused": "2026-11-16T10:00:20Z"
     },
     {
       "tenant": "support-bot",
       "guard": "tool-names",
-      "allowed": 480,
+      "allowed": 789,
       "refused": 0,
       "monitored": 3,
       "lastRefused": null
@@ -2400,16 +3034,16 @@
     {
       "tenant": "research",
       "guard": "data-class",
-      "allowed": 38,
-      "refused": 0,
+      "allowed": 60,
+      "refused": 20,
       "monitored": 0,
-      "lastRefused": null
+      "lastRefused": "2026-11-16T09:56:00Z"
     },
     {
       "tenant": "research",
       "guard": "request-size",
-      "allowed": 38,
-      "refused": 2,
+      "allowed": 60,
+      "refused": 5,
       "monitored": 0,
       "lastRefused": "2026-11-16T09:56:00Z"
     }
@@ -2426,7 +3060,7 @@
     "records": 128,
     "time": "2026-11-16T09:58:00Z",
     "root": "061580443ca34741a17131bf9c5f518d7e003254a42315051cb6d7a6c562c199",
-    "previous": "21527f47fdfc55afe34ec49decd73c0d89a993e0efabb5df509349f0265030b4",
+    "previous": "9eb0ad4af7990611287f516425be7e89eefff499aef40d1c696c2f8ec3e4ea3f",
     "key": "e3b0c44298fc1c14",
     "hmacKey": "98f2a1d7c4e0b365"
   }
