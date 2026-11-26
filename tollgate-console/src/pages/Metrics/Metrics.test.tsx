@@ -106,8 +106,8 @@ test('changingTheWindowKeepsTheDataOnScreenWritesTheUrlAndAsksForTheNewWindow', 
   serve(() => new Promise<Response>(() => undefined) as unknown as Response);
   fireEvent.click(screen.getByRole('tab', { name: '5 min' }));
   expect(location.hash).toBe('#/metrics?minutes=5');
+  await vi.waitFor(() => expect(liveCalls().at(-1)).toBe('/admin/v1/live?minutes=5&step=15'));
   await settle();
-  expect(liveCalls().at(-1)).toBe('/admin/v1/live?minutes=5&step=15');
   expect(screen.getByRole('tab', { name: '5 min' }).getAttribute('aria-selected')).toBe('true');
   expect(screen.getByText('Latency p95')).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Over time' })).toBeTruthy();
@@ -123,12 +123,7 @@ test('showsTheNewWindowsFiguresOnceTheyArrive', async () => {
   };
   serve(() => answer(200, smaller));
   fireEvent.click(screen.getByRole('tab', { name: '5 min' }));
-  for (let turn = 0; turn < 10; turn += 1) {
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(50);
-    });
-  }
-  expect(screen.getByText('8 per minute')).toBeTruthy();
+  await vi.waitFor(() => expect(screen.getByText('8 per minute')).toBeTruthy());
   expect(screen.queryByText('926')).toBeNull();
 });
 
